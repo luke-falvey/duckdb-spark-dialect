@@ -459,13 +459,18 @@ ExprPtr RewriteFunction(ExprPtr expr);
 void CollectTokens(ParseResult &pr, vector<string> &out) {
 	switch (pr.type) {
 	case ParseResultType::KEYWORD:
-		out.push_back(pr.Cast<KeywordParseResult>().keyword);
+		if (pr.Cast<KeywordParseResult>().keyword != ".") {
+			out.push_back(pr.Cast<KeywordParseResult>().keyword);
+		}
 		break;
 	case ParseResultType::IDENTIFIER:
 		out.push_back(pr.Cast<IdentifierParseResult>().identifier.GetIdentifierName());
 		break;
 	case ParseResultType::TOKEN:
 		out.push_back(pr.Cast<TokenParseResult>().text);
+		break;
+	case ParseResultType::OPERATOR:
+		out.push_back(pr.Cast<OperatorParseResult>().operator_token);
 		break;
 	case ParseResultType::CHOICE:
 		CollectTokens(pr.Cast<ChoiceParseResult>().GetResult(), out);
@@ -1206,6 +1211,197 @@ ExprPtr TransformCharType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("VARCHAR");
 }
 
+
+//===----------------------------------------------------------------------===//
+// spark_strict: reject DuckDB-only syntax
+//===----------------------------------------------------------------------===//
+string RuleName(const char *definition) {
+	string text(definition);
+	return StringUtil::Replace(text.substr(0, text.find("<-")), " ", "");
+}
+
+//! Raise when the rule matches: the dialect has no such construct. The rule keeps DuckDB's recipe.
+void RejectRule(ParsedGrammar &g, const char *definition, const string &message) {
+	auto name = RuleName(definition);
+	auto rule = g.GetRule(name);
+	if (!rule) {
+		throw InternalException("spark dialect: rule %s not found", name);
+	}
+	g.SetTransformProcess(
+	    name,
+	    [message](PEGTransformer &, ParseResult &) -> arena_ptr<TransformProcess> {
+		    throw ParserException("%s", message);
+	    },
+	    false, rule->suppress_suggestions);
+}
+
+//! Keep the rule's transform but run `check` on the parse result first (the check raises)
+void GuardRule(ParsedGrammar &g, const char *definition, std::function<void(ParseResult &)> check) {
+	auto name = RuleName(definition);
+	auto rule = g.GetRule(name);
+	if (!rule || !rule->transform_process) {
+		throw InternalException("spark dialect: cannot guard rule %s", definition);
+	}
+	auto original = rule->transform_process;
+	// not collapsible: the check must see every match
+	g.SetTransformProcess(
+	    name,
+	    [original, check](PEGTransformer &t, ParseResult &pr) -> arena_ptr<TransformProcess> {
+		    check(pr);
+		    return original(t, pr);
+	    },
+	    false, rule->suppress_suggestions);
+}
+
+//! Remove the alternative `name` from a choice rule
+void RemoveReference(ParsedGrammar &g, const char *rule, const char *name) {
+	g.RemoveChoice(rule, [name](const PEGExpression &e) {
+		return e.type == PEGExpression::Type::REFERENCE && e.text.GetString() == name;
+	});
+}
+
+bool HasToken(ParseResult &pr, const char *upper_token) {
+	vector<string> tokens;
+	CollectTokens(pr, tokens);
+	for (auto &token : tokens) {
+		if (StringUtil::CIEquals(token, upper_token)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+//! Spark 3.5 type names (a type the user wrote, lower case)
+bool IsSparkTypeName(const string &name) {
+	static const unordered_set<string> names = {
+	    "boolean", "tinyint",   "byte",          "smallint", "short",     "int",       "integer", "bigint",
+	    "long",    "float",     "real",          "double",   "decimal",   "dec",       "numeric", "string",
+	    "varchar", "char",      "character",     "binary",   "date",      "timestamp", "timestamp_ntz",
+	    "timestamp_ltz", "interval", "void"};
+	return names.count(name) > 0;
+}
+
+//! Spark 3.5 table-valued functions
+bool IsSparkTableFunction(const string &name) {
+	static const unordered_set<string> names = {"range",         "explode",   "explode_outer", "inline",
+	                                            "inline_outer",  "posexplode", "posexplode_outer", "stack",
+	                                            "json_tuple",    "sql_keywords"};
+	return names.count(name) > 0;
+}
+
+void ApplyStrictGrammar(ParsedGrammar &g) {
+	// ---- expressions ----
+	RejectRule(g, "ListExpression <- ArrayBoundedListExpression / ArrayParensSelect",
+	           "Spark SQL does not support DuckDB's list literals; use array(...)");
+	RejectRule(g, "ListComprehensionExpression <- '[' Expression 'FOR' List(ColIdOrString) 'IN' Expression "
+	              "ListComprehensionFilter? ']'",
+	           "Spark SQL does not support list comprehensions");
+	RejectRule(g, "StructExpression <- '{' List(StructField)? '}'",
+	           "Spark SQL does not support DuckDB's struct literals; use struct(...) or named_struct(...)");
+	RejectRule(g, "MapExpression <- 'MAP' MapStructExpression",
+	           "Spark SQL does not support DuckDB's MAP {...} literals; use map(...)");
+	RejectRule(g, "PositionalExpression <- '#' NumberLiteral", "Spark SQL does not support positional references (#1)");
+	RejectRule(g, "TryExpression <- 'TRY' Parens(Expression)", "Spark SQL does not support DuckDB's TRY(...)");
+	RejectRule(g, "ColumnsExpression <- StarSymbol? 'COLUMNS' Parens(Expression)",
+	           "Spark SQL does not support DuckDB's COLUMNS(...)");
+	RejectRule(g, "UnpackExpression <- 'UNPACK' Parens(Expression)", "Spark SQL does not support DuckDB's UNPACK(...)");
+	RejectRule(g, "LambdaExpression <- 'LAMBDA' List(ColIdOrString) ':' Expression",
+	           "Spark SQL does not support DuckDB's lambda syntax; use x -> expr");
+	RejectRule(g, "ColIdExpression <- ColId ':' Expression", "Spark SQL does not support the 'alias: expression' syntax");
+	RejectRule(g, "ExcludeList <- ExcludeOrExcept ExcludeNames", "Spark SQL does not support * EXCLUDE / * EXCEPT");
+	RejectRule(g, "ReplaceList <- 'REPLACE' ReplaceEntries", "Spark SQL does not support * REPLACE");
+	RejectRule(g, "RenameList <- 'RENAME' RenameEntries", "Spark SQL does not support * RENAME");
+
+	RemoveReference(g, "SpIndirection", "SpCast");
+	RejectRule(g, "SummarizeRule <- 'SUMMARIZE'", "Spark SQL does not support SUMMARIZE");
+
+	// ---- query clauses ----
+	RejectRule(g, "QualifyClause <- 'QUALIFY' Expression", "Spark SQL does not support QUALIFY");
+	RejectRule(g, "Asof <- 'ASOF'", "Spark SQL does not support ASOF joins");
+	RejectRule(g, "PositionalJoinPrefix <- 'POSITIONAL'", "Spark SQL does not support POSITIONAL joins");
+	RejectRule(g, "JoinByClause <- 'JOIN' 'BY' Parens('TYPE' ColLabel) TableRef JoinQualifier",
+	           "Spark SQL does not support JOIN BY");
+	RejectRule(g, "NearestJoinClause <- NearestJoinBare / NearestJoinAliased",
+	           "Spark SQL does not support NEAREST BY joins");
+	RejectRule(g, "SelectSampleClause <- UsingSample SampleEntry", "Spark SQL does not support USING SAMPLE; use TABLESAMPLE");
+	RejectRule(g, "SampleFunction <- ColId", "Spark SQL does not support TABLESAMPLE sampling methods");
+	RejectRule(g, "SampleProperties <- ColId (',' SampleSeed)?", "Spark SQL does not support TABLESAMPLE sampling methods");
+	RejectRule(g, "LimitLiteralPercent <- NumberLiteral 'PERCENT'", "Spark SQL does not support LIMIT <n> PERCENT");
+	GuardRule(g, "LimitExpression <- Expression '%'?", [](ParseResult &pr) {
+		if (HasOptional(AsList(pr).GetChild(1))) {
+			throw ParserException("Spark SQL does not support LIMIT <n>%%");
+		}
+	});
+	GuardRule(g, "SamplePercentage <- '%' / 'PERCENT'", [](ParseResult &pr) {
+		if (Literal(pr) == "%") {
+			throw ParserException("Spark SQL does not support TABLESAMPLE <n>%%; use <n> PERCENT");
+		}
+	});
+	// table functions in FROM are limited to Spark's own
+	GuardRule(g, "QualifiedTableFunction <- CatalogQualification? SchemaQualification* TableFunctionName",
+	          [](ParseResult &pr) {
+		          vector<string> tokens;
+		          CollectTokens(pr, tokens);
+		          // table functions generated by the tokenizer are qualified (system.spark.sql_keywords)
+		          if (tokens.size() >= 3 && StringUtil::CIEquals(tokens[0], SYSTEM_CATALOG) &&
+		              StringUtil::CIEquals(tokens[1], SPARK_SCHEMA)) {
+			          return;
+		          }
+		          if (tokens.size() != 1 || !IsSparkTableFunction(StringUtil::Lower(tokens[0]))) {
+			          throw BinderException("[UNRESOLVED_ROUTINE] Cannot resolve table-valued function `%s`: it is not a "
+			                                "Spark SQL function",
+			                                tokens.empty() ? string() : tokens.back());
+		          }
+	          });
+
+	// ---- statements ----
+	for (auto name : {"ExternalResourceStatement", "ExtensionRepositoryStatement", "PragmaStatement", "CallStatement",
+	                  "CopyStatement", "PrepareStatement", "ExecuteStatement", "TransactionStatement",
+	                  "AttachStatement", "DetachStatement", "CheckpointStatement", "VacuumStatement",
+	                  "ExportStatement", "ImportStatement", "DeallocateStatement", "LoadStatement",
+	                  "InstallStatement", "UpdateExtensionsStatement", "ConnectStatement", "DisconnectStatement"}) {
+		RemoveReference(g, "Statement", name);
+	}
+	RemoveReference(g, "SelectStatementType", "PivotStatement");
+	RemoveReference(g, "SelectStatementType", "UnpivotStatement");
+	for (auto name : {"CreateMacroStmt", "CreateSequenceStmt", "CreateTypeStmt", "CreateIndexStmt", "CreateSecretStmt",
+	                  "CreateTriggerStmt"}) {
+		RemoveReference(g, "CreateStatementVariation", name);
+	}
+	RejectRule(g, "OrAction <- InsertOrReplace / InsertOrIgnore", "Spark SQL does not support INSERT OR REPLACE / IGNORE");
+	RejectRule(g, "OnConflictClause <- 'ON' 'CONFLICT' OnConflictTarget? OnConflictAction",
+	           "Spark SQL does not support ON CONFLICT");
+	RejectRule(g, "ReturningClause <- 'RETURNING' TargetList", "Spark SQL does not support RETURNING");
+
+	// ---- types ----
+	for (auto name : {"BitType", "RowType", "VariantType", "MapType", "TupleType", "GeometryType", "UnionType",
+	                  "SetofType"}) {
+		RemoveReference(g, "TypeVariations", name);
+	}
+	RejectRule(g, "ArrayBounds <- ArrayKeywordWithBounds / SquareBracketsArray / ArrayKeyword",
+	           "Spark SQL does not support DuckDB's array types (T[]); use ARRAY<T>");
+	GuardRule(g, "QualifiedSimpleType <- QualifiedTypeName TypeModifiers?", [](ParseResult &pr) {
+		vector<string> tokens;
+		CollectTokens(AsList(pr).GetChild(0), tokens);
+		// the extension's own system.spark.* types are allowed
+		if (tokens.size() >= 3 && StringUtil::CIEquals(tokens[0], SYSTEM_CATALOG) &&
+		    StringUtil::CIEquals(tokens[1], SPARK_SCHEMA)) {
+			return;
+		}
+		if (tokens.size() != 1 || !IsSparkTypeName(StringUtil::Lower(tokens[0]))) {
+			throw ParserException("[UNSUPPORTED_DATATYPE] Spark SQL does not support the data type `%s`",
+			                      tokens.empty() ? string() : tokens.back());
+		}
+	});
+	GuardRule(g, "TimeType <- TimeOrTimestamp TypeModifiers? TimeZone?", [](ParseResult &pr) {
+		auto &list = AsList(pr);
+		if (!HasToken(list.GetChild(0), "TIMESTAMP") || HasOptional(list.GetChild(2)) || HasOptional(list.GetChild(1))) {
+			throw ParserException("[UNSUPPORTED_DATATYPE] Spark SQL only supports TIMESTAMP, TIMESTAMP_NTZ and "
+			                      "TIMESTAMP_LTZ");
+		}
+	});
+}
+
 //===----------------------------------------------------------------------===//
 // Grammar text
 //===----------------------------------------------------------------------===//
@@ -1359,6 +1555,10 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	}
 	g.AddRule("DuckCastExpression <- CastOrTryCast Parens(CastArguments)", cast_rule->transform_process);
 	g.ReplaceRule("CastExpression <- DuckCastExpression", ExprProcess<TransformCastHook>);
+
+	if (strict) {
+		ApplyStrictGrammar(g);
+	}
 }
 
 } // namespace duckdb

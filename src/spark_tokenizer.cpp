@@ -243,6 +243,20 @@ bool SparkTokenizer::TokenizeInput(TokenizerBehavior &behavior) const {
 	auto lex = PreScan(behavior.sql);
 	ForwardingBehavior forwarding(lex.masked, behavior);
 	auto result = Tokenizer::TokenizeInput(forwarding);
+	if (strict) {
+		// Spark has neither E'...' escape strings nor $$...$$ dollar quoting (checked before Spark strings are rewritten)
+		for (auto &token : behavior.tokens) {
+			if (token.type != TokenType::STRING_LITERAL || token.text.empty() || token.text[0] == '\'') {
+				continue;
+			}
+			if (token.text[0] == '$') {
+				throw ParserException("Spark SQL does not support dollar-quoted strings");
+			}
+			if (token.text.size() > 1 && (token.text[0] == 'E' || token.text[0] == 'e') && token.text[1] == '\'') {
+				throw ParserException("Spark SQL does not support E'...' escape strings");
+			}
+		}
+	}
 	for (auto &token : behavior.tokens) {
 		if (token.type != TokenType::STRING_LITERAL) {
 			continue;
@@ -1043,7 +1057,7 @@ Tokens EmptyResult(idx_t offset) {
 }
 
 //! Returns true if the statement was replaced completely.
-bool RewriteStatement(Tokens &ts) {
+bool RewriteStatement(Tokens &ts, bool strict) {
 	if (ts.empty()) {
 		return false;
 	}
@@ -1065,6 +1079,28 @@ bool RewriteStatement(Tokens &ts) {
 		}
 		if (WordAt(ts, i, "DATABASE") || WordAt(ts, i, "NAMESPACE")) {
 			ts[i] = MatcherToken("SCHEMA", ts[i].offset, TokenType::KEYWORD);
+		}
+		// DuckDB parses type strings (json_transform, CAST to a type name, ...) with `CREATE TABLE tbl (dummy <type>)`
+		bool type_probe = WordAt(ts, i + 1, "tbl") && OpAt(ts, i + 2, "(") && WordAt(ts, i + 3, "dummy");
+		if (strict && WordAt(ts, i, "TABLE") && !type_probe) {
+			// without Hive support Spark only creates tables with a data source (USING), also for CREATE TABLE AS
+			int64_t depth = 0;
+			bool has_using = false;
+			for (idx_t k = i + 1; k < ts.size(); k++) {
+				if (IsOp(ts[k], "(")) {
+					depth++;
+				} else if (IsOp(ts[k], ")")) {
+					depth--;
+				} else if (depth == 0 && (IsWord(ts[k], "USING") || IsWord(ts[k], "LIKE"))) {
+					has_using = true;
+				} else if (depth == 0 && IsWord(ts[k], "AS")) {
+					break;
+				}
+			}
+			if (!has_using) {
+				throw ParserException("[NOT_SUPPORTED_COMMAND_WITHOUT_HIVE_SUPPORT] CREATE Hive TABLE is not supported: "
+				                      "add a USING clause (for example USING parquet)");
+			}
 		}
 		if (WordAt(ts, i, "TABLE") || WordAt(ts, i, "VIEW") || WordAt(ts, i, "SCHEMA")) {
 			StripTableOptions(ts, i + 1);
@@ -1247,7 +1283,8 @@ bool RewriteStatement(Tokens &ts) {
 			ts = Lex("SELECT 'key' AS key , 'value' AS value WHERE false", offset);
 			return true;
 		}
-		bool spark_key = key.find('.') != string::npos || StringUtil::StartsWith(key, "-");
+		// Spark stores any key=value; spark_strict never passes a setting on to DuckDB
+		bool spark_key = strict || key.find('.') != string::npos || StringUtil::StartsWith(key, "-");
 		if (!spark_key) {
 			return false;
 		}
@@ -1622,6 +1659,14 @@ void RenameWindowCalls(Tokens &ts) {
 }
 
 void SparkRewriteTokens(Tokens &tokens, bool strict) {
+	if (strict) {
+		// ROW(...) is DuckDB's; the rewrites below generate it themselves for positional struct inserts
+		for (idx_t i = 0; i + 1 < tokens.size(); i++) {
+			if (IsWord(tokens[i], "ROW") && OpAt(tokens, i + 1, "(")) {
+				throw ParserException("Spark SQL does not support ROW(...); use struct(...)");
+			}
+		}
+	}
 	Tokens result;
 	result.reserve(tokens.size());
 	idx_t start = 0;
@@ -1631,7 +1676,7 @@ void SparkRewriteTokens(Tokens &tokens, bool strict) {
 		}
 		Tokens statement(tokens.begin() + NumericCast<int64_t>(start), tokens.begin() + NumericCast<int64_t>(i));
 		RewriteLiterals(statement);
-		if (!RewriteStatement(statement)) {
+		if (!RewriteStatement(statement, strict)) {
 			RewriteQueryClauses(statement);
 			RewritePivotAggregates(statement);
 			RewriteWindowColumn(statement);
