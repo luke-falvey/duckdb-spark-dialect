@@ -603,8 +603,13 @@ void RewriteLiterals(Tokens &ts) {
 				continue;
 			}
 			auto stripped = number.substr(MinValue(number.find_first_not_of('0'), number.size() - 1));
-			if (stripped.size() < 19 || (stripped.size() == 19 && stripped <= "9223372036854775807") ||
-			    stripped.size() > 38) {
+			if (stripped.size() > 38) {
+				// Spark has no integer type wider than DECIMAL(38, 0); DuckDB would make it a BIGNUM
+				throw ParserException("[DECIMAL_PRECISION_EXCEEDS_MAX_PRECISION] Decimal precision %llu exceeds max "
+				                      "precision 38.",
+				                      (unsigned long long)stripped.size());
+			}
+			if (stripped.size() < 19 || (stripped.size() == 19 && stripped <= "9223372036854775807")) {
 				continue;
 			}
 			type = "DECIMAL(" + to_string(stripped.size()) + ",0)";
