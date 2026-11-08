@@ -1329,12 +1329,12 @@ void ApplyStrictGrammar(ParsedGrammar &g) {
 	RejectRule(g, "LimitLiteralPercent <- NumberLiteral 'PERCENT'", "Spark SQL does not support LIMIT <n> PERCENT");
 	GuardRule(g, "LimitExpression <- Expression '%'?", [](ParseResult &pr) {
 		if (HasOptional(AsList(pr).GetChild(1))) {
-			throw ParserException("Spark SQL does not support LIMIT <n>%%");
+			throw ParserException("Spark SQL does not support LIMIT <n>%");
 		}
 	});
 	GuardRule(g, "SamplePercentage <- '%' / 'PERCENT'", [](ParseResult &pr) {
 		if (Literal(pr) == "%") {
-			throw ParserException("Spark SQL does not support TABLESAMPLE <n>%%; use <n> PERCENT");
+			throw ParserException("Spark SQL does not support TABLESAMPLE <n>%; use <n> PERCENT");
 		}
 	});
 	// table functions in FROM are limited to Spark's own

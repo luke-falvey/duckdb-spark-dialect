@@ -15,6 +15,45 @@ SELECT 2147483647 + 1, 7 div 2, 1 / 0, ARRAY(10, 20)[0], 1 <=> NULL, 12 ^ 10, "a
 RESET current_dialect;              -- back to DuckDB SQL; nothing else is affected
 ```
 
+## Two dialects: `spark` and `spark_strict`
+
+| | `spark` (lenient) | `spark_strict` |
+|---|---|---|
+| Valid Spark 3.5 SQL | Spark's results | Spark's results |
+| DuckDB-only SQL | still works (the dialect is built on DuckDB's grammar and catalog) | raises an error |
+
+`SET current_dialect = 'spark_strict'` raises an error for SQL that Spark 3.5 rejects. It is for checking
+that a query is portable to Spark. `spark` stays the default recommendation: it also lets you reach for
+a DuckDB feature when you want one. They are separate dialects (not a setting) because DuckDB compiles a
+dialect's grammar once.
+
+`spark_strict` rejects:
+
+- **Functions** that are not Spark 3.5 built-ins (`[UNRESOLVED_ROUTINE]`): `list_transform`, `strftime`,
+  `unnest`, `string_agg`, `count_star`, `generate_series`, `read_csv`, ... The extension's internal helpers
+  (`add`, `cast_value`, `subscript`, ...) cannot be called by name in either dialect. Table functions in
+  `FROM` are limited to `range`, `explode`, `explode_outer`, `inline`, `inline_outer`, `posexplode`,
+  `posexplode_outer`, `stack`, `json_tuple` and `sql_keywords`.
+- **Expression syntax**: `[1, 2]`, `{'a': 1}`, `MAP {...}`, `x::T`, `#1`, `alias: expr`, `lambda x: ...`,
+  `TRY()`, `COLUMNS()`, `UNPACK()`, `ROW()`, `* EXCLUDE / EXCEPT / REPLACE / RENAME`, list comprehensions,
+  DuckDB operators (`//`, `**`, `^@`, `~`, `GLOB`, `SIMILAR TO`, `->>`), `E'...'` and `$$...$$` strings.
+- **Query clauses**: `QUALIFY`, `ASOF` / `POSITIONAL` / `NEAREST` / `JOIN BY`, `USING SAMPLE`,
+  `TABLESAMPLE` methods and `<n>%`, `LIMIT <n>%`, statement-level `PIVOT ... ON` / `UNPIVOT ... ON`.
+- **Statements**: `PRAGMA`, `CALL`, `COPY`, `EXPORT` / `IMPORT`, `ATTACH` / `DETACH`, `INSTALL` / `LOAD`,
+  `CHECKPOINT`, `VACUUM`, `BEGIN` / `COMMIT`, `PREPARE` / `EXECUTE`, `SUMMARIZE`, `CREATE MACRO / SEQUENCE /
+  TYPE / INDEX / SECRET / TRIGGER`, `INSERT OR REPLACE`, `ON CONFLICT`, `RETURNING`.
+- **Types** other than Spark's: `HUGEINT`, `UBIGINT`, `UUID`, `JSON`, `BLOB`, `TIME`, `TIMESTAMPTZ`, `UNION`,
+  `ENUM`, `T[]`, DuckDB's `STRUCT(...)` / `MAP(...)`.
+- **Spark restrictions** that the lenient dialect relaxes: `CREATE TABLE` (also `... AS SELECT`) needs a
+  `USING` clause, like Spark without Hive support (`[NOT_SUPPORTED_COMMAND_WITHOUT_HIVE_SUPPORT]`), and
+  `SET key=value` only stores the pair like Spark and never changes a DuckDB setting.
+
+Limits of strict mode: error messages do not use Spark's error classes everywhere; `CREATE TABLE tbl (dummy
+...)` without `USING` is let through because DuckDB itself parses type strings that way; and it only
+rejects what the corpus in `test/cases/non_spark.sql` and the rules above cover, not every possible
+DuckDB extension (a loaded DuckDB extension's own functions are rejected by name, but its syntax is not
+audited).
+
 ## How it works
 
 | Layer | File | What it does |
@@ -43,7 +82,11 @@ only need to succeed (Spark returns no rows, DuckDB a row count; the data is che
 queries), and cases Spark marks as random (`rand()`, `uuid()`, random-IV `aes_encrypt`, …) only
 need to succeed.
 
-**Current result: all 1233 cases identical to Spark (0 failing, 0 lenient).** That covers all 106
+**Current result: all 1233 differential cases are identical to Spark under both dialects (0 failing,
+0 lenient).** Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
+rejects every one (the lenient `spark` dialect accepts 56 of them, reported as `LENIENT`, which is not a failure),
+and `test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
+`python test/run_duckdb.py --dialect spark_strict`, which fails on any `LENIENT` result. CI runs both dialects. The 1233 cases cover all 106
 operator cases and every documented example of all 421 Spark built-ins that have one; the other 17
 (cast functions and operators) are covered by the operator and literal/type cases.
 `test/cases/regressions.sql` re-checks the later fixes with different data. The harness also fails
