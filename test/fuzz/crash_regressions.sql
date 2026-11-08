@@ -60,3 +60,11 @@ SELECT CAST(99999999999999999999999999999999999999991 AS UBIGINT);
 -- @upstream DuckDB v2.0.0: TRY_CAST from BIGNUM throws (INTERNAL: __cast not marked fallible), also without the extension
 -- @dialect duckdb
 SELECT TRY_CAST(CAST('99999999999999999999999999999999999999991' AS BIGNUM) AS UBIGINT);
+
+-- ===== Rewritten functions called with too few arguments read past their argument list (INTERNAL) =====
+
+SELECT map_zip_with ( nanvl 'Spark SQL ' );
+
+SELECT map_zip_with(map(1, 2)), zip_with(array(1)), transform(array(1)), filter(array(1)), map_filter(map(1, 2));
+
+SELECT transform_keys(map(1, 2)), transform_values(map(1, 2)), if(true, 1), elt(1), substring('a');

@@ -150,3 +150,111 @@ jobs:
             test/results/
             COVERAGE.md
           if-no-files-found: ignore
+
+  fuzz-smoke:
+    name: Fuzz (smoke, fixed seeds)
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Download the extension
+        uses: actions/download-artifact@v4
+        with:
+          name: spark_dialect-${{ env.DUCKDB_VERSION }}-linux_amd64
+          path: build
+
+      - name: Check out DuckDB's SQL tests (for the isolation check)
+        run: git clone --depth 1 --branch "$DUCKDB_VERSION" --filter=blob:none --sparse https://github.com/duckdb/duckdb.git duckdb && git -C duckdb sparse-checkout set test/sql
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java (for Spark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" "pyspark==$PYSPARK_VERSION" pandas pytz
+
+      - name: Replay crash regressions
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python test/fuzz/replay.py
+
+      - name: Mutation fuzzing (crashes, hangs, internal errors)
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python test/fuzz/mutate.py --seed 1 --budget 4000 --jobs 2 --out test/fuzz/out/mutate
+
+      - name: Differential fuzzing against Spark
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python test/fuzz/differential.py --seed 1 --budget 150 --reduce-limit 5 --out test/fuzz/out/differential
+
+      - name: Dialect isolation
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python test/fuzz/isolation.py --duckdb-src duckdb --budget 60 --out test/fuzz/out/isolation
+
+      - name: Summaries
+        if: always()
+        run: cat test/fuzz/out/*/summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Upload fuzz findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-smoke
+          path: test/fuzz/out/
+          if-no-files-found: ignore
+
+  bench-smoke:
+    name: Benchmarks (smoke)
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Download the extension
+        uses: actions/download-artifact@v4
+        with:
+          name: spark_dialect-${{ env.DUCKDB_VERSION }}-linux_amd64
+          path: build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" pandas pytz
+
+      - name: Run the smoke benchmarks
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: |
+          python bench/parse_bench.py --smoke --repeat 50
+          python bench/func_bench.py --smoke --rows 300000 --runs 3
+          python bench/tpch_bench.py --sf 0.1 --runs 3
+
+      - name: Check the catastrophic thresholds
+        run: |
+          python bench/report.py --check bench/baseline.json > bench/out/report.md
+          cat bench/out/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-smoke
+          path: bench/out/*.json
+          if-no-files-found: ignore

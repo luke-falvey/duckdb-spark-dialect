@@ -263,7 +263,8 @@ def shell_pass(args, seeds, out_dir):
     findings = []
     counts = Counter()
     for dialect in args.dialects.split(","):
-        shell = ShellRunner(args.shell, dialect=None if dialect == "duckdb" else dialect, timeout=args.timeout * 30)
+        shell = ShellRunner(args.shell, dialect=None if dialect == "duckdb" else dialect, timeout=args.timeout * 30,
+                            extension=args.shell_extension)
         done = 0
         while done < args.shell_budget:
             batch = []
@@ -301,6 +302,7 @@ def main():
     ap.add_argument("--timeout", type=float, default=10.0)
     ap.add_argument("--extra-seeds", nargs="*", default=[])
     ap.add_argument("--shell", help="sanitizer-built duckdb shell; runs a batched pass through it")
+    ap.add_argument("--shell-extension", help="the extension built with the same sanitizer flags as --shell")
     ap.add_argument("--shell-budget", type=int, default=20000)
     ap.add_argument("--batch", type=int, default=200)
     ap.add_argument("--out", default=None)

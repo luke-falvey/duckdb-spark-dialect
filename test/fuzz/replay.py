@@ -26,6 +26,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--findings", help="a fuzz output directory: replay its crash/internal/timeout findings")
     ap.add_argument("--shell", help="also replay through this (sanitizer) duckdb shell")
+    ap.add_argument("--shell-extension", help="the extension built with the same sanitizer flags as --shell")
     args = ap.parse_args()
     use_utc()
 
@@ -53,7 +54,7 @@ def main():
                 print(f"FAIL {label} [{d}] {r.status}: {r.error}\n  {sql[:300]}")
             if args.shell:
                 s, _, detail = ShellRunner(args.shell, dialect=None if d == "duckdb" else d,
-                                           timeout=timeout * 10).run_batch([sql])
+                                           timeout=timeout * 10, extension=args.shell_extension).run_batch([sql])
                 if s != "ok":
                     failed += 1
                     print(f"FAIL {label} [{d}, shell] {s}: {(detail or '')[:500]}\n  {sql[:300]}")

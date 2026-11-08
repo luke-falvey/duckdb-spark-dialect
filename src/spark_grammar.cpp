@@ -806,6 +806,25 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		func.SetFunctionName(name.substr(8));
 		return expr;
 	}
+	{
+		// argument counts of the functions rewritten below (the rewrites index their arguments)
+		static const unordered_map<string, pair<idx_t, idx_t>> ARITY = {
+		    {"stack", {1, 100000}},         {"json_tuple", {1, 100000}},     {"inline", {1, 1}},
+		    {"inline_outer", {1, 1}},       {"explode", {1, 1}},             {"explode_outer", {1, 1}},
+		    {"posexplode", {1, 1}},         {"posexplode_outer", {1, 1}},    {"substring", {2, 3}},
+		    {"str_to_map", {1, 3}},         {"reflect", {2, 100000}},        {"java_method", {2, 100000}},
+		    {"try_reflect", {2, 100000}},   {"if", {3, 3}},                  {"iff", {3, 3}},
+		    {"format_string", {1, 100000}}, {"printf", {1, 100000}},         {"elt", {2, 100000}},
+		    {"concat_ws", {1, 100000}},     {"transform", {2, 2}},           {"filter", {2, 2}},
+		    {"array_sort", {1, 2}},         {"zip_with", {3, 3}},            {"map_filter", {2, 2}},
+		    {"transform_keys", {2, 2}},     {"transform_values", {2, 2}},    {"map_zip_with", {3, 3}}};
+		auto entry = ARITY.find(name);
+		auto count = func.GetArguments().size();
+		if (entry != ARITY.end() && (count < entry->second.first || count > entry->second.second)) {
+			throw BinderException("[WRONG_NUM_ARGS] The `%s` requires %llu parameters but the actual number is %llu.",
+			                      name, (unsigned long long)entry->second.first, (unsigned long long)count);
+		}
+	}
 	if (name == "named_struct") {
 		auto args = TakeArguments(func);
 		if (args.size() % 2 != 0) {

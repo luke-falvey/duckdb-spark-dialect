@@ -362,8 +362,10 @@ class ShellRunner:
     run_batch() sends many statements in one process, each followed by a marker query, and reports
     the first statement after which the process crashed or the sanitizer complained."""
 
-    def __init__(self, binary, dialect="spark", timeout=60.0, workdir=None):
+    def __init__(self, binary, dialect="spark", timeout=60.0, workdir=None, extension=None):
         self.binary = str(binary)
+        # the extension built with the same sanitizer flags as the shell (build-asan/extension/...)
+        self.extension = str(extension) if extension else None
         self.dialect = dialect
         self.timeout = timeout
         self.workdir = workdir or scratch_dir("duck-shell-")
@@ -378,7 +380,10 @@ class ShellRunner:
         return sql if sql.endswith(";") else sql + ";"
 
     def _script(self, statements):
-        lines = [".bail off", "SET TimeZone = 'UTC';"]
+        lines = [".bail off"]
+        if self.extension:
+            lines.append(f"LOAD '{self.extension}';")
+        lines.append("SET TimeZone = 'UTC';")
         if self.dialect:
             lines.append(f"SET current_dialect = '{self.dialect}';")
         for i, sql in enumerate(statements):
@@ -391,7 +396,9 @@ class ShellRunner:
         """Returns (status, index, detail): status ok | crash | sanitizer | timeout | internal."""
         script = self._script(statements)
         try:
-            p = subprocess.run([self.binary, "-batch", "-noheader", "-csv", ":memory:"], input=script.encode("utf-8", "surrogateescape"),
+            # -no-agent: the shell switches to an agent output format when AI_AGENT is set
+            p = subprocess.run([self.binary, "-unsigned", "-no-agent", "-batch", "-noheader", "-csv", ":memory:"],
+                               input=script.encode("utf-8", "surrogateescape"),
                                capture_output=True, timeout=timeout or self.timeout, cwd=self.workdir, env=self.env)
         except subprocess.TimeoutExpired as e:
             out = (e.stdout or b"").decode("utf-8", "replace")

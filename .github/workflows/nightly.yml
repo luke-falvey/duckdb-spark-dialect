@@ -1,0 +1,188 @@
+name: Nightly fuzzing and benchmarks
+
+# Longer fuzz runs with random seeds (printed in each summary), the AddressSanitizer / UBSan build, and the full
+# benchmarks. Only crashes, sanitizer reports and internal errors fail the run; wrong results and benchmark
+# numbers are reported in the step summary and the uploaded artifacts.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Fuzz seed (empty: random)"
+        required: false
+
+env:
+  DUCKDB_VERSION: v2.0.0
+  PYSPARK_VERSION: "3.5.*"
+
+jobs:
+  build:
+    name: Build (${{ matrix.flavor }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      matrix:
+        flavor: [release, asan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out DuckDB ${{ env.DUCKDB_VERSION }}
+        run: git clone --depth 1 --branch "$DUCKDB_VERSION" https://github.com/duckdb/duckdb.git duckdb
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build ccache
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-nightly-${{ matrix.flavor }}-${{ env.DUCKDB_VERSION }}-${{ github.sha }}
+          restore-keys: ccache-nightly-${{ matrix.flavor }}-${{ env.DUCKDB_VERSION }}-
+
+      - name: Configure
+        run: |
+          if [ "${{ matrix.flavor }}" = asan ]; then
+            SAN="-DENABLE_SANITIZER=TRUE -DENABLE_UBSAN=TRUE -DFORCE_ASSERT=1 -DBUILD_SHELL=ON"
+          else
+            SAN="-DENABLE_SANITIZER=FALSE -DENABLE_UBSAN=FALSE -DBUILD_SHELL=OFF"
+          fi
+          cmake -G Ninja -S duckdb -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_UNITTESTS=OFF $SAN \
+            -DOVERRIDE_GIT_DESCRIBE="$DUCKDB_VERSION" \
+            -DDUCKDB_EXTENSION_CONFIGS="$GITHUB_WORKSPACE/extension_config.cmake" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        env:
+          CCACHE_MAXSIZE: 3G
+        run: |
+          targets=spark_dialect_loadable_extension
+          if [ "${{ matrix.flavor }}" = asan ]; then targets="$targets duckdb"; fi
+          cmake --build build --target $targets
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.flavor }}
+          path: |
+            build/extension/spark_dialect/spark_dialect.duckdb_extension
+            build/duckdb
+          if-no-files-found: ignore
+
+  fuzz:
+    name: Fuzz
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-release
+          path: release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-asan
+          path: asan
+
+      - name: Check out DuckDB's SQL tests (for the isolation check)
+        run: git clone --depth 1 --branch "$DUCKDB_VERSION" --filter=blob:none --sparse https://github.com/duckdb/duckdb.git duckdb && git -C duckdb sparse-checkout set test/sql
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" "pyspark==$PYSPARK_VERSION" pandas pytz
+
+      - name: Choose the seed
+        run: echo "SEED=${{ github.event.inputs.seed || '' }}" >> "$GITHUB_ENV" && if [ -z "${{ github.event.inputs.seed }}" ]; then echo "SEED=$RANDOM$RANDOM" >> "$GITHUB_ENV"; fi
+
+      - name: Mutation fuzzing (release build)
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: python test/fuzz/mutate.py --seed "$SEED" --budget 200000 --jobs 3 --out test/fuzz/out/mutate
+
+      - name: Mutation fuzzing (sanitizer build)
+        run: |
+          chmod +x asan/duckdb
+          python test/fuzz/mutate.py --seed "$SEED" --budget 0 --shell asan/duckdb \
+            --shell-extension asan/extension/spark_dialect/spark_dialect.duckdb_extension \
+            --shell-budget 40000 --out test/fuzz/out/asan
+
+      - name: Function-argument sweep against Spark
+        continue-on-error: true
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: python test/fuzz/args_sweep.py --seed "$SEED" --out test/fuzz/out/sweep
+
+      - name: Differential fuzzing against Spark
+        continue-on-error: true
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: python test/fuzz/differential.py --seed "$SEED" --budget 10000 --depth 4 --out test/fuzz/out/differential
+
+      - name: Dialect isolation
+        continue-on-error: true
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: python test/fuzz/isolation.py --duckdb-src duckdb --budget 600 --seed "$SEED" --out test/fuzz/out/isolation
+
+      - name: Summaries
+        if: always()
+        run: cat test/fuzz/out/*/summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Upload findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-fuzz
+          path: test/fuzz/out/
+          if-no-files-found: ignore
+
+  bench:
+    name: Benchmarks
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-release
+          path: release
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" pandas pytz
+
+      - name: Run the benchmarks
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: |
+          python bench/parse_bench.py
+          python bench/func_bench.py
+          python bench/scaling_bench.py
+          python bench/tpch_bench.py --sf 1
+          python bench/report.py > bench/out/report.md
+          cat bench/out/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-bench
+          path: bench/out/*.json
+          if-no-files-found: ignore
