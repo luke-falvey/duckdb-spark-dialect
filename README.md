@@ -1,5 +1,7 @@
 # spark_dialect: Spark SQL for DuckDB v2
 
+[![CI](https://github.com/luke-falvey/duckdb-spark-dialect/actions/workflows/ci.yml/badge.svg)](https://github.com/luke-falvey/duckdb-spark-dialect/actions/workflows/ci.yml)
+
 A DuckDB 2.0 extension that adds a selectable **Spark SQL (3.5)** dialect, built on DuckDB v2's
 extensible PEG parser (`DialectExtension`).
 
@@ -77,7 +79,11 @@ To load it into the `duckdb==2.0.0` Python package from a source checkout withou
 `v2.0.0-dev1`), open the connection with `allow_unsigned_extensions` and
 `allow_extensions_metadata_mismatch`.
 
-Run the tests (needs `pyspark==3.5.*`, Java 17+ and `duckdb==2.0.0`):
+CI (`.github/workflows/ci.yml`) builds the extension against DuckDB v2.0.0, re-records the expected
+results with Apache Spark 3.5, runs the comparison and publishes `COVERAGE.md` in the job summary.
+The built extension is uploaded as a workflow artifact.
+
+Run the tests locally (needs `pyspark==3.5.*`, Java 17+ and `duckdb==2.0.0`):
 
 ```bash
 python test/make_golden.py      # only when cases change

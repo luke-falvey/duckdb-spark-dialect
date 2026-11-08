@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DUCKDB_VERSION: v2.0.0
+  PYSPARK_VERSION: "3.5.*"
+
+jobs:
+  build-and-test:
+    name: Build and test against Spark 3.5
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Check out DuckDB ${{ env.DUCKDB_VERSION }}
+        run: git clone --depth 1 --branch "$DUCKDB_VERSION" https://github.com/duckdb/duckdb.git duckdb
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build ccache
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ env.DUCKDB_VERSION }}-${{ github.sha }}
+          restore-keys: ccache-${{ runner.os }}-${{ env.DUCKDB_VERSION }}-
+
+      - name: Configure
+        # Only the loadable extension and the DuckDB core it needs are built (no shell, no unit tests).
+        # OVERRIDE_GIT_DESCRIBE stamps the extension with the exact release version, matching the
+        # duckdb==2.0.0 Python package it is loaded into below.
+        run: |
+          cmake -G Ninja -S duckdb -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHELL=OFF -DBUILD_UNITTESTS=OFF -DENABLE_SANITIZER=FALSE \
+            -DOVERRIDE_GIT_DESCRIBE="$DUCKDB_VERSION" \
+            -DDUCKDB_EXTENSION_CONFIGS="$GITHUB_WORKSPACE/extension_config.cmake" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build the extension
+        env:
+          CCACHE_MAXSIZE: 2G
+        run: |
+          ccache --zero-stats
+          cmake --build build --target spark_dialect_loadable_extension
+          ccache --show-stats
+
+      - name: Upload the extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: spark_dialect-${{ env.DUCKDB_VERSION }}-linux_amd64
+          path: build/extension/spark_dialect/spark_dialect.duckdb_extension
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java (for Spark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" "pyspark==$PYSPARK_VERSION" pandas pytz
+
+      - name: Record expected results with Apache Spark
+        # Re-runs every case in Spark so the comparison is against a live Spark 3.5,
+        # not only the results committed in test/golden/
+        run: python test/make_golden.py
+
+      - name: Compare DuckDB (spark dialect) with Spark
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: python test/run_duckdb.py -v
+
+      - name: Coverage report
+        if: always()
+        run: |
+          if [ -f test/results/functions.json ]; then
+            python scripts/coverage_report.py
+            cat COVERAGE.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test/results/
+            COVERAGE.md
+          if-no-files-found: ignore
