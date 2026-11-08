@@ -124,7 +124,13 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 
 ### Limitations (behaviour the tests do not exercise)
 
-- ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.
+- ANSI mode (`SET spark.sql.ansi.enabled = true`, which sets the DuckDB setting `spark_ansi_enabled`; `RESET` and
+  `SET ... = false` turn it off) covers runtime errors: integer overflow of `+ - * -x abs` and of `sum`, decimal
+  overflow of `+ - *` and `sum`, division by zero (`/ % div mod`), invalid and out-of-range `CAST` (strings must be
+  integers: `'1.5'` is not), array index out of bounds (`[]`, `element_at`) and `size(NULL)` returning NULL; the
+  `try_*` functions stay lenient. Not emulated: ANSI's implicit-cast rules (a string is still converted to a number
+  implicitly), map key lookups of missing keys, overflow in `avg`, `pmod`, `date`/`timestamp` arithmetic and
+  datetime parsing errors. A prepared statement is bound again when the setting changes.
 - `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. For `session_window` over a join, the
   joined tables' aliases are not available in the query (a single table or subquery keeps its alias).
 - Struct values are matched to struct columns by position (like Spark) in `INSERT ... VALUES` and `INSERT ... SELECT`

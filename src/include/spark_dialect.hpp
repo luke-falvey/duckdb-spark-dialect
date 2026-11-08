@@ -56,6 +56,9 @@ inline void RegisterFallible(ExtensionLoader &loader, ScalarFunction function) {
 void RegisterSparkFunctions(ExtensionLoader &loader);
 void RegisterSparkMacros(ExtensionLoader &loader);
 void RegisterSparkAggregates(ExtensionLoader &loader);
+//! spark.sql.ansi.enabled (the `spark_ansi_enabled` setting): overflow, invalid casts, division by zero and invalid
+//! array indexes are errors instead of NULL / wrap-around
+bool SparkAnsiEnabled(ClientContext &context);
 void RegisterSparkFormatString(ExtensionLoader &loader);
 void RegisterSparkLibrary(ExtensionLoader &loader);
 void RegisterSparkDatetime(ExtensionLoader &loader);

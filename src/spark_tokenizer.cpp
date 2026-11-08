@@ -1385,6 +1385,11 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		return false;
 	}
 	if (WordAt(ts, 0, "RESET")) {
+		// RESET (all keys) and RESET spark.sql.ansi.enabled restore the default
+		if (ts.size() == 1 || (ts.size() >= 2 && StringUtil::CIEquals(Join(ts, 1, ts.size()), "spark.sql.ansi.enabled"))) {
+			ts = Lex("RESET spark_ansi_enabled", offset);
+			return true;
+		}
 		ts = EmptyResult(offset);
 		return true;
 	}
@@ -1423,6 +1428,18 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		}
 		if (StringUtil::CIEquals(key, "spark.sql.session.timeZone")) {
 			ts = Lex("SET TimeZone = " + DuckStringLiteral(value), offset);
+			return true;
+		}
+		if (StringUtil::CIEquals(key, "spark.sql.ansi.enabled")) {
+			auto lowered = StringUtil::Lower(StringUtil::Replace(StringUtil::Replace(value, " ", ""), "'", ""));
+			if (lowered != "true" && lowered != "false") {
+				throw ParserException("[INVALID_CONF_VALUE] The value '%s' in the config \"spark.sql.ansi.enabled\" "
+				                      "is invalid. The value must be \"true\" or \"false\".",
+				                      value);
+			}
+			ts = Lex("SET spark_ansi_enabled = " + lowered + " ; SELECT " + DuckStringLiteral(key) + " AS key , " +
+			             DuckStringLiteral(lowered) + " AS value",
+			         offset);
 			return true;
 		}
 		ts = Lex("SELECT " + DuckStringLiteral(key) + " AS key , " + DuckStringLiteral(value) + " AS value", offset);

@@ -142,7 +142,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"rand", "() AS random(), (s) AS random()"},
     {"random", "() AS random(), (s) AS random()"},
     {"randn", "() AS sqrt(-2 * ln(random())) * cos(2 * pi() * random()), (s) AS sqrt(-2 * ln(random())) * cos(2 * pi() * random())"},
-    {"try_divide", "(a, b) AS " S "divide(a, b)"},
+    {"try_divide", "(a, b) AS " S "try_divide_impl(a, b)"},
     {"factorial", "(n) AS CASE WHEN n < 0 OR n > 20 THEN NULL ELSE CAST(factorial(CAST(n AS INTEGER)) AS BIGINT) END"},
     {"bin", "(n) AS CASE WHEN n IS NULL THEN NULL WHEN " S "as_long(n) >= 0 THEN bin(" S "as_long(n)) ELSE bin(" S "as_long(n) + 18446744073709551616::HUGEINT) END"},
     {"bit_count", "(n) AS CAST(bit_count(CAST(n AS BIGINT)) AS INTEGER)"},

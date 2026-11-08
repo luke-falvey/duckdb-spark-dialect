@@ -13,7 +13,7 @@ from harness import ROOT, file_config, load_cases  # noqa: E402
 
 def main():
     use_utc()
-    files = [os.path.abspath(f) for f in sys.argv[1:]] or sorted(str(p) for p in (ROOT / "cases").glob("*.sql"))
+    files = [os.path.abspath(f) for f in sys.argv[1:]] or sorted(str(p) for p in (ROOT / "cases").rglob("*.sql"))
     # statements that write files (COPY, EXPORT DATABASE, ...) must not write into the repository
     os.chdir(scratch_dir("spark-golden-"))
     spark = SparkOracle()

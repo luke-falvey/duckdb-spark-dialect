@@ -15,6 +15,8 @@
 #include "duckdb/common/types/decimal.hpp"
 #include "duckdb/common/types/hugeint.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
+#include "duckdb/common/operator/add.hpp"
+#include "duckdb/common/operator/multiply.hpp"
 #include "duckdb/function/aggregate_function.hpp"
 #include "duckdb/function/function_set.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
@@ -82,25 +84,54 @@ struct IntegerSumState {
 	bool is_set;
 };
 
+[[noreturn]] void ThrowAggregateOverflow() {
+	throw InvalidInputException("[ARITHMETIC_OVERFLOW] long overflow. If necessary set \"spark.sql.ansi.enabled\" to "
+	                            "\"false\" to bypass this error.");
+}
+
+//! CHECKED (ANSI mode): an overflow of the BIGINT sum is an error instead of wrapping around
+inline int64_t AddInt64(int64_t a, int64_t b, bool checked) {
+	if (checked) {
+		int64_t result;
+		if (!TryAddOperator::Operation<int64_t, int64_t, int64_t>(a, b, result)) {
+			ThrowAggregateOverflow();
+		}
+		return result;
+	}
+	return int64_t(uint64_t(a) + uint64_t(b));
+}
+
+inline int64_t MultiplyInt64(int64_t a, uint64_t count, bool checked) {
+	if (checked) {
+		int64_t result;
+		if (!TryMultiplyOperator::Operation<int64_t, int64_t, int64_t>(a, int64_t(count), result)) {
+			ThrowAggregateOverflow();
+		}
+		return result;
+	}
+	return int64_t(uint64_t(a) * count);
+}
+
+template <bool CHECKED>
 struct IntegerSumOperation : public ClusteredCopy {
 	template <class STATE, class OP>
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
 		if (!source.is_set) {
 			return;
 		}
-		target.value = int64_t(uint64_t(target.value) + uint64_t(source.value));
+		target.value = AddInt64(target.value, source.value, CHECKED);
 		target.is_set = true;
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
-		state.value = int64_t(uint64_t(state.value) + LowBits(input));
+		state.value = AddInt64(state.value, int64_t(LowBits(input)), CHECKED);
 		state.is_set = true;
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &, idx_t count) {
-		state.value = int64_t(uint64_t(state.value) + LowBits(input) * uint64_t(count));
+		state.value = AddInt64(state.value, MultiplyInt64(int64_t(LowBits(input)), count, CHECKED), CHECKED);
 		state.is_set = true;
 	}
 
@@ -115,12 +146,12 @@ struct IntegerSumOperation : public ClusteredCopy {
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input) {
-		local.value = int64_t(uint64_t(local.value) + LowBits(input));
+		local.value = AddInt64(local.value, int64_t(LowBits(input)), CHECKED);
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input, idx_t count) {
-		local.value = int64_t(uint64_t(local.value) + LowBits(input) * uint64_t(count));
+		local.value = AddInt64(local.value, MultiplyInt64(int64_t(LowBits(input)), count, CHECKED), CHECKED);
 	}
 
 	template <class STATE>
@@ -296,7 +327,7 @@ inline void AddDecimalInput(hugeint_t &sum, bool &overflow, const T &input, idx_
 	AddToDecimalState(sum, overflow, ToHugeint(input), count);
 }
 
-template <class IN, class OUT>
+template <class IN, class OUT, bool ANSI = false>
 struct DecimalSumOperation : public ClusteredCopy {
 	template <class STATE, class OP>
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
@@ -341,7 +372,14 @@ struct DecimalSumOperation : public ClusteredCopy {
 	template <class T, class STATE>
 	static void Finalize(STATE &state, T &target, AggregateFinalizeData &finalize_data) {
 		auto width = DecimalType::GetWidth(finalize_data.input.function.GetReturnType());
-		if (!state.is_set || state.overflow || !FitsWidth(state.value, width)) {
+		if (!state.is_set) {
+			finalize_data.ReturnNull();
+		} else if (state.overflow || !FitsWidth(state.value, width)) {
+			if (ANSI) {
+				throw InvalidInputException("[NUMERIC_VALUE_OUT_OF_RANGE] The sum does not fit the decimal type. If "
+				                            "necessary set \"spark.sql.ansi.enabled\" to \"false\" to bypass this "
+				                            "error.");
+			}
 			finalize_data.ReturnNull();
 		} else {
 			target = FromHugeint<T>(state.value);
@@ -521,11 +559,18 @@ unique_ptr<FunctionData> BindDecimal(BindAggregateFunctionInput &input) {
 	LogicalType result_type =
 	    IS_SUM ? LogicalType::DECIMAL(uint8_t(MinValue<int>(38, width + 10)), scale)
 	           : LogicalType::DECIMAL(uint8_t(MinValue<int>(38, width + 4)), uint8_t(MinValue<int>(38, scale + 4)));
+	bool ansi = SparkAnsiEnabled(input.GetClientContext());
 	auto implementation = WithPhysicalType(decimal_type.InternalType(), [&](auto in) {
 		return WithPhysicalType(result_type.InternalType(), [&](auto out) {
 			using IN = decltype(in);
 			using OUT = decltype(out);
 			if constexpr (IS_SUM) {
+				if (ansi) {
+					auto function = MakeDecimal<DecimalSumState, IN, OUT, DecimalSumOperation<IN, OUT, true>>(
+					    decimal_type, result_type);
+					function.SetFallible();
+					return function;
+				}
 				return MakeDecimal<DecimalSumState, IN, OUT, DecimalSumOperation<IN, OUT>>(decimal_type, result_type);
 			} else {
 				return MakeDecimal<DecimalAvgState, IN, OUT, DecimalAvgOperation<IN, OUT>>(decimal_type, result_type);
@@ -580,13 +625,42 @@ AggregateFunction DecimalWildcard(bind_aggregate_function_t bind) {
 	return function;
 }
 
+template <class INPUT, bool CHECKED>
+AggregateFunction IntegerSumImpl(const LogicalType &type);
+
+//! ANSI mode: the BIGINT sum raises on overflow, chosen when the call is bound
 template <class INPUT>
-AggregateFunction IntegerSum(const LogicalType &type) {
-	auto function = AggregateFunction::UnaryAggregate<IntegerSumState, INPUT, int64_t, IntegerSumOperation>(
-	    type, LogicalType::BIGINT);
+unique_ptr<FunctionData> BindIntegerSum(BindAggregateFunctionInput &input) {
+	if (SparkAnsiEnabled(input.GetClientContext())) {
+		auto &function = input.GetBoundFunction();
+		auto type = input.GetArguments()[0]->GetReturnType();
+		function.ReplaceImplementation(IntegerSumImpl<INPUT, true>(type));
+		function.SetName(Identifier("spark_sum"));
+		function.GetArguments()[0] = type;
+		function.SetReturnType(LogicalType::BIGINT);
+		function.SetOrderDependent(AggregateOrderDependent::NOT_ORDER_DEPENDENT);
+	}
+	return nullptr;
+}
+
+template <class INPUT, bool CHECKED>
+AggregateFunction IntegerSumImpl(const LogicalType &type) {
+	auto function =
+	    AggregateFunction::UnaryAggregate<IntegerSumState, INPUT, int64_t, IntegerSumOperation<CHECKED>>(
+	        type, LogicalType::BIGINT);
 	function.GetSignature().GetParameter(0).SetName("arg");
 	function.SetOrderDependent(AggregateOrderDependent::NOT_ORDER_DEPENDENT);
+	if (CHECKED) {
+		function.SetFallible();
+	} else {
+		function.SetBindCallback(BindIntegerSum<INPUT>);
+	}
 	return function;
+}
+
+template <class INPUT>
+AggregateFunction IntegerSum(const LogicalType &type) {
+	return IntegerSumImpl<INPUT, false>(type);
 }
 
 template <class INPUT>

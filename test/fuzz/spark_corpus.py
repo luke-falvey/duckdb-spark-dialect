@@ -10,7 +10,8 @@ variants), so it is a finding source, not an acceptance gate. Directories and fi
 
 usage: python test/fuzz/spark_corpus.py fetch
        python test/fuzz/spark_corpus.py seeds --out seeds.sql
-       python test/fuzz/spark_corpus.py run [--files N] [--match substring]
+       python test/fuzz/spark_corpus.py run [--files N] [--match substring] [--ansi]
+         --ansi   run only the ansi/ inputs, with spark.sql.ansi.enabled=true in Spark and in the dialects
        python test/fuzz/spark_corpus.py names [--match substring]   count DuckDB errors that show internal names
 """
 import argparse
@@ -69,11 +70,13 @@ def statements(path):
     return out
 
 
-def files(match=None):
+def files(match=None, ansi=False):
     out = []
     for p in sorted(INPUTS.rglob("*.sql")):
         rel = str(p.relative_to(INPUTS))
-        if any(s in rel for s in SKIP) or (match and match not in rel):
+        if ansi != rel.startswith("ansi/"):
+            continue
+        if any(s in rel for s in SKIP if not (ansi and s == "ansi/")) or (match and match not in rel):
             continue
         out.append(p)
     return out
@@ -87,15 +90,20 @@ def run(args):
     known = compare.load_known()
     spark = SparkOracle()
     findings, counts = [], Counter()
-    paths = files(args.match)[: args.files]
+    paths = files(args.match, args.ansi)[: args.files]
+    if args.ansi:
+        spark.spark.conf.set("spark.sql.ansi.enabled", "true")
     for n, path in enumerate(paths):
         rel = str(path.relative_to(INPUTS))
         spark.reset()
         lenient = DuckRunner(dialect="spark", timeout=args.timeout)
         strict = DuckRunner(dialect="spark_strict", timeout=args.timeout)
+        if args.ansi:
+            lenient.setup(["SET spark.sql.ansi.enabled = true"])
+            strict.setup(["SET spark.sql.ansi.enabled = true"])
         for sql in statements(path):
             if re.match(r"\s*(SET|RESET)\b", sql, re.I):
-                continue  # configuration variants (ANSI, legacy flags) are out of scope
+                continue  # configuration variants (legacy flags) are out of scope
             s, d, t = spark.run(sql), lenient.run(sql), strict.run(sql)
             counts["statements"] += 1
             counts["spark_ok" if s.ok else "spark_error"] += 1
@@ -151,6 +159,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--files", type=int, default=None)
     ap.add_argument("--match")
+    ap.add_argument("--ansi", action="store_true")
     ap.add_argument("--timeout", type=float, default=30.0)
     args = ap.parse_args()
     if args.command == "names":

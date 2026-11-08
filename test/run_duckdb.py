@@ -95,7 +95,7 @@ def main():
     parser.add_argument("--dialect", choices=["spark", "spark_strict"], default="spark")
     parser.add_argument("files", nargs="*")
     args = parser.parse_args()
-    files = [Path(f).resolve() for f in args.files] or sorted((ROOT / "cases").glob("*.sql"))
+    files = [Path(f).resolve() for f in args.files] or sorted((ROOT / "cases").rglob("*.sql"))
     use_utc()
     # statements that write files (COPY, EXPORT DATABASE, ...) must not write into the repository
     os.chdir(scratch_dir("duck-cases-"))
