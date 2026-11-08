@@ -18,7 +18,8 @@ static constexpr const char *SPARK_SCHEMA = "spark";
 //! DuckDB-based grammar understands (see spark_tokenizer.cpp).
 class SparkTokenizer final : public Tokenizer {
 public:
-	explicit SparkTokenizer(const PEGKeywordHelper &keyword_helper) : Tokenizer(keyword_helper) {
+	SparkTokenizer(const PEGKeywordHelper &keyword_helper, bool strict_p)
+	    : Tokenizer(keyword_helper), strict(strict_p) {
 	}
 	bool TokenizeInput(TokenizerBehavior &behavior) const override;
 
@@ -26,16 +27,23 @@ protected:
 	bool IsQuotedIdentifierDelimiter(char c) const override {
 		return c == '`';
 	}
+
+	//! `spark_strict`: reject constructs Spark does not have
+	bool strict;
 };
 
 //! Rewrite the tokens of a whole query (all statements) in place.
-void SparkRewriteTokens(vector<MatcherToken> &tokens);
+void SparkRewriteTokens(vector<MatcherToken> &tokens, bool strict);
 
 class SparkDialect final : public DialectExtension {
 public:
-	SparkDialect();
+	//! `strict` registers `spark_strict`, which rejects SQL that Spark 3.5 rejects; `spark` is lenient
+	explicit SparkDialect(bool strict);
 	void ApplyGrammarChanges(GrammarChangesInput &input) override;
 	unique_ptr<Tokenizer> CreateTokenizer(CreateTokenizerInput &input) override;
+
+private:
+	bool strict;
 };
 
 //! Spark functions can raise errors (invalid input, malformed data), which DuckDB requires to be declared
@@ -58,5 +66,7 @@ void RegisterSparkCasts(ExtensionLoader &loader);
 //! Functions in the `spark` schema. The parser routes calls to these names into that schema.
 bool IsSparkOverride(const string &lower_name);
 void AddSparkOverride(const string &lower_name);
+//! Spark 3.5 built-in function names (spark_function_names.hpp)
+bool IsSparkFunction(const string &lower_name);
 
 } // namespace duckdb

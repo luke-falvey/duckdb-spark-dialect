@@ -14,10 +14,10 @@ env:
   PYSPARK_VERSION: "3.5.*"
 
 jobs:
-  build-and-test:
-    name: Build and test against Spark 3.5
+  build:
+    name: Build the extension
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 120
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4
@@ -61,6 +61,14 @@ jobs:
           name: spark_dialect-${{ env.DUCKDB_VERSION }}-linux_amd64
           path: build/extension/spark_dialect/spark_dialect.duckdb_extension
 
+  golden:
+    name: Record expected results with Spark 3.5
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -73,20 +81,60 @@ jobs:
           java-version: "17"
 
       - name: Install Python packages
-        run: pip install "duckdb==${DUCKDB_VERSION#v}" "pyspark==$PYSPARK_VERSION" pandas pytz
+        run: pip install "pyspark==$PYSPARK_VERSION" pandas pytz
 
       - name: Record expected results with Apache Spark
         # Re-runs every case in Spark so the comparison is against a live Spark 3.5,
-        # not only the results committed in test/golden/
+        # not only the results committed in test/golden/. Done once; both dialects compare against it.
         run: python test/make_golden.py
 
-      - name: Compare DuckDB (spark dialect) with Spark
+      - name: Upload the expected results
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden
+          path: test/golden/*.pkl
+
+  test:
+    name: Compare DuckDB (${{ matrix.dialect }}) with Spark
+    needs: [build, golden]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        dialect: [spark, spark_strict]
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Download the extension
+        uses: actions/download-artifact@v4
+        with:
+          name: spark_dialect-${{ env.DUCKDB_VERSION }}-linux_amd64
+          path: build
+
+      - name: Download the expected results
+        uses: actions/download-artifact@v4
+        with:
+          name: golden
+          path: test/golden
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" pandas pytz
+
+      - name: Compare with Spark
+        # spark_strict also fails on LENIENT cases: SQL that Spark rejects but DuckDB accepts
         env:
-          SPARK_EXTENSION: ${{ github.workspace }}/build/extension/spark_dialect/spark_dialect.duckdb_extension
-        run: python test/run_duckdb.py -v
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python test/run_duckdb.py -v --dialect ${{ matrix.dialect }}
 
       - name: Coverage report
-        if: always()
+        if: always() && matrix.dialect == 'spark'
         run: |
           if [ -f test/results/functions.json ]; then
             python scripts/coverage_report.py
@@ -97,7 +145,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ matrix.dialect }}
           path: |
             test/results/
             COVERAGE.md

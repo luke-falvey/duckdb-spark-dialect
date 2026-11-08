@@ -5,14 +5,32 @@ Every expected result comes from Apache Spark 3.5.9 (`test/make_golden.py`).
 
 ## Totals
 
+`SET current_dialect = 'spark'` (lenient: also accepts DuckDB-only SQL, reported as LENIENT):
+
 ```
 ddl_dml.sql                  PASS=65  LENIENT=0  FAIL=0  SKIP=0
 functions_examples.sql       PASS=868  LENIENT=0  FAIL=0  SKIP=0
 literals_types.sql           PASS=45  LENIENT=0  FAIL=0  SKIP=0
+non_spark.sql                PASS=17  LENIENT=56  FAIL=0  SKIP=0
 operators.sql                PASS=106  LENIENT=0  FAIL=0  SKIP=0
 queries.sql                  PASS=131  LENIENT=0  FAIL=0  SKIP=0
 regressions.sql              PASS=18  LENIENT=0  FAIL=0  SKIP=0
-TOTAL                        PASS=1233  LENIENT=0  FAIL=0  SKIP=0
+strict_valid.sql             PASS=65  LENIENT=0  FAIL=0  SKIP=0
+TOTAL                        PASS=1315  LENIENT=56  FAIL=0  SKIP=0
+```
+
+`SET current_dialect = 'spark_strict'` (a LENIENT result counts as a failure):
+
+```
+ddl_dml.sql                  PASS=65  LENIENT=0  FAIL=0  SKIP=0
+functions_examples.sql       PASS=868  LENIENT=0  FAIL=0  SKIP=0
+literals_types.sql           PASS=45  LENIENT=0  FAIL=0  SKIP=0
+non_spark.sql                PASS=73  LENIENT=0  FAIL=0  SKIP=0
+operators.sql                PASS=106  LENIENT=0  FAIL=0  SKIP=0
+queries.sql                  PASS=131  LENIENT=0  FAIL=0  SKIP=0
+regressions.sql              PASS=18  LENIENT=0  FAIL=0  SKIP=0
+strict_valid.sql             PASS=65  LENIENT=0  FAIL=0  SKIP=0
+TOTAL                        PASS=1371  LENIENT=0  FAIL=0  SKIP=0
 ```
 
 ## Built-in functions (438 in Spark 3.5)
@@ -20,6 +38,8 @@ TOTAL                        PASS=1233  LENIENT=0  FAIL=0  SKIP=0
 - **421** pass every example from Spark's own documentation
 - **0** have at least one failing example: 
 - **17** have no documentation examples (operators and cast functions), covered by `test/cases/operators.sql` and `test/cases/literals_types.sql`: `!=`, `<>`, `between`, `bigint`, `binary`, `boolean`, `case`, `date`, `decimal`, `double`, `float`, `int`, `smallint`, `string`, `timestamp`, `tinyint`, `||`
+
+56 cases that Spark rejects are accepted by the lenient `spark` dialect (DuckDB-only syntax); `spark_strict` rejects them all.
 
 ## Remaining failures
 

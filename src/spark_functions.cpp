@@ -29,6 +29,8 @@
 #include <cmath>
 #include <mutex>
 
+#include "spark_function_names.hpp"
+
 namespace duckdb {
 
 //===----------------------------------------------------------------------===//
@@ -48,6 +50,17 @@ bool IsSparkOverride(const string &lower_name) {
 void AddSparkOverride(const string &lower_name) {
 	std::lock_guard<std::mutex> guard(override_lock);
 	Overrides().insert(lower_name);
+}
+
+bool IsSparkFunction(const string &lower_name) {
+	static const unordered_set<string> names = [] {
+		unordered_set<string> result;
+		for (auto name : SPARK_FUNCTION_NAMES) {
+			result.insert(name);
+		}
+		return result;
+	}();
+	return names.count(lower_name) > 0;
 }
 
 namespace {
