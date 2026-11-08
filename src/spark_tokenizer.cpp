@@ -622,6 +622,19 @@ void RewriteLiterals(Tokens &ts) {
 			Erase(ts, i - 1, i);
 			i--;
 		}
+		if (upper == "L" || upper == "S" || upper == "Y") {
+			// Spark rejects integral literals outside the type's range at parse time
+			auto digits = number[0] == '-' ? number.substr(1) : number;
+			auto stripped = digits.substr(MinValue(digits.find_first_not_of('0'), digits.size() - 1));
+			string max = upper == "L" ? (number[0] == '-' ? "9223372036854775808" : "9223372036854775807")
+			                          : upper == "S" ? (number[0] == '-' ? "32768" : "32767")
+			                                         : (number[0] == '-' ? "128" : "127");
+			bool integral = !digits.empty() && digits.find_first_not_of("0123456789") == string::npos;
+			if (integral && (stripped.size() > max.size() || (stripped.size() == max.size() && stripped > max))) {
+				throw ParserException("Numeric literal %s%s does not fit in range for type %s", number, suffix,
+				                      StringUtil::Lower(type));
+			}
+		}
 		Tokens replacement = Lex("CAST (", offset);
 		replacement.emplace_back(as_string ? DuckStringLiteral(number) : number, offset,
 		                         as_string ? TokenType::STRING_LITERAL : TokenType::NUMBER_LITERAL);

@@ -49,3 +49,8 @@ SELECT 7.5BD % INTERVAL 1 DAY;
 SELECT array_sort(array('b', NULL, 'a'), (left, right) -> CASE WHEN left IS NULL THEN 1 WHEN right IS NULL THEN 1e309 - 1 ELSE 0 END);
 
 SELECT array_sort(array(1, 2), (l, r) -> CAST(l - r AS BIGINT));
+-- ===== Integral literals outside their type's range: DuckDB's __cast threw without being marked fallible (assert builds) =====
+
+SELECT 92233720368549999999999999999999999999999999999999999775807L ^ -1L;
+
+SELECT 128Y, 32768S;
