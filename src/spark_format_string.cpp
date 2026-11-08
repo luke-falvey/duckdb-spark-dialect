@@ -437,13 +437,27 @@ string FormatOne(const Spec &spec, const Value &value, idx_t row_unused) {
 	return Pad(body, spec, allow_zero);
 }
 
-string FormatRow(const string &format, DataChunk &args, idx_t row) {
-	string out;
+//! A parsed format string: literal text, or a conversion applied to the argument in column `argument` + 1.
+struct Piece {
+	string literal;
+	bool is_spec = false;
+	Spec spec;
+	idx_t argument = 0;
+};
+
+vector<Piece> ParseFormat(const string &format, idx_t column_count) {
+	vector<Piece> pieces;
+	auto add_literal = [&](const string &text) {
+		if (pieces.empty() || pieces.back().is_spec) {
+			pieces.emplace_back();
+		}
+		pieces.back().literal += text;
+	};
 	idx_t next_argument = 0;
 	int last_argument = -1;
 	for (idx_t i = 0; i < format.size();) {
 		if (format[i] != '%') {
-			out += format[i++];
+			add_literal(string(1, format[i++]));
 			continue;
 		}
 		i++;
@@ -506,11 +520,11 @@ string FormatRow(const string &format, DataChunk &args, idx_t row) {
 		}
 		char conversion = format[i++];
 		if (conversion == '%') {
-			out += Pad("%", spec, false);
+			add_literal(Pad("%", spec, false));
 			continue;
 		}
 		if (conversion == 'n') {
-			out += "\n";
+			add_literal("\n");
 			continue;
 		}
 		if (isupper(uint8_t(conversion))) {
@@ -532,11 +546,68 @@ string FormatRow(const string &format, DataChunk &args, idx_t row) {
 		} else {
 			argument = next_argument++;
 		}
-		if (argument + 1 >= args.ColumnCount()) {
+		if (argument + 1 >= column_count) {
 			FormatError("MISSING_FORMAT_ARGUMENT", "format specifier requires argument " + std::to_string(argument + 1));
 		}
 		last_argument = int(argument);
-		out += FormatOne(spec, args.data[argument + 1].GetValue(row), row);
+		pieces.emplace_back();
+		pieces.back().is_spec = true;
+		pieces.back().spec = spec;
+		pieces.back().argument = argument;
+	}
+	return pieces;
+}
+
+//! Format arguments of a chunk: the common types are read without creating a Value per row.
+struct ArgumentColumn {
+	UnifiedVectorFormat data;
+	bool is_string = false;
+	bool is_integer = false;
+	PhysicalType physical = PhysicalType::INVALID;
+
+	int64_t Integer(idx_t index) const {
+		switch (physical) {
+		case PhysicalType::INT8:
+			return UnifiedVectorFormat::GetData<int8_t>(data)[index];
+		case PhysicalType::INT16:
+			return UnifiedVectorFormat::GetData<int16_t>(data)[index];
+		case PhysicalType::INT32:
+			return UnifiedVectorFormat::GetData<int32_t>(data)[index];
+		default:
+			return UnifiedVectorFormat::GetData<int64_t>(data)[index];
+		}
+	}
+};
+
+string FormatPieces(const vector<Piece> &pieces, DataChunk &args, vector<ArgumentColumn> &columns, idx_t row) {
+	string out;
+	for (auto &piece : pieces) {
+		if (!piece.is_spec) {
+			out += piece.literal;
+			continue;
+		}
+		auto &spec = piece.spec;
+		auto &column = columns[piece.argument + 1];
+		if (column.is_string && spec.conversion == 's' && !spec.upper && spec.precision < 0) {
+			auto index = column.data.sel->get_index(row);
+			if (!column.data.validity.RowIsValid(index)) {
+				out += Pad("null", spec, false);
+			} else {
+				out += Pad(UnifiedVectorFormat::GetData<string_t>(column.data)[index].GetString(), spec, false);
+			}
+			continue;
+		}
+		if (column.is_integer && spec.conversion == 'd' && !spec.comma && !spec.paren && !spec.plus && !spec.space &&
+		    !spec.upper) {
+			auto index = column.data.sel->get_index(row);
+			if (!column.data.validity.RowIsValid(index)) {
+				out += Pad("null", spec, true);
+			} else {
+				out += Pad(std::to_string(column.Integer(index)), spec, true);
+			}
+			continue;
+		}
+		out += FormatOne(spec, args.data[piece.argument + 1].GetValue(row), row);
 	}
 	return out;
 }
@@ -545,13 +616,47 @@ void FormatStringKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto count = args.size();
 	result.SetVectorType(VectorType::FLAT_VECTOR);
 	auto out = FlatVector::GetDataMutable<string_t>(result);
+	UnifiedVectorFormat format_data;
+	args.data[0].ToUnifiedFormat(count, format_data);
+	auto formats = UnifiedVectorFormat::GetData<string_t>(format_data);
+	// the arguments in a form that is cheap to read: strings and integers without a Value per row
+	vector<ArgumentColumn> columns(args.ColumnCount());
+	for (idx_t c = 1; c < args.ColumnCount(); c++) {
+		auto &type = args.data[c].GetType();
+		auto &column = columns[c];
+		switch (type.id()) {
+		case LogicalTypeId::VARCHAR:
+			column.is_string = true;
+			args.data[c].ToUnifiedFormat(count, column.data);
+			break;
+		case LogicalTypeId::TINYINT:
+		case LogicalTypeId::SMALLINT:
+		case LogicalTypeId::INTEGER:
+		case LogicalTypeId::BIGINT:
+			column.is_integer = true;
+			column.physical = type.InternalType();
+			args.data[c].ToUnifiedFormat(count, column.data);
+			break;
+		default:
+			break;
+		}
+	}
+	vector<Piece> pieces;
+	string last_format;
+	bool have_pieces = false;
 	for (idx_t row = 0; row < count; row++) {
-		auto format = args.data[0].GetValue(row);
-		if (format.IsNull()) {
+		auto format_index = format_data.sel->get_index(row);
+		if (!format_data.validity.RowIsValid(format_index)) {
 			FlatVector::SetNull(result, row, true);
 			continue;
 		}
-		out[row] = StringVector::AddString(result, FormatRow(format.ToString(), args, row));
+		auto format = formats[format_index].GetString();
+		if (!have_pieces || format != last_format) {
+			pieces = ParseFormat(format, args.ColumnCount());
+			last_format = format;
+			have_pieces = true;
+		}
+		out[row] = StringVector::AddString(result, FormatPieces(pieces, args, columns, row));
 	}
 	if (args.AllConstant()) {
 		result.SetVectorType(VectorType::CONSTANT_VECTOR);

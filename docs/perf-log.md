@@ -86,3 +86,17 @@ registering the sets also in `main` (plan shapes of Q10 / Q18 then matched nativ
 128-bit states cost more than the pushdown saves. Dropped; nothing of it is kept (it would also have put two
 functions into the default dialect's `main` schema). Remaining shape differences: Q08 (`Perfect Hash Group By` on
 `year()`: the key's statistics are missing), Q17 (an extra `Filter`), Q22.
+
+### Phase C: item 3, `format_string` / `printf` (branch perf/opt-decimal-sum)
+
+**Profile** (`format_string('%s-%d', s, i)`, 1 thread): spread over `_int_free`, `Value` construction / destruction
+(`Vector::GetValue` per argument per row), `AddString`, `memcpy`; no single hot spot: the cost is the per-row
+allocation churn (a `Value`, the format re-parsed, strings).
+
+**Change**: the format is parsed once per distinct format string per chunk (`ParseFormat` -> `Piece`s; a constant
+format is parsed once per chunk), the arguments are read through `UnifiedVectorFormat`, and the common conversions
+(`%s` of a VARCHAR, `%d` of an integer type, with width / `-` / `0` flags only) skip the `Value` path; everything else
+(floating point, decimals, dates, flags like `,` `+` `(`) still goes through `FormatOne`. A/B (9 runs): `format_string`
+728.8 -> 67.1 ms (0.092x, [0.088, 0.095], faster; native `printf` is about 140 ms, so the ratio to native is now
+about 0.5x). Checks: full suite both dialects, crash replay, `--known`, `args_sweep --functions format_string,printf`
+(0 findings), differential smoke (0 failing).
