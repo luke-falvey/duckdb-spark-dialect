@@ -92,3 +92,8 @@ SELECT CAST(X'00FF61' AS STRING), crc32(X'FF00'), crc32('abc');
 SELECT count_if(b), count_if(CAST(NULL AS BOOLEAN)) FROM VALUES (CAST(NULL AS BOOLEAN)), (NULL) AS t(b);
 
 SELECT to_char(2, '999'), to_char(1.5, '999.99'), to_char(12454, '99G999'), to_char(2, '99G999'), to_char(-12, '9999'), to_char(-12454.8, '99G999D9S'), to_char(12345, '999.99'), to_char(454, '000D00');
+
+-- ===== split (RE2 with a std::regex fallback) and substr (byte ranges) =====
+SELECT split('oneAtwoBthreeC', '[ABC]'), split('oneAtwoBthreeC', '[ABC]', 2), split('a,b,,c,', ','), split('abc', ''), split('日本語', ''), split('aXbXc', '(?=X)'), split('a1b22c', '\\d+'), split('', ','), split('a.b', '.'), split('aaa', 'a*');
+
+SELECT substr('abcdef', 2, 3), substr('abcdef', -3), substr('abc', -5, 3), substr('日本語テキスト', 2, 3), substr('日本語', -1), substr('abc', 0, 1), substr('abc', 4), substr('abc', 2, -1), substr(X'010203', 2);

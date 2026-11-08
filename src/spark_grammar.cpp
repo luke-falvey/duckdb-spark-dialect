@@ -76,7 +76,10 @@ struct HookDepthGuard {
 		auto here = reinterpret_cast<uintptr_t>(&marker);
 		if (state.depth == 0) {
 			state.base = here;
-			state.budget = ThreadStackSize() / 3;
+			if (state.budget == 0) {
+				// once per thread: pthread_getattr_np reads /proc/self/maps for the main thread
+				state.budget = ThreadStackSize() / 3;
+			}
 		}
 		state.depth++;
 		auto used = state.base > here ? state.base - here : here - state.base;
@@ -1644,8 +1647,19 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	    {"SpDecimalModifiers <- '(' List(NumberLiteral) ')'", nullptr},
 	    {"SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') '(' NumberLiteral ')'", ExprProcess<TransformCharType>},
 	};
+	// levels of the precedence ladder that return their only child unchanged when nothing else matched (no
+	// operator tail, no predicate, no indirection): collapsible, so the matcher skips building a result for them
+	// and a plain operand does not pass through every level's transform (like DuckDB's own expression ladder)
+	static const unordered_set<string> collapsible = {
+	    "SpExpression", "SpOr",     "SpAnd",      "SpNot",      "SpPredicated",     "SpComparison", "SpBitOr",
+	    "SpBitXor",     "SpBitAnd", "SpAdditive", "SpMultiplicative", "SpUnary", "SpPrimary",    "SpAtom"};
 	for (auto &rule : rules) {
 		g.AddRule(rule.definition, rule.transform);
+		string definition = rule.definition;
+		auto name = definition.substr(0, definition.find(' '));
+		if (rule.transform && collapsible.count(name)) {
+			g.SetTransformProcess(name, rule.transform, true);
+		}
 	}
 	g.PrependChoice("TypeVariations", "SpCharType");
 	g.PrependChoice("TypeVariations", "SpDecimalType");

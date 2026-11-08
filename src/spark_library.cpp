@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <regex>
+#include "re2/re2.h"
 
 #include "utf8proc.hpp"
 
@@ -205,6 +206,66 @@ void MaskKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	}
 }
 
+//! A compiled pattern, cached per thread for the last pattern seen (split's pattern is almost always constant).
+//! RE2 (bundled with DuckDB: linear time, no stack recursion) where it accepts the pattern; std::regex for the
+//! Java syntax RE2 lacks (backreferences, lookaround).
+struct CachedRegex {
+	string pattern;
+	unique_ptr<duckdb_re2::RE2> re2;
+	unique_ptr<std::regex> fallback;
+};
+
+CachedRegex &CompileRegex(const string &pattern) {
+	static thread_local CachedRegex cached;
+	if (cached.pattern != pattern || (!cached.re2 && !cached.fallback)) {
+		cached.pattern = pattern;
+		duckdb_re2::RE2::Options options;
+		options.set_log_errors(false);
+		cached.re2 = make_uniq<duckdb_re2::RE2>(pattern, options);
+		cached.fallback.reset();
+		if (!cached.re2->ok()) {
+			cached.re2.reset();
+			cached.fallback = make_uniq<std::regex>(pattern);
+		}
+	}
+	return cached;
+}
+
+//! Calls on_match(position, length) for successive matches, like java.util.regex.Matcher.find(): after an empty
+//! match the search resumes one code point later. Stops when on_match returns false.
+template <class ON_MATCH>
+void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_match) {
+	auto &regex = CompileRegex(pattern);
+	if (regex.re2) {
+		duckdb_re2::StringPiece input(str);
+		duckdb_re2::StringPiece match;
+		size_t pos = 0;
+		while (pos <= str.size()) {
+			if (!regex.re2->Match(input, pos, str.size(), duckdb_re2::RE2::UNANCHORED, &match, 1)) {
+				return;
+			}
+			auto start = size_t(match.data() - str.data());
+			if (!on_match(idx_t(start), idx_t(match.size()))) {
+				return;
+			}
+			if (match.empty()) {
+				pos = start + 1;
+				while (pos < str.size() && (static_cast<unsigned char>(str[pos]) & 0xC0) == 0x80) {
+					pos++;
+				}
+			} else {
+				pos = start + match.size();
+			}
+		}
+		return;
+	}
+	for (auto it = std::sregex_iterator(str.begin(), str.end(), *regex.fallback); it != std::sregex_iterator(); ++it) {
+		if (!on_match(idx_t(it->position()), idx_t(it->length()))) {
+			return;
+		}
+	}
+}
+
 //! split(str, regex, limit) with java.lang.String.split semantics (limit <= 0: no limit, trailing empty kept)
 void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto count = args.size();
@@ -228,33 +289,34 @@ void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
 		auto &parts = rows[i];
 		if (pattern.empty()) {
-			// split into characters; Spark keeps a trailing empty string only with limit
-			for (idx_t k = 0; k < str.size(); k++) {
+			// split into characters (code points, not bytes); Spark keeps a trailing empty string only with limit
+			for (idx_t k = 0; k < str.size();) {
 				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
 					parts.push_back(str.substr(k));
 					break;
 				}
-				parts.push_back(str.substr(k, 1));
+				idx_t next = k + 1;
+				while (next < str.size() && (static_cast<unsigned char>(str[next]) & 0xC0) == 0x80) {
+					next++;
+				}
+				parts.push_back(str.substr(k, next - k));
+				k = next;
 			}
 			if (str.empty()) {
 				parts.push_back("");
 			}
 		} else {
-			std::regex re(pattern);
-			auto begin = std::sregex_iterator(str.begin(), str.end(), re);
 			idx_t last = 0;
-			for (auto it = begin; it != std::sregex_iterator(); ++it) {
+			FindRegexMatches(pattern, str, [&](idx_t pos, idx_t len) {
 				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
-					break;
+					return false;
 				}
-				auto pos = idx_t(it->position());
-				auto len = idx_t(it->length());
-				if (len == 0 && pos == 0) {
-					continue;
+				if (!(len == 0 && pos == 0)) {
+					parts.push_back(str.substr(last, pos - last));
+					last = pos + len;
 				}
-				parts.push_back(str.substr(last, pos - last));
-				last = pos + len;
-			}
+				return true;
+			});
 			parts.push_back(str.substr(last));
 		}
 		total += parts.size();
@@ -1391,21 +1453,6 @@ vector<string> Units(const string &s, bool binary) {
 	return units;
 }
 
-//! UTF8String.substringSQL
-string SparkSubstr(const string &s, int64_t pos, int64_t length, bool binary) {
-	auto units = Units(s, binary);
-	int64_t n = int64_t(units.size());
-	int64_t start = pos > 0 ? pos - 1 : (pos < 0 ? n + pos : 0);
-	int64_t end = length == NumericLimits<int64_t>::Maximum() ? n : start + length;
-	start = MaxValue<int64_t>(start, 0);
-	end = MinValue<int64_t>(end, n);
-	string out;
-	for (int64_t i = start; i < end; i++) {
-		out += units[i];
-	}
-	return out;
-}
-
 string SparkPad(const string &s, int64_t length, const string &pad, bool left, bool binary) {
 	auto units = Units(s, binary);
 	if (length <= 0) {
@@ -1429,11 +1476,50 @@ string SparkPad(const string &s, int64_t length, const string &pad, bool left, b
 	return left ? fill + s : s + fill;
 }
 
+//! Byte offset of code point `index` (UTF-8 lead bytes are those that are not 10xxxxxx)
+idx_t CodePointOffset(const char *data, idx_t size, int64_t index) {
+	idx_t offset = 0;
+	int64_t seen = 0;
+	for (; offset < size; offset++) {
+		if ((static_cast<unsigned char>(data[offset]) & 0xC0) != 0x80) {
+			if (seen == index) {
+				return offset;
+			}
+			seen++;
+		}
+	}
+	return size;
+}
+
+//! UTF8String.substringSQL without copying characters: the result is a byte range of the input
 template <bool BINARY>
 void SubstrKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	TernaryExecutor::Execute<string_t, int64_t, int64_t, string_t>(
 	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, int64_t pos, int64_t len) {
-		    return StringVector::AddStringOrBlob(result, SparkSubstr(s.GetString(), pos, len, BINARY));
+		    auto data = s.GetData();
+		    auto size = s.GetSize();
+		    bool bytes = BINARY;
+		    int64_t n = int64_t(size);
+		    if (!BINARY) {
+			    // code points; ASCII strings (the common case) have one byte per code point
+			    int64_t continuation = 0;
+			    for (idx_t i = 0; i < size; i++) {
+				    continuation += (static_cast<unsigned char>(data[i]) & 0xC0) == 0x80;
+			    }
+			    n = int64_t(size) - continuation;
+			    bytes = continuation == 0;
+		    }
+		    // 128-bit arithmetic: positions and lengths can be anywhere in the BIGINT range
+		    hugeint_t hstart = pos > 0 ? hugeint_t(pos) - hugeint_t(1) : (pos < 0 ? hugeint_t(n) + hugeint_t(pos) : hugeint_t(0));
+		    hugeint_t hend = len == NumericLimits<int64_t>::Maximum() ? hugeint_t(n) : hstart + hugeint_t(len);
+		    int64_t start = hstart < hugeint_t(0) ? 0 : (hstart > hugeint_t(n) ? n : Hugeint::Cast<int64_t>(hstart));
+		    int64_t end = hend < hugeint_t(0) ? 0 : (hend > hugeint_t(n) ? n : Hugeint::Cast<int64_t>(hend));
+		    if (end <= start) {
+			    return StringVector::AddStringOrBlob(result, string_t(data, 0));
+		    }
+		    idx_t from = bytes ? idx_t(start) : CodePointOffset(data, size, start);
+		    idx_t to = bytes ? idx_t(end) : CodePointOffset(data, size, end);
+		    return StringVector::AddStringOrBlob(result, string_t(data + from, UnsafeNumericCast<uint32_t>(to - from)));
 	    });
 }
 

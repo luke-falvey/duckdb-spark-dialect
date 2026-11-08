@@ -43,10 +43,23 @@ def use_utc():
     time.tzset()
 
 
+_SCRATCH = []
+
+
+def _remove_scratch():
+    for path in _SCRATCH:
+        shutil.rmtree(path, ignore_errors=True)
+
+
 def scratch_dir(prefix="spark-dialect-"):
     """A fresh working directory, so statements that write files (COPY, EXPORT DATABASE, ...) never
-    write into the repository."""
-    return tempfile.mkdtemp(prefix=prefix)
+    write into the repository. It is removed when the process that created it exits."""
+    import atexit
+    if not _SCRATCH:
+        atexit.register(_remove_scratch)
+    path = tempfile.mkdtemp(prefix=prefix)
+    _SCRATCH.append(path)
+    return path
 
 
 @dataclass
@@ -148,13 +161,33 @@ class SparkOracle:
     def reset(self):
         """Drop every table and view, so the next file / run starts from a clean catalog."""
         self.replay = []
+        for sql in ("USE default", "CLEAR CACHE"):
+            try:
+                self.spark.sql(sql)
+            except Exception:  # noqa: BLE001
+                pass
+        for db in self.spark.catalog.listDatabases():
+            if db.name != "default":
+                try:
+                    self.spark.sql(f"DROP DATABASE IF EXISTS `{db.name}` CASCADE")
+                except Exception:  # noqa: BLE001
+                    pass
         for t in self.spark.catalog.listTables():
-            if t.isTemporary:
-                self.spark.catalog.dropTempView(t.name)
-            elif t.tableType == "VIEW":
-                self.spark.sql(f"DROP VIEW IF EXISTS {t.name}")
-            else:
-                self.spark.sql(f"DROP TABLE IF EXISTS {t.name}")
+            try:
+                if t.isTemporary:
+                    self.spark.catalog.dropTempView(t.name)
+                elif t.tableType == "VIEW":
+                    self.spark.sql(f"DROP VIEW IF EXISTS `{t.name}`")
+                else:
+                    self.spark.sql(f"DROP TABLE IF EXISTS `{t.name}`")
+            except Exception:  # noqa: BLE001
+                pass
+        for fn in self.spark.catalog.listFunctions():
+            if fn.isTemporary and fn.className and not fn.className.startswith("org.apache.spark"):
+                try:
+                    self.spark.sql(f"DROP TEMPORARY FUNCTION IF EXISTS `{fn.name}`")
+                except Exception:  # noqa: BLE001
+                    pass
 
     def stop(self):
         self.spark.stop()
