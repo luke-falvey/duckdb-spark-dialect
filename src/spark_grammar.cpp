@@ -76,7 +76,7 @@ bool RunOnLargeStack(const std::function<void()> &fn) {
 		return false;
 	}
 	// the stack is mapped lazily: only what a statement really uses is committed
-	if (pthread_attr_setstacksize(&attr, size_t(512) * 1024 * 1024) != 0) {
+	if (pthread_attr_setstacksize(&attr, size_t(64) * 1024 * 1024) != 0) {
 		pthread_attr_destroy(&attr);
 		return false;
 	}
