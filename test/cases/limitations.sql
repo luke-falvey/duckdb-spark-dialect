@@ -355,3 +355,23 @@ SELECT array_append(NULL, 1);
 SELECT element_at(NULL, 1);
 
 SELECT array_contains(array(1, NULL), CAST(NULL AS INT)), array_position(array(1, 2), CAST(NULL AS INT)), map_contains_key(map(1, 2), 1);
+
+-- ===== L9: corpus tail (Spark's own sql-tests inputs) =====
+
+SELECT count(DISTINCT 3, 2), count(1, 2), count(DISTINCT 'a', 'a');
+
+SELECT count(DISTINCT a, b), count(a, b), count(DISTINCT a), count(*), count(a, b, a) FROM VALUES (1, 2), (1, 2), (CAST(NULL AS INT), 1), (2, CAST(NULL AS INT)), (3, 4) AS t(a, b);
+
+SELECT g, count(DISTINCT a, b) FILTER (WHERE a > 0), count(a, b) FILTER (WHERE a > 1) FROM VALUES ('x', 1, 2), ('x', 1, 2), ('y', 1, 3), ('y', 2, 3) AS t(g, a, b) GROUP BY g ORDER BY g;
+
+SELECT a, count(a, b) OVER (ORDER BY a), count(a) OVER (ORDER BY a) FROM VALUES (1, 2), (2, CAST(NULL AS INT)), (3, 3) AS t(a, b) ORDER BY a;
+
+SELECT count(DISTINCT a, b) FROM VALUES (1, 'x'), (1, 'x'), (1, 'y') AS t(a, b);
+
+SELECT percentile_disc(0.25) WITHIN GROUP (ORDER BY v), percentile_cont(0.5) WITHIN GROUP (ORDER BY v) FROM VALUES (0), (1), (2), (10) AS t(v);
+
+SELECT avg(x), typeof(avg(x)), sum(x) FROM VALUES (TIMESTAMP '2020-01-01 00:00:00.5'), (TIMESTAMP '2020-01-02 00:00:00') AS t(x);
+
+SELECT avg(x) FROM VALUES (DATE '2020-01-01') AS t(x);
+
+SELECT sum(x) FROM VALUES (DATE '2020-01-01') AS t(x);

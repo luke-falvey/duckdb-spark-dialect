@@ -652,7 +652,9 @@ void CollectTokens(ParseResult &pr, vector<string> &out) {
 //! spark_strict: only Spark's built-in functions can be called by their plain name
 void CheckSparkFunctionName(const string &name) {
 	auto lower = StringUtil::Lower(name);
-	if (!IsSparkFunction(lower) && !StringUtil::StartsWith(lower, "__spark_")) {
+	// percentile_cont / percentile_disc are Spark functions (WITHIN GROUP syntax) that SHOW FUNCTIONS does not list
+	if (!IsSparkFunction(lower) && !StringUtil::StartsWith(lower, "__spark_") && lower != "percentile_cont" &&
+	    lower != "percentile_disc") {
 		throw BinderException("[UNRESOLVED_ROUTINE] Cannot resolve function `%s`: it is not a Spark SQL function", name);
 	}
 }
@@ -1183,6 +1185,29 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		}
 		return SparkCall("as_string", std::move(result));
 	}
+	if (name == "count" && func.GetArguments().size() > 1 && !func.ExportState()) {
+		// count(a, b, ...) counts the rows where all of the expressions are not NULL; with DISTINCT, distinct tuples
+		auto args = TakeArguments(func);
+		ExprPtr any_null;
+		vector<ExprPtr> row_fields;
+		for (auto &arg : args) {
+			ExprPtr is_null = make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, arg->Copy());
+			any_null = any_null ? make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_OR, std::move(any_null),
+			                                                       std::move(is_null))
+			                    : std::move(is_null);
+			row_fields.push_back(std::move(arg));
+		}
+		auto row = make_uniq<FunctionExpression>(Identifier("row"), std::move(row_fields));
+		auto guarded = make_uniq<CaseExpression>();
+		CaseCheck check;
+		check.when_expr = std::move(any_null);
+		check.then_expr = ConstantExpression::Null();
+		guarded->CaseChecksMutable().push_back(std::move(check));
+		guarded->ElseMutable() = std::move(row);
+		func.GetArgumentsMutable().clear();
+		func.GetArgumentsMutable().emplace_back(ExprPtr(std::move(guarded)));
+		return expr;
+	}
 	if ((name == "sum" || name == "avg" || name == "mean") && func.GetArguments().size() == 1 && !func.ExportState()) {
 		// Spark's result types (sum(decimal(p, s)) is decimal(p + 10, s), integer sums are BIGINT, ...) come from
 		// the dialect's own aggregates; DISTINCT, FILTER and ORDER BY stay on the call
@@ -1446,6 +1471,27 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 		}
 		if (name == "first" || name == "last") {
 			window.SetFunctionName(name + "_value");
+		}
+		if (name == "count" && window_args.size() > 1) {
+			// count(a, b) OVER (...): rows where all of the expressions are not NULL
+			ExprPtr any_null;
+			vector<ExprPtr> row_fields;
+			for (auto &arg : window_args) {
+				ExprPtr is_null =
+				    make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, arg.GetExpression().Copy());
+				any_null = any_null ? make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_OR,
+				                                                       std::move(any_null), std::move(is_null))
+				                    : std::move(is_null);
+				row_fields.push_back(arg.GetExpression().Copy());
+			}
+			auto guarded = make_uniq<CaseExpression>();
+			CaseCheck check;
+			check.when_expr = std::move(any_null);
+			check.then_expr = ConstantExpression::Null();
+			guarded->CaseChecksMutable().push_back(std::move(check));
+			guarded->ElseMutable() = make_uniq<FunctionExpression>(Identifier("row"), std::move(row_fields));
+			window_args.clear();
+			window_args.emplace_back(ExprPtr(std::move(guarded)));
 		}
 		if ((name == "sum" || name == "avg" || name == "mean") && window_args.size() == 1) {
 			// like the plain aggregates: Spark's result types, and BIGINT sums wrap on overflow

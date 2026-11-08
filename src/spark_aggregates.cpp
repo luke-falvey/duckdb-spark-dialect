@@ -38,6 +38,16 @@ inline uint64_t LowBits(const T &value) {
 	}
 }
 
+//! the value as Spark's implicit cast to DOUBLE sees it: timestamps are seconds since the epoch
+template <class T>
+inline double AsDouble(const T &value) {
+	if constexpr (std::is_same<T, timestamp_t>::value) {
+		return double(value.value) / 1000000.0;
+	} else {
+		return Cast::Operation<T, double>(value);
+	}
+}
+
 template <class T>
 inline hugeint_t ToHugeint(const T &value) {
 	if constexpr (std::is_same<T, hugeint_t>::value) {
@@ -187,13 +197,13 @@ struct DoubleSumOperation : public ClusteredCopy {
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
-		state.value += input;
+		state.value += AsDouble(input);
 		state.is_set = true;
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &, idx_t count) {
-		state.value += input * double(count);
+		state.value += AsDouble(input) * double(count);
 		state.is_set = true;
 	}
 
@@ -208,12 +218,12 @@ struct DoubleSumOperation : public ClusteredCopy {
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input) {
-		local.value += input;
+		local.value += AsDouble(input);
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input, idx_t count) {
-		local.value += input * double(count);
+		local.value += AsDouble(input) * double(count);
 	}
 
 	template <class STATE>
@@ -246,13 +256,13 @@ struct DoubleAvgOperation : public ClusteredCopy {
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
-		state.value += Cast::Operation<INPUT_TYPE, double>(input);
+		state.value += AsDouble(input);
 		state.count++;
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &, idx_t count) {
-		state.value += Cast::Operation<INPUT_TYPE, double>(input) * double(count);
+		state.value += AsDouble(input) * double(count);
 		state.count += int64_t(count);
 	}
 
@@ -267,13 +277,13 @@ struct DoubleAvgOperation : public ClusteredCopy {
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input) {
-		local.value += Cast::Operation<INPUT_TYPE, double>(input);
+		local.value += AsDouble(input);
 		local.count++;
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input, idx_t count) {
-		local.value += Cast::Operation<INPUT_TYPE, double>(input) * double(count);
+		local.value += AsDouble(input) * double(count);
 		local.count += int64_t(count);
 	}
 
@@ -692,12 +702,17 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	sum.AddFunction(IntegerSum<int64_t>(LogicalType::BIGINT));
 	sum.AddFunction(IntegerSum<hugeint_t>(LogicalType::HUGEINT));
 	sum.AddFunction(MakeDoubleSum());
+	{
+		auto timestamp_sum = AggregateFunction::UnaryAggregate<DoubleSumState, timestamp_t, double, DoubleSumOperation>(
+		    LogicalType::TIMESTAMP, LogicalType::DOUBLE);
+		timestamp_sum.GetSignature().GetParameter(0).SetName("arg");
+		sum.AddFunction(timestamp_sum);
+	}
 	sum.AddFunction(CastingOverload(LogicalType::VARCHAR, BindCastToDouble<true>));
 	sum.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<true>));
 	sum.AddFunction(IntegerSum<int8_t>(LogicalType::TINYINT));
 	sum.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<true>));
-	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP, LogicalType::TIMESTAMP_TZ, LogicalType::TIME,
-	                   LogicalType::BLOB}) {
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB}) {
 		sum.AddFunction(CastingOverload(type, BindUnsupported<true>));
 	}
 	loader.RegisterFunction(sum);
@@ -709,12 +724,12 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	avg.AddFunction(DoubleAvg<int64_t>(LogicalType::BIGINT));
 	avg.AddFunction(DoubleAvg<hugeint_t>(LogicalType::HUGEINT));
 	avg.AddFunction(MakeDoubleAvg());
+	avg.AddFunction(DoubleAvg<timestamp_t>(LogicalType::TIMESTAMP));
 	avg.AddFunction(CastingOverload(LogicalType::VARCHAR, BindCastToDouble<false>));
 	avg.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<false>));
 	avg.AddFunction(DoubleAvg<int8_t>(LogicalType::TINYINT));
 	avg.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<false>));
-	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP, LogicalType::TIMESTAMP_TZ, LogicalType::TIME,
-	                   LogicalType::BLOB}) {
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB}) {
 		avg.AddFunction(CastingOverload(type, BindUnsupported<false>));
 	}
 	loader.RegisterFunction(avg);
