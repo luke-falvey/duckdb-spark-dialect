@@ -4,16 +4,6 @@
 
 [[difference]]
 signature = "*"
-sql = '922337203685477580[78]L|2147483647|-2147483648|32767S|-32768S|127Y|-128Y|2147483648'
-reason = """BIGINT values outside the INT range passed to INT parameters (add_months, bround, left, make_dt_interval,
-date_from_unix_date, ...) wrap around in Spark's non-ANSI implicit casts; DuckDB's implicit casts raise an
-out-of-range error instead. Fixing it means replacing DuckDB's implicit cast rules for every function argument.
-Integer overflow in the dialect's own operators (+, -, *, abs, ...) does wrap like Spark and is tested
-separately (test/cases/operators.sql, fuzz_regressions.sql)."""
-example = "SELECT add_months('2016-08-31', 9223372036854775807L)"
-
-[[difference]]
-signature = "*"
 sql = '-0\.0D'
 reason = """Spark's map(-0.0, 1, 0.0, 2) keeps one key (the zeros are the same key there); DuckDB rejects the duplicate.
 array_distinct / array_union / array_except / array_intersect do tell -0.0 from 0.0 like Spark."""

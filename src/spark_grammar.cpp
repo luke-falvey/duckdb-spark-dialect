@@ -828,6 +828,38 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 			                      name, (unsigned long long)entry->second.first, (unsigned long long)count);
 		}
 	}
+	{
+		// INT parameters: Spark's implicit cast of a BIGINT argument wraps around (non-ANSI); DuckDB's raises an
+		// out-of-range error. narrow_int does the wrapping for BIGINT arguments and leaves other types alone.
+		static const unordered_map<string, vector<idx_t>> INT_PARAMETERS = {
+		    {"add_months", {1}},        {"bround", {1}},            {"round", {1}},             {"bit_get", {1}},           {"getbit", {1}},
+		    {"conv", {1, 2}},           {"date_from_unix_date", {0}}, {"make_dt_interval", {0, 1, 2}},
+		    {"make_ym_interval", {0, 1}}, {"make_date", {0, 1, 2}}, {"make_interval", {0, 1, 2, 3, 4, 5}},
+		    {"left", {1}},              {"right", {1}},             {"repeat", {1}},            {"space", {0}},
+		    {"lpad", {1}},              {"rpad", {1}},              {"substring", {1, 2}},      {"substr", {1, 2}},
+		    {"shiftleft", {1}},         {"shiftright", {1}},        {"shiftrightunsigned", {1}},
+		    {"slice", {1, 2}},          {"format_number", {1}},     {"split_part", {2}},        {"overlay", {2, 3}},
+		    {"locate", {2}},            {"factorial", {0}},         {"nth_value", {1}},         {"ntile", {0}},
+		    {"levenshtein", {2}},       {"lag", {1}},               {"lead", {1}},              {"make_timestamp", {0, 1, 2, 3, 4}},
+		    {"make_timestamp_ntz", {0, 1, 2, 3, 4}}, {"make_timestamp_ltz", {0, 1, 2, 3, 4}}};
+		auto entry = INT_PARAMETERS.find(name);
+		if (entry != INT_PARAMETERS.end()) {
+			auto &arguments = func.GetArgumentsMutable();
+			for (auto position : entry->second) {
+				if (position >= arguments.size()) {
+					continue;
+				}
+				auto &argument = arguments[position].GetExpressionMutable();
+				if (argument->GetExpressionClass() == ExpressionClass::CONSTANT) {
+					// small literals are INT already; only a literal with many digits can be out of range
+					if (argument->ToString().size() < 10) {
+						continue;
+					}
+				}
+				argument = SparkCall("narrow_int", std::move(argument));
+			}
+		}
+	}
 	if (name == "named_struct") {
 		auto args = TakeArguments(func);
 		if (args.size() % 2 != 0) {

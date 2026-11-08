@@ -185,3 +185,25 @@ SELECT l3_ev.u, session_window.start, count(l3_ev.v) FROM l3_ev WHERE l3_ev.v IS
 SELECT e.u, session_window.start FROM (SELECT * FROM l3_ev) AS e GROUP BY e.u, session_window(e.ts, '5 minutes') ORDER BY e.u, start;
 
 SELECT window.start, count(*) FROM (SELECT * FROM l3_ev WHERE v > 2) GROUP BY window(ts, '10 minutes') ORDER BY start;
+
+-- ===== L9: BIGINT arguments of INT parameters wrap like Spark's implicit cast =====
+
+SELECT add_months('2016-08-31', 9223372036854775807L), add_months('2016-08-31', -9223372036854775808L), add_months('2016-08-31', 4294967297L);
+
+SELECT bround(2.5D, 4294967297L), round(2.5D, 4294967297L), bround(25, -9223372036854775808L);
+
+SELECT date_from_unix_date(9223372036854775807L), date_from_unix_date(x) FROM VALUES (4294967297L) AS t(x);
+
+SELECT left('abcdef', x), right('abcdef', x), repeat('ab', x), substring('hello', x, 2), lpad('a', x, 'x'), rpad('a', x, 'x') FROM VALUES (4294967299L) AS t(x);
+
+SELECT conv('100', 2, 9223372036854775807L), conv('100', -9223372036854775808L, 10), bit_get(11, -9223372036854775808L), getbit(11, 4294967296L);
+
+SELECT make_ym_interval(1, 9223372036854775807L), make_dt_interval(9223372036854775807L), make_date(2020, 4294967297L, 1);
+
+SELECT shiftleft(1, 4294967297L), shiftright(8, 4294967297L), shiftrightunsigned(8, 4294967297L);
+
+SELECT slice(array(1, 2, 3), x, 2) FROM VALUES (4294967297L) AS t(x);
+
+SELECT array_repeat('a', x) FROM VALUES (4294967297L) AS t(x);
+
+SELECT add_months('2016-08-31', x), left('abcdef', x) FROM VALUES (2L), (CAST(NULL AS BIGINT)), (-4294967295L) AS t(x);

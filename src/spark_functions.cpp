@@ -1825,6 +1825,18 @@ ExprP BindZeroKey(FunctionBindExpressionInput &input) {
 	              std::move(as_double));
 }
 
+//! narrow_int(x): a BIGINT (or wider) argument wraps to INT like Spark's implicit cast; other types are unchanged
+ExprP BindNarrowInt(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "narrow_int", 1, 1);
+	Builder b(input.context);
+	auto value = Arg(input, 0);
+	auto type = Normalize(value->GetReturnType());
+	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT) {
+		return SparkCast(b, std::move(value), LogicalType::INTEGER);
+	}
+	return value;
+}
+
 ExprP BindPositive(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "positive", 1, 1);
 	Builder b(input.context);
@@ -2636,6 +2648,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
 	    {"zero_key", BindZeroKey},
+	    {"narrow_int", BindNarrowInt},
 	    {"comparator_result", BindComparatorResult},
 	    {"cmp_eq", BindComparison<ExpressionType::COMPARE_EQUAL>},
 	    {"cmp_ne", BindComparison<ExpressionType::COMPARE_NOTEQUAL>},
