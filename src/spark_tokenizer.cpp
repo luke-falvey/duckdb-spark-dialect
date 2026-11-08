@@ -1182,10 +1182,7 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 				}
 				if (depth == 1 && (IsWord(ts[k], "CHAR") || IsWord(ts[k], "CHARACTER")) && OpAt(ts, k + 1, "(") &&
 				    k + 3 < ts.size() && ts[k + 2].type == TokenType::NUMBER_LITERAL && OpAt(ts, k + 3, ")")) {
-					auto n = std::stoll(ts[k + 2].text);
-					if (n >= 1 && n <= 255) {
-						Replace(ts, k, k + 4, Lex("system . spark . spark_char_" + to_string(n), ts[k].offset));
-					}
+					Replace(ts, k, k + 4, Lex("system . spark . spark_char ( " + ts[k + 2].text + " )", ts[k].offset));
 				}
 			}
 		}

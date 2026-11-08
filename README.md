@@ -127,7 +127,6 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 - ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.
 - `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. For `session_window` over a join, the
   joined tables' aliases are not available in the query (a single table or subquery keeps its alias).
-- `CHAR(n)` column padding is supported for `n` up to 255.
 - Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
   and in `CAST`, not in other implicit casts.
 - `array_sort` with a comparator: comparators of the form `CASE WHEN f(l) < f(r) THEN -1 WHEN f(l) > f(r) THEN 1

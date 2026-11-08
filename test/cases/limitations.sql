@@ -257,3 +257,38 @@ SELECT array_sort(CAST(NULL AS ARRAY<INT>), (l, r) -> CASE WHEN l < r THEN -1 WH
 SELECT a, array_sort(a, (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END) FROM VALUES (array(3, 1, 2)), (array(CAST(NULL AS INT), 2)), (array(9, 8)), (CAST(NULL AS ARRAY<INT>)) AS t(a);
 
 SELECT size(array_sort(sequence(2000, 1, -1), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END)), array_sort(sequence(2000, 1, -1), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END)[0];
+
+-- ===== L4: CHAR(n) for any n =====
+
+-- @setup
+CREATE TABLE l4_t (a CHAR(1), b CHAR(255), c CHAR(256), d CHAR(1000), e CHAR(65535), f VARCHAR(10), g CHAR(3)) USING parquet;
+
+INSERT INTO l4_t VALUES ('x', 'y', 'z', 'w', 'v', 'u', 'ab');
+
+INSERT INTO l4_t VALUES ('p', repeat('q', 255), repeat('r', 256), repeat('s', 300), 'e', 'f', NULL);
+
+SELECT a, length(b), length(c), length(d), length(e), f, length(g), g = 'ab ', g = 'ab' FROM l4_t ORDER BY a;
+
+SELECT length(c), c = repeat('z', 1) || repeat(' ', 255), length(d), length(e) FROM l4_t WHERE a = 'x';
+
+SELECT concat(g, '|'), upper(g), trim(g), g IS NULL, rpad(g, 5, '-') FROM l4_t ORDER BY a;
+
+INSERT INTO l4_t VALUES ('too long', 'y', 'z', 'w', 'v', 'u', 'ab');
+
+INSERT INTO l4_t VALUES ('x', 'y', repeat('z', 257), 'w', 'v', 'u', 'ab');
+
+INSERT INTO l4_t VALUES ('x', 'y', 'z', 'w', 'v', 'u', 'abcd');
+
+CREATE TABLE l4_zero (a CHAR(0)) USING parquet;
+
+INSERT INTO l4_zero VALUES ('');
+
+SELECT length(a) FROM l4_zero;
+
+CREATE TABLE l4_t2 (a CHAR(300)) USING parquet;
+
+INSERT INTO l4_t2 SELECT 'abc';
+
+SELECT length(a), a = 'abc' FROM l4_t2;
+
+SELECT cast('ab' AS CHAR(300)), length(cast('ab' AS CHAR(3))), typeof(cast('ab' AS CHAR(5)));

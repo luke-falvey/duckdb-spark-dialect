@@ -1425,6 +1425,9 @@ void RegisterSparkIntervals(ExtensionLoader &loader) {
 //===----------------------------------------------------------------------===//
 #include "duckdb/function/cast/default_casts.hpp"
 #include "duckdb/function/cast/cast_function_set.hpp"
+#include "duckdb/function/type_constructor.hpp"
+#include <mutex>
+#include <unordered_set>
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/config.hpp"
 
@@ -1476,14 +1479,49 @@ LogicalType SparkCharType(idx_t length) {
 	                   make_uniq<LogicalTypeInfo>(LogicalTypeInfoType::GENERIC_TYPE_INFO, "spark_char_" + to_string(length)));
 }
 
+namespace {
+
+void RegisterCharCasts(CastFunctionSet &casts, idx_t n, const LogicalType &char_type) {
+	casts.RegisterCastFunction(LogicalType::VARCHAR, char_type, BoundCastInfo(VarcharToChar, make_uniq<CharCastData>(n)),
+	                           1000);
+	casts.RegisterCastFunction(char_type, LogicalType::VARCHAR, BoundCastInfo(DefaultCasts::ReinterpretCast), 1);
+}
+
+//! spark_char(n): the type of a CHAR(n) column. Types up to 255 characters are registered with their casts at load
+//! time (and keep the names older databases stored); longer ones get their casts the first time they are used.
+LogicalType BindSparkChar(BindLogicalTypeInput &input) {
+	if (input.modifiers.size() != 1 || input.modifiers[0].GetValue().IsNull() ||
+	    !input.modifiers[0].GetValue().type().IsIntegral()) {
+		throw InvalidInputException("[PARSE_SYNTAX_ERROR] CHAR requires one integer length");
+	}
+	auto length = input.modifiers[0].GetValue().GetValue<int64_t>();
+	if (length < 0 || length > NumericLimits<int32_t>::Maximum()) {
+		throw InvalidInputException("[INVALID_CHAR_LENGTH] CHAR length %lld is out of range", (long long)length);
+	}
+	auto n = idx_t(length);
+	auto type = SparkCharType(n);
+	if (n > 255 && input.context) {
+		static mutex registered_lock;
+		static unordered_set<idx_t> registered;
+		lock_guard<mutex> guard(registered_lock);
+		if (registered.insert(n).second) {
+			RegisterCharCasts(CastFunctionSet::Get(*input.context), n, type);
+		}
+	}
+	return type;
+}
+
+} // namespace
+
 void RegisterSparkCasts(ExtensionLoader &loader) {
-	for (idx_t n = 1; n <= 255; n++) {
+	for (idx_t n = 0; n <= 255; n++) {
 		auto char_type = SparkCharType(n);
 		loader.RegisterType("spark_char_" + to_string(n), char_type);
 		loader.RegisterCastFunction(LogicalType::VARCHAR, char_type,
 		                            BoundCastInfo(VarcharToChar, make_uniq<CharCastData>(n)), 1000);
 		loader.RegisterCastFunction(char_type, LogicalType::VARCHAR, DefaultCasts::ReinterpretCast, 1);
 	}
+	loader.RegisterType("spark_char", SparkCharType(0), BindSparkChar);
 }
 
 } // namespace duckdb
