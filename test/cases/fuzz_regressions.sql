@@ -72,3 +72,10 @@ CREATE OR REPLACE TEMPORARY VIEW fz_cube AS SELECT CAST(c0 AS TINYINT) AS k, c1 
 SELECT g, b, array_sort(collect_set(k)) AS a0, grouping(g) AS gid FROM fz_cube GROUP BY CUBE(g, b);
 
 SELECT g, count(DISTINCT k), sum(k) FROM fz_cube GROUP BY ROLLUP(g);
+
+-- ===== range() has a BIGINT column named id =====
+SELECT id, typeof(id) FROM range(3);
+
+SELECT r.id FROM range(1, 7, 2) AS r JOIN range(10) AS s ON r.id = s.id;
+
+SELECT count(*), sum(id) FROM range(0, 10, 3, 4);

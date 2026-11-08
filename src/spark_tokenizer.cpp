@@ -813,6 +813,26 @@ void RewriteQueryClauses(Tokens &ts) {
 				continue;
 			}
 		}
+		// FROM range(...) / JOIN range(...): Spark's range has a column named id
+		if ((WordAt(ts, i, "FROM") || WordAt(ts, i, "JOIN")) && WordAt(ts, i + 1, "range") && OpAt(ts, i + 2, "(")) {
+			auto offset = ts[i + 1].offset;
+			auto close = SkipParens(ts, i + 2);
+			idx_t args = 0, depth = 0;
+			for (idx_t k = i + 3; k + 1 < close; k++) {
+				if (OpAt(ts, k, "(")) {
+					depth++;
+				} else if (OpAt(ts, k, ")")) {
+					depth--;
+				} else if (depth == 0 && OpAt(ts, k, ",")) {
+					args++;
+				}
+			}
+			args = close > i + 4 ? args + 1 : 0;
+			if (args >= 1 && args <= 4) {
+				Replace(ts, i + 1, i + 2, Lex("system . spark . spark_range_" + to_string(args), offset));
+			}
+			continue;
+		}
 		// FROM sql_keywords()
 		if (WordAt(ts, i, "FROM") && WordAt(ts, i + 1, "sql_keywords") && OpAt(ts, i + 2, "(")) {
 			auto offset = ts[i + 1].offset;

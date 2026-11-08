@@ -1084,6 +1084,21 @@ void RegisterSparkExtras(ExtensionLoader &loader) {
 		info.internal = true;
 		loader.RegisterFunction(info);
 	}
+	// Spark's range() table function: one BIGINT column named id (DuckDB's is named range); one macro per
+	// argument count (the tokenizer picks it), the optional 4th argument (numPartitions) is ignored
+	for (auto &def : vector<pair<string, string>> {
+	         {"spark_range_1(a)", "range(CAST(a AS BIGINT))"},
+	         {"spark_range_2(a, b)", "range(CAST(a AS BIGINT), CAST(b AS BIGINT))"},
+	         {"spark_range_3(a, b, c)", "range(CAST(a AS BIGINT), CAST(b AS BIGINT), CAST(c AS BIGINT))"},
+	         {"spark_range_4(a, b, c, d)", "range(CAST(a AS BIGINT), CAST(b AS BIGINT), CAST(c AS BIGINT))"}}) {
+		auto parser = Parser::GetBuiltinParser();
+		parser.ParseQuery("CREATE MACRO " + def.first + " AS TABLE SELECT range AS id FROM " + def.second);
+		auto &create = parser.statements[0]->Cast<CreateStatement>();
+		auto &info = create.info->Cast<CreateMacroInfo>();
+		info.SetQualifiedName(QualifiedName({Identifier(SPARK_SCHEMA)}, Identifier(def.first.substr(0, 13))));
+		info.internal = true;
+		loader.RegisterFunction(info);
+	}
 	auto blob = LogicalType::BLOB;
 	auto varchar = LogicalType::VARCHAR;
 	ScalarFunction encrypt(Identifier("aes_encrypt_impl"), {blob, blob, varchar, varchar, blob, blob}, blob,
