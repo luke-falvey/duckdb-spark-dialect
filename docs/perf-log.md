@@ -73,3 +73,16 @@ raises), differential smoke (0 failing): all unchanged.
 **Lesson / new backlog item**: fallible functions cost more than their own time: they disable optimizer rules.
 Audit every `RegisterFallible` / `SetFallible` kernel that appears in predicates, join conditions and aggregate
 arguments (see backlog item 11).
+
+#### Tried and dropped: letting the optimizer split `spark_sum` / `spark_avg` (partial aggregation below a join)
+
+`bench/plan_diff.py` (new: operator / join / aggregate shape of the Spark plan vs the native plan for every TPC-H query)
+shows that Q10 and Q18 lack native's `combine_aggr` partial aggregation. Cause: the states had no `STATE_TYPE`
+(layout description), and DuckDB's state export looks an aggregate up again **by name in `system.main`**
+(`aggregate_export.cpp`: `GetEntry(... Identifier::DefaultSchema() ...)`), so an aggregate registered only in
+`system.spark` cannot be split. Tried: `STATE_TYPE` on all five states, qualified names in the swapping binds, and
+registering the sets also in `main` (plan shapes of Q10 / Q18 then matched native). A/B against the previous build
+(9 runs): Q10 46.97 -> 59.37 ms (1.264, [1.226, 1.338], **slower**), Q18 no change, others no change. The exported
+128-bit states cost more than the pushdown saves. Dropped; nothing of it is kept (it would also have put two
+functions into the default dialect's `main` schema). Remaining shape differences: Q08 (`Perfect Hash Group By` on
+`year()`: the key's statistics are missing), Q17 (an extra `Filter`), Q22.
