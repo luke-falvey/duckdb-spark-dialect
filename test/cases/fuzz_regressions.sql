@@ -114,3 +114,7 @@ SELECT length(concat_ws(',', collect_list(CAST(id AS STRING)))) FROM range(10);
 SELECT count(*) FROM (SELECT window(ts, '1 hour'), count(*) FROM (SELECT timestamp_seconds(id * 600) AS ts FROM range(20)) GROUP BY window(ts, '1 hour'));
 
 SELECT window(ts, '1 hour').start AS s, count(*) FROM (SELECT timestamp_seconds(id * 600) AS ts FROM range(20)) GROUP BY window(ts, '1 hour') ORDER BY s;
+
+SELECT sha2('abc', 256), sha2(X'FF', 256), sha2('abc', 0), sha2(X'00FF', 384), sha2('abc', 999), split('a,b,,c,', ','), split('a::b', '::'), split('a,b', ',', 1);
+
+SELECT sha2('abc', 224), sha2('abc', 384), sha2('abc', 512), sha2(X'FF00', 224);

@@ -235,6 +235,17 @@ CachedRegex &CompileRegex(const string &pattern) {
 //! match the search resumes one code point later. Stops when on_match returns false.
 template <class ON_MATCH>
 void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_match) {
+	// a pattern without regex metacharacters (split(s, ','), the common case) is a plain substring search
+	if (!pattern.empty() && pattern.find_first_of("\\^$.|?*+()[]{}") == string::npos) {
+		size_t pos = 0;
+		while ((pos = str.find(pattern, pos)) != string::npos) {
+			if (!on_match(idx_t(pos), idx_t(pattern.size()))) {
+				return;
+			}
+			pos += pattern.size();
+		}
+		return;
+	}
 	auto &regex = CompileRegex(pattern);
 	if (regex.re2) {
 		duckdb_re2::StringPiece input(str);
@@ -593,7 +604,10 @@ struct Sha256 {
 		}
 		string out;
 		for (int i = 0; i < (is224 ? 7 : 8); i++) {
-			out += StringUtil::Format("%08x", h[i]);
+			static const char *HEX = "0123456789abcdef";
+			for (int shift = 28; shift >= 0; shift -= 4) {
+				out += HEX[(h[i] >> shift) & 0xF];
+			}
 		}
 		return out;
 	}
@@ -691,7 +705,11 @@ struct Sha512 {
 		}
 		string out;
 		for (int i = 0; i < (is384 ? 6 : 8); i++) {
-			out += StringUtil::Format("%016llx", (unsigned long long)h[i]);
+			// by hand: StringUtil::Format sign-extends values with the top bit set
+			static const char *HEX = "0123456789abcdef";
+			for (int shift = 60; shift >= 0; shift -= 4) {
+				out += HEX[(h[i] >> shift) & 0xF];
+			}
 		}
 		return out;
 	}
@@ -1173,6 +1191,8 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::VARCHAR}, LogicalType::BIGINT, Crc32Kernel));
 	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::BLOB}, LogicalType::BIGINT, Crc32Kernel));
 	reg(ScalarFunction(Identifier("sha2_impl"), {LogicalType::VARCHAR, LogicalType::INTEGER}, LogicalType::VARCHAR,
+	                   Sha2Kernel));
+	reg(ScalarFunction(Identifier("sha2_impl"), {LogicalType::BLOB, LogicalType::INTEGER}, LogicalType::VARCHAR,
 	                   Sha2Kernel));
 	reg(ScalarFunction(Identifier("parse_url_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                   ParseUrlKernel));

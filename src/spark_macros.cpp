@@ -110,7 +110,9 @@ const SparkMacro SPARK_MACROS[] = {
     {"crc32", "(b) AS " S "crc32_impl(" S "as_binary(b))"},
     {"sha", "(b) AS sha1(" S "as_binary(b))"},
     {"sha1", "(b) AS sha1(" S "as_binary(b))"},
-    {"sha2", "(b, n) AS " S "sha2_impl(decode(" S "as_binary(b)), CAST(n AS INTEGER))"},
+    // SHA-256 (also bit length 0) is DuckDB's; the other lengths use the dialect's implementation. Both hash the
+    // bytes (binary input need not be valid UTF-8)
+    {"sha2", "(b, n) AS CASE WHEN CAST(n AS INTEGER) IN (0, 256) THEN sha256(" S "as_binary(b)) ELSE " S "sha2_impl(" S "as_binary(b), CAST(n AS INTEGER)) END"},
     {"md5", "(b) AS md5(" S "as_binary(b))"},
     {"string", "(x) AS " S "as_string(x)"},
 
