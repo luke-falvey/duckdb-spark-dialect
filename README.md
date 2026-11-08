@@ -139,8 +139,10 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
   macOS), so DuckDB's limit of 1000 levels applies; on other platforms the deeper statement fails with
   "Expression is nested too deeply".
 - More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml`.
-- Statements are rewritten at the token level in places (see the table above), so error messages
-  for invalid Spark SQL can point at rewritten text.
+- Statements are rewritten at the token level in places (see the table above). Error positions point at the
+  original text. Of the 1,019 errors that Spark's own SQL test inputs produce here, 2 name an internal function
+  (`to_json_impl` and `mask_impl`, for arguments of a type they do not accept); `python test/fuzz/spark_corpus.py
+  names` measures this.
 
 ## Build
 

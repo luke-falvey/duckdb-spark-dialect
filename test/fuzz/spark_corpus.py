@@ -11,6 +11,7 @@ variants), so it is a finding source, not an acceptance gate. Directories and fi
 usage: python test/fuzz/spark_corpus.py fetch
        python test/fuzz/spark_corpus.py seeds --out seeds.sql
        python test/fuzz/spark_corpus.py run [--files N] [--match substring]
+       python test/fuzz/spark_corpus.py names [--match substring]   count DuckDB errors that show internal names
 """
 import argparse
 import json
@@ -120,15 +121,41 @@ def run(args):
     print("\n".join(summary.splitlines()[:40]))
 
 
+def names(args):
+    """Run every statement in the `spark` dialect and count the error messages that mention an internal function
+    name (the L8 measure); the offending statements are printed."""
+    use_utc()
+    os.chdir(scratch_dir("spark-corpus-names-"))
+    total = errors = 0
+    leaking = []
+    for path in files(args.match):
+        duck = DuckRunner(dialect="spark", timeout=args.timeout)
+        for sql in statements(path):
+            if re.match(r"\s*(SET|RESET)\b", sql, re.I):
+                continue
+            r = duck.run(sql)
+            total += 1
+            if not r.ok:
+                errors += 1
+                if triage.INTERNAL_NAMES.search(r.error or ""):
+                    leaking.append((path.name, sql, r.error))
+        duck.close()
+    for name, sql, error in leaking:
+        print(f"{name}: {sql[:120]!r}\n    {(error or '')[:200]}")
+    print(f"{total} statements, {errors} errors, {len(leaking)} with an internal name in the message")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["fetch", "seeds", "run"])
+    ap.add_argument("command", choices=["fetch", "seeds", "run", "names"])
     ap.add_argument("--out")
     ap.add_argument("--files", type=int, default=None)
     ap.add_argument("--match")
     ap.add_argument("--timeout", type=float, default=30.0)
     args = ap.parse_args()
-    if args.command == "fetch":
+    if args.command == "names":
+        names(args)
+    elif args.command == "fetch":
         fetch()
     elif args.command == "seeds":
         stmts = [s for p in files() for s in statements(p)]

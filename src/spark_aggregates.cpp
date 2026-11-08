@@ -1,4 +1,4 @@
-// Spark's sum and avg as real aggregate functions (system.spark.spark_sum / spark_avg).
+// Spark's sum and avg as real aggregate functions (system.spark.sum / avg).
 //
 // The result types are Spark's, chosen from the argument type at bind time:
 //   sum: integral -> BIGINT (wraps on overflow, like Java's long), DECIMAL(p, s) -> DECIMAL(min(38, p + 10), s)
@@ -563,6 +563,16 @@ AggregateFunction CastingOverload(const LogicalType &type, bind_aggregate_functi
 	return function;
 }
 
+//! any other argument type: Spark's error instead of "no function matches spark_sum(...)"
+template <bool IS_SUM>
+unique_ptr<FunctionData> BindUnsupported(BindAggregateFunctionInput &input) {
+	throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve \"%s(%s)\" due to data type mismatch: "
+	                      "Parameter 1 requires the (\"NUMERIC\" or \"INTERVAL DAY TO SECOND\" or \"INTERVAL YEAR TO "
+	                      "MONTH\") type, however the argument has the type \"%s\".",
+	                      IS_SUM ? "sum" : "avg", input.GetArguments()[0]->ToString(),
+	                      input.GetArguments()[0]->GetReturnType().ToString());
+}
+
 AggregateFunction DecimalWildcard(bind_aggregate_function_t bind) {
 	AggregateFunction function({}, LogicalTypeId::DECIMAL, nullptr, nullptr, nullptr, nullptr, nullptr,
 	                           FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr, bind);
@@ -610,6 +620,12 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	sum.AddFunction(MakeDoubleSum());
 	sum.AddFunction(CastingOverload(LogicalType::VARCHAR, BindCastToDouble<true>));
 	sum.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<true>));
+	sum.AddFunction(IntegerSum<int8_t>(LogicalType::TINYINT));
+	sum.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<true>));
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP, LogicalType::TIMESTAMP_TZ, LogicalType::TIME,
+	                   LogicalType::BLOB}) {
+		sum.AddFunction(CastingOverload(type, BindUnsupported<true>));
+	}
 	loader.RegisterFunction(sum);
 
 	AggregateFunctionSet avg {Identifier("spark_avg")};
@@ -621,6 +637,12 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	avg.AddFunction(MakeDoubleAvg());
 	avg.AddFunction(CastingOverload(LogicalType::VARCHAR, BindCastToDouble<false>));
 	avg.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<false>));
+	avg.AddFunction(DoubleAvg<int8_t>(LogicalType::TINYINT));
+	avg.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<false>));
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP, LogicalType::TIMESTAMP_TZ, LogicalType::TIME,
+	                   LogicalType::BLOB}) {
+		avg.AddFunction(CastingOverload(type, BindUnsupported<false>));
+	}
 	loader.RegisterFunction(avg);
 }
 
