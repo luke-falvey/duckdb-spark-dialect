@@ -30,9 +30,10 @@ example = "SELECT array_sort(array(3, 1, 2, 7, 4), (l, r) -> -1)"
 
 [[difference]]
 signature = "strict_lenient|[[]DATATYPE_MISMATCH.NULL_TYPE]*"
-reason = """spark_strict accepts untyped NULL arguments that Spark's analyzer rejects (array_contains(NULL, NULL)):
-NULL is typed by DuckDB's binder after the strict checks run, which only see the parsed query."""
-example = "SELECT array_contains(NULL, NULL)"
+reason = """spark_strict rejects an untyped NULL literal argument of array_contains, array_position, map_contains_key,
+array_append and element_at (a parse-time check, as DuckDB types the NULL later). A NULL that only becomes untyped through
+an expression (coalesce(NULL, NULL), a column of NULLs) is still accepted: the types are only known when DuckDB binds."""
+example = "SELECT array_contains(array(1), coalesce(NULL, NULL))"
 
 [[difference]]
 signature = "duck_error|Invalid Input Error: Map keys can not be NULL*"

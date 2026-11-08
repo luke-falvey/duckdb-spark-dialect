@@ -1516,6 +1516,44 @@ void CheckFoldableArguments(const ParsedExpression &expr) {
 	}
 }
 
+//! spark_strict: an untyped NULL literal where Spark's analyzer wants a typed value (found by calling every Spark
+//! function with NULL in each position): the check has to run on the parsed query, as DuckDB types the NULL later
+void CheckNullLiteralArguments(const ParsedExpression &expr) {
+	// {function, positions, error class}
+	struct Rule {
+		vector<idx_t> positions;
+		const char *error;
+	};
+	static const unordered_map<string, Rule> RULES = {
+	    {"array_contains", {{0, 1}, "NULL_TYPE"}}, {"array_position", {{0}, "NULL_TYPE"}},
+	    {"map_contains_key", {{1}, "NULL_TYPE"}},  {"array_append", {{0}, "UNEXPECTED_INPUT_TYPE"}},
+	    {"element_at", {{0}, "UNEXPECTED_INPUT_TYPE"}}};
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return;
+	}
+	auto &func = expr.Cast<FunctionExpression>();
+	auto name = StringUtil::Lower(func.FunctionName().GetIdentifierName());
+	auto entry = RULES.find(name);
+	if (entry == RULES.end()) {
+		return;
+	}
+	auto &args = func.GetArguments();
+	for (auto position : entry->second.positions) {
+		if (position < args.size() && args[position].GetExpression().GetExpressionClass() == ExpressionClass::CONSTANT &&
+		    StringUtil::CIEquals(args[position].GetExpression().ToString(), "NULL")) {
+			if (string(entry->second.error) == "NULL_TYPE") {
+				throw BinderException("[DATATYPE_MISMATCH.NULL_TYPE] Cannot resolve \"%s\" due to data type mismatch: "
+				                      "Null typed values cannot be used as arguments of `%s`.",
+				                      func.ToString(), name);
+			}
+			throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve \"%s\" due to data type "
+			                      "mismatch: Parameter %llu requires the \"ARRAY\" type, however NULL has the type "
+			                      "\"VOID\".",
+			                      func.ToString(), (unsigned long long)position);
+		}
+	}
+}
+
 //! FunctionExpression in spark_strict: the name the user wrote must be a Spark function (checked before DuckDB's
 //! own rewrites such as count() -> count_star)
 ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
@@ -1529,6 +1567,7 @@ ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	}
 	auto expr = Expr(t, list.GetChild(0));
 	CheckFoldableArguments(*expr);
+	CheckNullLiteralArguments(*expr);
 	return FinalizeFunctionHookResult(std::move(expr));
 }
 

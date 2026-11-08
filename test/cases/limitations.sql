@@ -337,3 +337,21 @@ SELECT typeof(x), x FROM (SELECT CAST(1 AS DECIMAL(38, 0)) AS x UNION ALL SELECT
 SELECT typeof(x), x FROM (SELECT 1 AS x UNION ALL SELECT 2Y UNION ALL SELECT 3S);
 
 SELECT CAST(1 AS DECIMAL(38, 0)) = 1.8, CAST(1 AS DECIMAL(38, 0)) < 1.8, CAST(5 AS DECIMAL(38, 0)) IN (4.5, 5.0);
+
+-- ===== L9: untyped NULL arguments that Spark rejects (spark_strict) =====
+
+SELECT array_contains(NULL, NULL);
+
+SELECT array_contains(array(1), NULL);
+
+SELECT array_contains(NULL, 1);
+
+SELECT array_position(NULL, 1);
+
+SELECT map_contains_key(map(1, 2), NULL);
+
+SELECT array_append(NULL, 1);
+
+SELECT element_at(NULL, 1);
+
+SELECT array_contains(array(1, NULL), CAST(NULL AS INT)), array_position(array(1, 2), CAST(NULL AS INT)), map_contains_key(map(1, 2), 1);
