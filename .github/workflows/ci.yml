@@ -188,6 +188,11 @@ jobs:
           SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
         run: python test/fuzz/replay.py
 
+      - name: Check known differences are not stale
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python test/fuzz/replay.py --known
+
       - name: Mutation fuzzing (crashes, hangs, internal errors)
         env:
           SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension

@@ -19,6 +19,9 @@ def main():
     spark = SparkOracle()
     for file in files:
         golden = {}
+        conf = file_config(file)
+        for key, value in conf:
+            spark.spark.conf.set(key, value)
         for case in load_cases([file]):
             r = spark.run(case.sql)
             entry = {"sql": case.sql, "ok": r.ok}
@@ -34,8 +37,10 @@ def main():
             pickle.dump(golden, f)
         failed = sum(1 for e in golden.values() if not e["ok"])
         print(f"{file}: {len(golden)} cases, {failed} error in Spark")
-        # each file starts from a clean catalog
+        # each file starts from a clean catalog and the default confs
         spark.reset()
+        for key, _ in conf:
+            spark.spark.conf.unset(key)
 
 
 if __name__ == "__main__":

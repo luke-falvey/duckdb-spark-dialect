@@ -8,6 +8,12 @@ Comment lines starting with `-- @` are directives for the block that follows:
   -- @ordered        compare rows in order (default: in order iff the query has a top-level ORDER BY)
   -- @unordered      compare rows as a multiset even with ORDER BY (ties in sort keys)
   -- @skip <reason>  do not run in DuckDB (documented gap)
+
+File-level directive, in the leading comment lines of a case file (before the first statement):
+
+  -- @config spark.sql.ansi.enabled=true   Spark conf for the whole file: make_golden.py sets it in Spark
+                                           (and unsets it afterwards), run_duckdb.py runs `SET key = value`
+                                           in the dialect before the file's cases. Repeat for several confs.
 """
 import datetime
 import decimal
@@ -53,6 +59,21 @@ class Case:
                 found = True
             i += 1
         return found
+
+
+def file_config(path):
+    """The `-- @config key=value` settings in the leading comment lines of a case file, in order."""
+    conf = []
+    for line in Path(path).read_text().splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not stripped.startswith("--"):
+            break
+        m = re.match(r"--\s*@config\s+([\w.]+)\s*=\s*(.*)", stripped)
+        if m:
+            conf.append((m.group(1), m.group(2).strip()))
+    return conf
 
 
 def load_cases(paths):
