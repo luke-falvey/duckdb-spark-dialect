@@ -105,6 +105,15 @@ bool RunOnLargeStack(const std::function<void()> &fn) {
 #endif
 }
 
+const idx_t MAX_EXPRESSION_DEPTH = 1000;
+
+idx_t ExpressionDepth(const ParsedExpression &expr) {
+	idx_t deepest = 0;
+	ParsedExpressionIterator::EnumerateChildren(
+	    expr, [&](const ParsedExpression &child) { deepest = MaxValue(deepest, ExpressionDepth(child)); });
+	return deepest + 1;
+}
+
 const char *const NESTED_TOO_DEEPLY = "Expression is nested too deeply for the Spark dialect";
 
 struct HookDepthGuard {
@@ -162,10 +171,20 @@ arena_ptr<TransformResultValue> FinalizeExpr(PEGTransformer &t, ParseResult &pr)
 	bool ran = RunOnLargeStack([&]() {
 		auto &inner = HookDepthGuard::Get();
 		inner.large_stack = true;
-		inner.budget = 0;
+		// enough for DuckDB's limit of 1000 nested expressions (about 17 KB of hooks per level); a deeper tree would
+		// only be rejected later, after the main thread had to bind, copy or free it
+		inner.budget = size_t(24) * 1024 * 1024;
 		try {
 			HookDepthGuard guard;
-			result = t.MakeResult<ExprPtr>(FN(t, pr));
+			auto transformed = FN(t, pr);
+			// DuckDB rejects expressions nested deeper than 1000 levels, but only after the binder has walked them
+			// on the calling thread's (small) stack; reject them here, where the stack is large
+			if (ExpressionDepth(*transformed) > MAX_EXPRESSION_DEPTH) {
+				throw ParserException("Max expression depth limit of %llu exceeded. Use \"SET max_expression_depth TO "
+				                      "x\" to increase the maximum expression depth.",
+				                      (unsigned long long)MAX_EXPRESSION_DEPTH);
+			}
+			result = t.MakeResult<ExprPtr>(std::move(transformed));
 		} catch (...) {
 			inner.large_stack = false;
 			throw;
