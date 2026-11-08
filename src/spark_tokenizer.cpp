@@ -325,6 +325,22 @@ bool OpAt(const Tokens &ts, idx_t i, const char *op) {
 	return i < ts.size() && IsOp(ts[i], op);
 }
 
+//! Is the '-' at position i a unary minus (no operand before it)?
+bool UnaryMinusAt(const Tokens &ts, idx_t i) {
+	if (i == 0) {
+		return true;
+	}
+	auto &prev = ts[i - 1];
+	if (prev.type == TokenType::OPERATOR || prev.type == TokenType::TERMINATOR) {
+		return prev.text != ")" && prev.text != "]";
+	}
+	if (prev.type == TokenType::KEYWORD) {
+		auto upper = StringUtil::Upper(prev.text);
+		return upper != "NULL" && upper != "TRUE" && upper != "FALSE" && upper != "END";
+	}
+	return false; // a number, string or identifier: binary minus
+}
+
 //! Tokens for a snippet of DuckDB SQL, all placed at the given offset.
 Tokens Lex(const string &snippet, idx_t offset) {
 	// split on spaces; quoted strings in snippets never contain spaces we care about
@@ -596,6 +612,16 @@ void RewriteLiterals(Tokens &ts) {
 		}
 		auto offset = t.offset;
 		bool as_string = upper == "BD" || StringUtil::StartsWith(type, "DECIMAL");
+		// -128Y, -32768S and -9223372036854775808L: Spark's grammar reads the minus as part of the literal, and
+		// the positive magnitude alone would overflow the type
+		bool minimum = (upper == "Y" && number == "128") || (upper == "S" && number == "32768") ||
+		               (upper == "L" && number == "9223372036854775808");
+		if (minimum && i > 0 && IsOp(ts[i - 1], "-") && UnaryMinusAt(ts, i - 1)) {
+			number = "-" + number;
+			as_string = true; // a number token cannot carry the sign
+			Erase(ts, i - 1, i);
+			i--;
+		}
 		Tokens replacement = Lex("CAST (", offset);
 		replacement.emplace_back(as_string ? DuckStringLiteral(number) : number, offset,
 		                         as_string ? TokenType::STRING_LITERAL : TokenType::NUMBER_LITERAL);

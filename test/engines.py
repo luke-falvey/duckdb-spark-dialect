@@ -85,8 +85,46 @@ class SparkOracle:
                       .getOrCreate())
         self.spark.sparkContext.setLogLevel("ERROR")
         assert self.spark.version.startswith("3.5"), self.spark.version
+        if not hasattr(self, "replay"):
+            self.replay = []
+            self.restarts = 0
 
-    def run(self, sql):
+    DEAD_MARKERS = ("Connection refused", "Py4JNetworkError", "SparkContext was shut down",
+                    "Cannot call methods on a stopped SparkContext", "Answer from Java side is empty",
+                    "java.lang.OutOfMemoryError")
+
+    def _restart(self):
+        try:
+            self.spark.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        # forget the dead JVM so that getOrCreate() launches a new one
+        from pyspark import SparkContext
+        from pyspark.sql import SparkSession
+        SparkContext._active_spark_context = None
+        SparkContext._gateway = None
+        SparkContext._jvm = None
+        SparkSession._instantiatedSession = None
+        SparkSession._activeSession = None
+        self.__init__(self.warehouse)
+        for sql in self.replay:
+            self.run(sql)
+        self.restarts += 1
+
+    def run(self, sql, _retry=True):
+        r = self._run(sql)
+        if not r.ok and any(m in (r.error or "") for m in self.DEAD_MARKERS):
+            # the JVM died (usually out of memory on a huge result): restart and try once more, so a dead
+            # session is not recorded as "Spark rejects this query" for every following query
+            self._restart()
+            if _retry:
+                r = self.run(sql, _retry=False)
+                if not r.ok and any(m in (r.error or "") for m in self.DEAD_MARKERS):
+                    self._restart()
+                    r.status = "crash"
+        return r
+
+    def _run(self, sql):
         from harness import normalize
         start = time.perf_counter()
         try:
@@ -105,9 +143,11 @@ class SparkOracle:
             r = self.run(sql)
             if not r.ok:
                 raise RuntimeError(f"spark setup failed: {sql[:200]}: {r.error}")
+            self.replay.append(sql)
 
     def reset(self):
         """Drop every table and view, so the next file / run starts from a clean catalog."""
+        self.replay = []
         for t in self.spark.catalog.listTables():
             if t.isTemporary:
                 self.spark.catalog.dropTempView(t.name)
@@ -151,6 +191,9 @@ def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=No
         if load_extension:
             con.execute(f"LOAD '{extension}'")
         con.execute("SET TimeZone = 'UTC'")
+        if memory_mb:
+            # DuckDB's own limit, below the process limit, so large operators spill or fail cleanly
+            con.execute(f"SET memory_limit = '{max(256, memory_mb // 2)}MB'")
         if dialect:
             con.execute(f"SET current_dialect = '{dialect}'")
         conn.send(("ready", None))
@@ -210,7 +253,8 @@ class DuckRunner:
     def __init__(self, dialect="spark", load_extension=True, timeout=10.0, extension=None, workdir=None,
                  memory_mb=None):
         self.dialect = dialect
-        self.memory_mb = memory_mb
+        # virtual memory per worker process; the extension with debug info maps about 1 GB by itself
+        self.memory_mb = memory_mb or int(os.environ.get("DUCK_WORKER_MEMORY_MB", "4096"))
         self.load_extension = load_extension
         self.timeout = timeout
         self.extension = str(extension or extension_path())

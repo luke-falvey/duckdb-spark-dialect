@@ -17,6 +17,8 @@
 #include <cmath>
 #include <regex>
 
+#include "utf8proc.hpp"
+
 namespace duckdb {
 
 namespace {
@@ -24,22 +26,68 @@ namespace {
 //===----------------------------------------------------------------------===//
 // Strings
 //===----------------------------------------------------------------------===//
+//! Unicode code points of a UTF-8 string (invalid bytes are kept as single code points)
+vector<int32_t> CodePoints(const string &s) {
+	vector<int32_t> out;
+	auto data = reinterpret_cast<const utf8proc_uint8_t *>(s.data());
+	utf8proc_ssize_t pos = 0, len = utf8proc_ssize_t(s.size());
+	while (pos < len) {
+		utf8proc_int32_t cp;
+		auto n = utf8proc_iterate(data + pos, len - pos, &cp);
+		if (n <= 0) {
+			cp = data[pos];
+			n = 1;
+		}
+		out.push_back(cp);
+		pos += n;
+	}
+	return out;
+}
+
+void AppendCodePoint(string &out, int32_t cp) {
+	utf8proc_uint8_t buf[4];
+	auto n = utf8proc_encode_char(cp, buf);
+	out.append(reinterpret_cast<const char *>(buf), size_t(n));
+}
+
+//! Spark's initcap: lower-case everything, then title-case the first letter after each space (Unicode-aware)
 string InitCap(const string &s) {
-	string out = s;
+	string out;
 	bool start = true;
-	for (auto &c : out) {
-		if (c == ' ') {
+	for (auto cp : CodePoints(s)) {
+		if (cp == ' ') {
+			out += ' ';
 			start = true;
 			continue;
 		}
-		if (start) {
-			c = char(toupper((unsigned char)c));
-		} else {
-			c = char(tolower((unsigned char)c));
-		}
+		AppendCodePoint(out, start ? utf8proc_totitle(utf8proc_tolower(cp)) : utf8proc_tolower(cp));
 		start = false;
 	}
 	return out;
+}
+
+//! levenshtein over code points, like Spark (DuckDB's counts bytes)
+int64_t Levenshtein(const string &a_str, const string &b_str) {
+	auto a = CodePoints(a_str), b = CodePoints(b_str);
+	vector<int64_t> prev(b.size() + 1), cur(b.size() + 1);
+	for (idx_t j = 0; j <= b.size(); j++) {
+		prev[j] = int64_t(j);
+	}
+	for (idx_t i = 1; i <= a.size(); i++) {
+		cur[0] = int64_t(i);
+		for (idx_t j = 1; j <= b.size(); j++) {
+			auto cost = a[i - 1] == b[j - 1] ? 0 : 1;
+			cur[j] = MinValue(MinValue(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost);
+		}
+		std::swap(prev, cur);
+	}
+	return prev[b.size()];
+}
+
+void LevenshteinKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<string_t, string_t, int32_t>(
+	    args.data[0], args.data[1], result, args.size(),
+	    [](string_t a, string_t b) { return int32_t(Levenshtein(a.GetString(), b.GetString())); });
 }
 
 string Soundex(const string &s) {
@@ -243,6 +291,10 @@ string Conv(const string &input, int from_base, int to_base, bool &valid) {
 	while (!s.empty() && s[0] == ' ') {
 		s = s.substr(1);
 	}
+	if (s.empty()) {
+		valid = false; // Spark: NULL for an empty / blank number
+		return "";
+	}
 	bool negative = !s.empty() && s[0] == '-';
 	if (negative) {
 		s = s.substr(1);
@@ -358,6 +410,16 @@ double Expm1(double d) {
 }
 double Log1p(double d) {
 	return std::log1p(d);
+}
+//! Spark's formulas (not std::asinh / std::acosh): the results differ for large magnitudes
+double SparkAsinh(double x) {
+	if (x == -std::numeric_limits<double>::infinity()) {
+		return x;
+	}
+	return std::log(x + std::sqrt(x * x + 1.0));
+}
+double SparkAcosh(double x) {
+	return std::log(x + std::sqrt(x * x - 1.0));
 }
 double Rint(double d) {
 	return std::nearbyint(d);
@@ -906,6 +968,10 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("expm1"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Expm1>));
 	reg(ScalarFunction(Identifier("log1p_impl"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Log1p>));
 	reg(ScalarFunction(Identifier("rint"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Rint>));
+	reg(ScalarFunction(Identifier("asinh"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<SparkAsinh>));
+	reg(ScalarFunction(Identifier("acosh"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<SparkAcosh>));
+	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
+	                   LogicalType::INTEGER, LevenshteinKernel));
 	reg(ScalarFunction(Identifier("hypot"), {LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE,
 	                   HypotKernel));
 	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::VARCHAR}, LogicalType::BIGINT, Crc32Kernel));
@@ -922,7 +988,7 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("double_to_decimal_string"), {LogicalType::DOUBLE}, LogicalType::VARCHAR,
 	                   DoubleToDecimalStringKernel));
 	for (auto name : {"initcap", "soundex", "luhn_check", "shiftleft", "shiftright", "shiftrightunsigned", "expm1",
-	                  "rint", "hypot"}) {
+	                  "rint", "hypot", "asinh", "acosh"}) {
 		AddSparkOverride(name);
 	}
 }

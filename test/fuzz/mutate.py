@@ -26,12 +26,9 @@ import triage  # noqa: E402
 
 GENERATOR = "mutate@1"
 
-# virtual memory per DuckDB worker (the extension with debug info maps ~1 GB by itself)
-MEMORY_MB = int(os.environ.get("FUZZ_WORKER_MEMORY_MB", "4096"))
-
 # keep fuzzed statements from reaching outside the process (downloads, files) or reconfiguring it
 WORKER_PRELUDE = ["SET autoinstall_known_extensions = false", "SET autoload_known_extensions = false",
-                  "SET memory_limit = '2GB'", "SET threads = 1"]
+                  "SET threads = 1"]
 
 
 # ---- mutators ------------------------------------------------------------------------------------
@@ -202,7 +199,7 @@ class Mutator:
 # ---- running -------------------------------------------------------------------------------------
 
 def make_runner(dialect, timeout):
-    runner = DuckRunner(dialect=None if dialect == "duckdb" else dialect, timeout=timeout, memory_mb=MEMORY_MB)
+    runner = DuckRunner(dialect=None if dialect == "duckdb" else dialect, timeout=timeout)
     for sql in WORKER_PRELUDE:
         # the prelude runs before the dialect switch would be ideal, but DuckDB SET also works in the
         # spark dialects (as a DuckDB setting in `spark`; stored as a Spark conf in `spark_strict`)

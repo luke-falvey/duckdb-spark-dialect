@@ -37,6 +37,13 @@ const SparkMacro SPARK_MACROS[] = {
     {"ifnull", "(a, b) AS coalesce(a, b)"},
     {"nvl2", "(a, b, c) AS CASE WHEN a IS NOT NULL THEN b ELSE c END"},
     {"isnull", "(a) AS a IS NULL"},
+    {"isnan", "(a) AS coalesce(isnan(" S "as_double(a)), false)"},
+    {"flatten", "(a) AS CASE WHEN list_bool_or(list_transform(a, lambda x: x IS NULL)) THEN NULL ELSE flatten(a) END"},
+    // Spark's max_by / min_by keep a NULL value of the maximum row (DuckDB's arg_max skips NULL values)
+    {"max_by", "(x, y) AS arg_max_null(x, y)"},
+    {"min_by", "(x, y) AS arg_min_null(x, y)"},
+    // Catalyst's Divide yields NULL when the variance product is zero, where DuckDB's corr gives NaN
+    {"corr", "(x, y) AS CASE WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
     {"isnotnull", "(a) AS a IS NOT NULL"},
     {"equal_null", "(a, b) AS a IS NOT DISTINCT FROM b"},
     {"nanvl", "(a, b) AS CASE WHEN isnan(" S "as_double(a)) THEN " S "as_double(b) ELSE " S "as_double(a) END"},
@@ -53,7 +60,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"contains", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE contains(" S "as_string(a), " S "as_string(b)) END"},
     {"startswith", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE starts_with(" S "as_string(a), " S "as_string(b)) END"},
     {"endswith", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE ends_with(" S "as_string(a), " S "as_string(b)) END"},
-    {"encode", "(s, c) AS encode(" S "as_string(s))"},
+    {"encode", "(s, c) AS CASE WHEN c IS NULL THEN NULL ELSE encode(" S "as_string(s)) END"},
     {"decode", "(b, c) AS decode(" S "as_binary(b))"},
     {"elt", "(n, l) AS CASE WHEN n >= 1 THEN list_extract(l, n) END"},
     {"find_in_set", "(s, l) AS CASE WHEN s IS NULL OR l IS NULL THEN NULL WHEN contains(s, ',') THEN 0 ELSE coalesce(CAST(list_position(string_split(l, ','), s) AS INTEGER), 0) END"},
@@ -61,11 +68,11 @@ const SparkMacro SPARK_MACROS[] = {
     {"instr", "(s, sub) AS CAST(instr(" S "as_string(s), " S "as_string(sub)) AS INTEGER)"},
     {"left", "(s, n) AS " S "substr_impl(" S "as_text_or_binary(s), 1, CASE WHEN n <= 0 THEN 0 ELSE CAST(n AS BIGINT) END)"},
     {"right", "(s, n) AS CASE WHEN n <= 0 THEN '' ELSE right(" S "as_string(s), CAST(n AS BIGINT)) END"},
-    {"levenshtein", "(a, b) AS CAST(levenshtein(a, b) AS INTEGER), "
-                    "(a, b, t) AS CASE WHEN levenshtein(a, b) > t THEN -1 ELSE CAST(levenshtein(a, b) AS INTEGER) END"},
+    {"levenshtein", "(a, b) AS " S "levenshtein_impl(a, b), "
+                    "(a, b, t) AS CASE WHEN " S "levenshtein_impl(a, b) > t THEN -1 ELSE " S "levenshtein_impl(a, b) END"},
     {"locate", "(sub, s) AS CAST(instr(s, sub) AS INTEGER), "
                "(sub, s, p) AS CASE WHEN sub IS NULL OR s IS NULL THEN NULL WHEN p IS NULL OR p < 1 THEN 0 "
-               "WHEN instr(substr(s, p), sub) = 0 THEN 0 ELSE CAST(instr(substr(s, p), sub) + p - 1 AS INTEGER) END"},
+               "WHEN sub = '' THEN 1 WHEN instr(substr(s, p), sub) = 0 THEN 0 ELSE CAST(instr(substr(s, p), sub) + p - 1 AS INTEGER) END"},
     {"position", "(sub, s) AS " S "locate(sub, s), (sub, s, p) AS " S "locate(sub, s, p)"},
     {"lpad", "(s, n) AS " S "lpad_impl(" S "as_text_or_binary(s), CAST(n AS BIGINT), " S "default_pad(s)), "
              "(s, n, p) AS " S "lpad_impl(" S "as_text_or_binary(s), CAST(n AS BIGINT), p)"},
@@ -250,10 +257,11 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_prepend", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_prepend(v, a) END"},
     {"array_compact", "(a) AS list_filter(a, lambda x: x IS NOT NULL)"},
     {"array_distinct", "(a) AS list_filter(a, lambda x, i: list_position(a, x) = i + 1)"},
-    {"array_union", "(a, b) AS " S "array_distinct(list_concat(a, b))"},
-    {"array_intersect", "(a, b) AS list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NOT NULL)"},
-    {"array_except", "(a, b) AS list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NULL)"},
-    {"array_join", "(a, d) AS array_to_string(list_filter(a, lambda x: x IS NOT NULL), d), "
+    // NULL if either array is NULL (DuckDB's list functions treat a NULL list as empty)
+    {"array_union", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE " S "array_distinct(list_concat(a, b)) END"},
+    {"array_intersect", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NOT NULL) END"},
+    {"array_except", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NULL) END"},
+    {"array_join", "(a, d) AS CASE WHEN d IS NULL THEN NULL ELSE array_to_string(list_filter(a, lambda x: x IS NOT NULL), d) END, "
                    "(a, d, r) AS array_to_string(list_transform(a, lambda x: coalesce(CAST(x AS VARCHAR), r)), d)"},
     {"array_max", "(a) AS list_max(a)"},
     {"array_min", "(a) AS list_min(a)"},
@@ -292,7 +300,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_agg", "(x) AS coalesce(list(x) FILTER (WHERE x IS NOT NULL), [])"},
 
     // ---- json ----
-    {"get_json_object", "(j, p) AS json_extract_string(TRY(CAST(j AS JSON)), p)"},
+    {"get_json_object", "(j, p) AS CASE WHEN NOT starts_with(p, '$') THEN NULL ELSE json_extract_string(TRY(CAST(j AS JSON)), p) END"},
     {"json_array_length", "(j) AS CASE WHEN json_type(TRY(CAST(j AS JSON))) = 'ARRAY' THEN CAST(json_array_length(TRY(CAST(j AS JSON))) AS INTEGER) END"},
     {"json_object_keys", "(j) AS CASE WHEN json_type(TRY(CAST(j AS JSON))) = 'OBJECT' THEN json_keys(TRY(CAST(j AS JSON))) END"},
 

@@ -834,6 +834,45 @@ void StringToDateKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//! Spark's string -> timestamp: DuckDB's parser first, then Spark's lenient forms that DuckDB rejects:
+//! 'yyyy', 'yyyy-[m]m', 'yyyy-[m]m-[d]d' with an optional ' ' / 'T' and time part
+bool ParseSparkTimestamp(const string &trimmed, timestamp_t &out) {
+	if (trimmed.empty()) {
+		return false;
+	}
+	if (Timestamp::TryConvertTimestamp(trimmed.c_str(), trimmed.size(), out, true) == TimestampCastResult::SUCCESS) {
+		return true;
+	}
+	auto sep = trimmed.find_first_of(" T");
+	auto date_part = sep == string::npos ? trimmed : trimmed.substr(0, sep);
+	date_t date;
+	if (!ParseSparkDate(string_t(date_part.c_str(), UnsafeNumericCast<uint32_t>(date_part.size())), date)) {
+		return false;
+	}
+	dtime_t time(0);
+	if (sep != string::npos && sep + 1 < trimmed.size()) {
+		auto time_part = trimmed.substr(sep + 1);
+		idx_t pos = 0;
+		if (!Time::TryConvertTime(time_part.c_str(), time_part.size(), pos, time, false) || pos != time_part.size()) {
+			return false;
+		}
+	}
+	return Timestamp::TryFromDatetime(date, time, out);
+}
+
+void StringToTimestampKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, timestamp_t>(args.data[0], result, args.size(),
+	                                              [](string_t s) -> optional<timestamp_t> {
+		                                              timestamp_t ts;
+		                                              auto str = s.GetString();
+		                                              StringUtil::Trim(str);
+		                                              if (!ParseSparkTimestamp(str, ts)) {
+			                                              return optional<timestamp_t>();
+		                                              }
+		                                              return ts;
+	                                              });
+}
+
 void StringToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t s) {
 		return StringVector::AddStringOrBlob(result, s);
@@ -1124,7 +1163,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	}
 	if (target.id() == LogicalTypeId::TIMESTAMP) {
 		if (IsString(source)) {
-			return b.Cast(b.Call("trim", std::move(e)), target, true);
+			return b.Kernel(ScalarFunction(Identifier("spark_string_to_timestamp"), {LogicalType::VARCHAR},
+			                               LogicalType::TIMESTAMP, StringToTimestampKernel),
+			                std::move(e));
 		}
 		if (IsNumeric(source)) {
 			auto tz = b.Call("to_timestamp", b.Cast(std::move(e), LogicalType::DOUBLE));
@@ -1422,15 +1463,49 @@ ExprP BindNegative(FunctionBindExpressionInput &input) {
 	return b.Call("-", std::move(args), true);
 }
 
+//! Comparisons with Spark's implicit casts (TypeCoercion.findCommonTypeForBinaryComparison, non-ANSI):
+//! a string compared with a decimal compares as DOUBLE; a string compared with another atomic type is cast to
+//! that type (NULL when it does not parse). Everything else is DuckDB's native comparison, so filters on
+//! columns still push down.
+ExprP BindComparisonAs(FunctionBindExpressionInput &input, ExpressionType type) {
+	CheckArgs(input, "comparison", 2, 2);
+	Builder b(input.context);
+	auto l = Arg(input, 0);
+	auto r = Arg(input, 1);
+	auto lt = Normalize(l->GetReturnType());
+	auto rt = Normalize(r->GetReturnType());
+	bool ls = IsString(lt), rs = IsString(rt);
+	if (ls != rs && !IsNull(lt) && !IsNull(rt)) {
+		auto &other = ls ? rt : lt;
+		auto id = other.id();
+		bool atomic = IsNumeric(other) || id == LogicalTypeId::BOOLEAN || id == LogicalTypeId::DATE ||
+		              id == LogicalTypeId::TIMESTAMP || id == LogicalTypeId::TIMESTAMP_TZ || id == LogicalTypeId::BLOB;
+		if (IsDecimal(other)) {
+			l = SparkCast(b, std::move(l), LogicalType::DOUBLE);
+			r = SparkCast(b, std::move(r), LogicalType::DOUBLE);
+		} else if (atomic) {
+			auto target = other;
+			if (ls) {
+				l = SparkCast(b, std::move(l), target);
+			} else {
+				r = SparkCast(b, std::move(r), target);
+			}
+		}
+	}
+	return b.Compare(type, std::move(l), std::move(r));
+}
+
+template <ExpressionType TYPE>
+ExprP BindComparison(FunctionBindExpressionInput &input) {
+	return BindComparisonAs(input, TYPE);
+}
+
 //! The comparator of array_sort(arr, (l, r) -> ...) must return INT, like in Spark
 ExprP BindComparatorResult(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "array_sort", 1, 1);
 	Builder b(input.context);
 	auto result = Arg(input, 0);
 	auto type = result->GetReturnType();
-	if (IsNull(type)) {
-		return b.Cast(std::move(result), LogicalType::INTEGER);
-	}
 	if (type.id() != LogicalTypeId::INTEGER) {
 		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_RETURN_TYPE] The array_sort comparator must return INT, "
 		                      "but returns %s",
@@ -2239,6 +2314,13 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
 	    {"comparator_result", BindComparatorResult},
+	    {"cmp_eq", BindComparison<ExpressionType::COMPARE_EQUAL>},
+	    {"cmp_ne", BindComparison<ExpressionType::COMPARE_NOTEQUAL>},
+	    {"cmp_lt", BindComparison<ExpressionType::COMPARE_LESSTHAN>},
+	    {"cmp_gt", BindComparison<ExpressionType::COMPARE_GREATERTHAN>},
+	    {"cmp_le", BindComparison<ExpressionType::COMPARE_LESSTHANOREQUALTO>},
+	    {"cmp_ge", BindComparison<ExpressionType::COMPARE_GREATERTHANOREQUALTO>},
+	    {"cmp_nsafe", BindComparison<ExpressionType::COMPARE_NOT_DISTINCT_FROM>},
 	    {"op_bit_and", BindBitAnd},
 	    {"op_bit_or", BindBitOr},
 	    {"op_bit_xor", BindBitXor},

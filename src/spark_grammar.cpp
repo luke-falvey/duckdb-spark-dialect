@@ -257,26 +257,16 @@ ExprPtr TransformNotPrefix(PEGTransformer &t, ParseResult &pr) {
 }
 
 ExprPtr TransformComparison(PEGTransformer &t, ParseResult &pr) {
+	// bound to a native comparison with Spark's implicit casts (see BindComparisonAs)
 	return TransformChain(t, pr, [](const string &op, ExprPtr l, ExprPtr r) -> ExprPtr {
-		ExpressionType type;
-		if (op == "=" || op == "==") {
-			type = ExpressionType::COMPARE_EQUAL;
-		} else if (op == "!=" || op == "<>") {
-			type = ExpressionType::COMPARE_NOTEQUAL;
-		} else if (op == "<") {
-			type = ExpressionType::COMPARE_LESSTHAN;
-		} else if (op == ">") {
-			type = ExpressionType::COMPARE_GREATERTHAN;
-		} else if (op == "<=") {
-			type = ExpressionType::COMPARE_LESSTHANOREQUALTO;
-		} else if (op == ">=") {
-			type = ExpressionType::COMPARE_GREATERTHANOREQUALTO;
-		} else if (op == "<=>") {
-			type = ExpressionType::COMPARE_NOT_DISTINCT_FROM;
-		} else {
+		static const unordered_map<string, string> names = {{"=", "cmp_eq"},  {"==", "cmp_eq"}, {"!=", "cmp_ne"},
+		                                                    {"<>", "cmp_ne"}, {"<", "cmp_lt"},  {">", "cmp_gt"},
+		                                                    {"<=", "cmp_le"}, {">=", "cmp_ge"}, {"<=>", "cmp_nsafe"}};
+		auto entry = names.find(op);
+		if (entry == names.end()) {
 			throw InternalException("spark dialect: unknown comparison %s", op);
 		}
-		return make_uniq<ComparisonExpression>(type, std::move(l), std::move(r));
+		return SparkCall(entry->second, std::move(l), std::move(r));
 	});
 }
 
