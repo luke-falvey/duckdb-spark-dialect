@@ -36,6 +36,13 @@ an expression (coalesce(NULL, NULL), a column of NULLs) is still accepted: the t
 example = "SELECT array_contains(array(1), coalesce(NULL, NULL))"
 
 [[difference]]
+signature = "duck_error|Out of Range Error: Date out of range*"
+reason = """Date arithmetic beyond DuckDB's date range (about year 5,881,580) raises an error; Spark evaluates the comparison
+differently: its int day count wraps around silently (and its optimizer may never evaluate the out-of-range side).
+Where both sides are evaluated and the value is out of range, both engines raise an error."""
+example = "SELECT x FROM VALUES (2147483647) AS t(x) WHERE date_from_unix_date(x) = DATE '2020-01-01' + INTERVAL 1 YEAR"
+
+[[difference]]
 signature = "duck_error|Invalid Input Error: Map keys can not be NULL*"
 reason = """Spark raises NULL_MAP_KEY only when a map with a NULL key is materialized; when the optimizer removes the
 map (size(map(NULL, 1)) is folded to 1) the query succeeds. DuckDB always rejects the NULL key."""
