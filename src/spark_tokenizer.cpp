@@ -1478,6 +1478,65 @@ Tokens Parenthesized(const Tokens &tokens, idx_t offset) {
 	return result;
 }
 
+//! The alias a single table or subquery source is visible under (`ev`, `ev e`, `ev AS e`, `(...) AS e`, `s.ev`), or
+//! empty for joins and anything else.
+string SourceAlias(const Tokens &source) {
+	if (source.empty()) {
+		return "";
+	}
+	int64_t depth = 0;
+	for (idx_t k = 0; k < source.size(); k++) {
+		if (IsOp(source[k], "(")) {
+			depth++;
+		} else if (IsOp(source[k], ")")) {
+			depth--;
+		} else if (depth == 0 && (IsOp(source[k], ",") || WordAt(source, k, "JOIN") || WordAt(source, k, "LATERAL") ||
+		                          WordAt(source, k, "TABLESAMPLE") || WordAt(source, k, "PIVOT") ||
+		                          WordAt(source, k, "UNPIVOT"))) {
+			return "";
+		}
+	}
+	auto &last = source.back();
+	bool name = IsWord(last) || (last.type == TokenType::IDENTIFIER && !last.text.empty());
+	if (!name || source.size() == 1) {
+		return source.size() == 1 && name ? last.text : "";
+	}
+	return last.text;
+}
+
+//! the same window(...) call in this block's select list is the grouping column too
+bool RewriteSameCalls(Tokens &ts, idx_t from, const Tokens &call_tokens, const string &column, idx_t offset) {
+	auto same_call = [&](idx_t at) {
+		if (at + call_tokens.size() > from) {
+			return false;
+		}
+		for (idx_t m = 0; m < call_tokens.size(); m++) {
+			if (!StringUtil::CIEquals(ts[at + m].text, call_tokens[m].text)) {
+				return false;
+			}
+		}
+		return true;
+	};
+	int64_t level = 0;
+	for (idx_t k = from; k > 0; k--) {
+		idx_t i = k - 1;
+		if (IsOp(ts[i], ")")) {
+			level++;
+		} else if (IsOp(ts[i], "(")) {
+			if (level == 0) {
+				break;
+			}
+			level--;
+		} else if (level == 0 && WordAt(ts, i, "SELECT")) {
+			break;
+		}
+		if (level == 0 && same_call(i)) {
+			Replace(ts, i, i + call_tokens.size(), {MatcherToken(column, offset, TokenType::IDENTIFIER)});
+		}
+	}
+	return true;
+}
+
 //! GROUP BY ..., window(ts, ...) / session_window(ts, gap): Spark adds a struct column named `window` /
 //! `session_window`. The FROM source of that query block becomes a subquery computing the column (sliding
 //! windows emit one row per window, sessions merge overlapping gaps per group), and the call in GROUP BY
@@ -1548,8 +1607,11 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			condition.assign(ts.begin() + NumericCast<int64_t>(where), ts.begin() + NumericCast<int64_t>(g));
 		}
 		auto column = string("\"") + kind + "\"";
+		auto alias = SourceAlias(source);
 		Tokens subquery = Lex("( SELECT * ,", offset);
 		if (kind == "window") {
+			// tumbling and sliding windows: the window column comes from a lateral join, so the source (and its
+			// aliases) stays as it is; rows without a window are dropped by the WHERE
 			Tokens fn = Lex(args.size() <= 2 ? "system . spark . __spark_window (" : "__spark_unnest ( system . spark . sliding_windows (", offset);
 			for (idx_t a = 0; a < args.size(); a++) {
 				if (a > 0) {
@@ -1561,12 +1623,24 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			if (args.size() > 2) {
 				fn.emplace_back(")", offset, TokenType::OPERATOR);
 			}
-			Append(subquery, fn);
-			subquery.emplace_back("AS", offset, TokenType::KEYWORD);
-			subquery.emplace_back(column, offset, TokenType::IDENTIFIER);
-			subquery.emplace_back("FROM", offset, TokenType::KEYWORD);
-			Append(subquery, source);
-			Append(subquery, condition);
+			Tokens replacement = source;
+			Append(replacement, Lex(", LATERAL ( SELECT", offset));
+			Append(replacement, fn);
+			replacement.emplace_back("AS", offset, TokenType::KEYWORD);
+			replacement.emplace_back(column, offset, TokenType::IDENTIFIER);
+			Append(replacement, Lex(") AS __spark_w WHERE", offset));
+			if (where != DConstants::INVALID_INDEX) {
+				Tokens user_condition(ts.begin() + NumericCast<int64_t>(where + 1), ts.begin() + NumericCast<int64_t>(g));
+				Append(replacement, Parenthesized(user_condition, offset));
+				Append(replacement, Lex("AND", offset));
+			}
+			replacement.emplace_back(column, offset, TokenType::IDENTIFIER);
+			Append(replacement, Lex(". start IS NOT NULL AND", offset));
+			replacement.emplace_back(column, offset, TokenType::IDENTIFIER);
+			Append(replacement, Lex(". \"end\" IS NOT NULL", offset));
+			Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});
+			Replace(ts, from + 1, g, replacement);
+			return RewriteSameCalls(ts, from, call_tokens, column, offset);
 		} else {
 			if (args.size() != 2) {
 				return false;
@@ -1620,6 +1694,11 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(level1, source);
 			Append(level1, condition);
 			level1.emplace_back(")", offset, TokenType::OPERATOR);
+			if (!alias.empty()) {
+				// every level keeps the source's alias, so the user's expressions (e.ts) resolve at each one
+				Append(level1, Lex("AS", offset));
+				level1.emplace_back(alias, offset, TokenType::IDENTIFIER);
+			}
 			// level 2: session numbers
 			Tokens level2 = Lex("( SELECT * , sum ( __spark_new_session )", offset);
 			auto running = over("");
@@ -1630,6 +1709,10 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(level2, Lex("AS __spark_session FROM", offset));
 			Append(level2, level1);
 			level2.emplace_back(")", offset, TokenType::OPERATOR);
+			if (!alias.empty()) {
+				Append(level2, Lex("AS", offset));
+				level2.emplace_back(alias, offset, TokenType::IDENTIFIER);
+			}
 			// level 3: the session window struct
 			if (!partition.empty()) {
 				partition.emplace_back(",", offset, TokenType::OPERATOR);
@@ -1658,43 +1741,16 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		filtered.emplace_back(column, offset, TokenType::IDENTIFIER);
 		Append(filtered, Lex(". \"end\" IS NOT NULL )", offset));
 		subquery = filtered;
-		Append(subquery, Lex("AS __spark_windowed", offset));
+		// the subquery takes the source's alias, so references like tab.a keep working
+		Append(subquery, Lex("AS", offset));
+		subquery.emplace_back(alias.empty() ? "__spark_windowed" : alias, offset, TokenType::IDENTIFIER);
 		// GROUP BY ..., "window" ; FROM (subquery) ; WHERE moved into the subquery
 		Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});
 		if (where != DConstants::INVALID_INDEX) {
 			Erase(ts, where, g);
 		}
 		Replace(ts, from + 1, source_end, subquery);
-		// the same window(...) call in this block's select list is the grouping column too
-		auto same_call = [&](idx_t at) {
-			if (at + call_tokens.size() > from) {
-				return false;
-			}
-			for (idx_t m = 0; m < call_tokens.size(); m++) {
-				if (!StringUtil::CIEquals(ts[at + m].text, call_tokens[m].text)) {
-					return false;
-				}
-			}
-			return true;
-		};
-		int64_t level = 0;
-		for (idx_t k = from; k > 0; k--) {
-			idx_t i = k - 1;
-			if (IsOp(ts[i], ")")) {
-				level++;
-			} else if (IsOp(ts[i], "(")) {
-				if (level == 0) {
-					break;
-				}
-				level--;
-			} else if (level == 0 && WordAt(ts, i, "SELECT")) {
-				break;
-			}
-			if (level == 0 && same_call(i)) {
-				Replace(ts, i, i + call_tokens.size(), {MatcherToken(column, offset, TokenType::IDENTIFIER)});
-			}
-		}
-		return true;
+		return RewriteSameCalls(ts, from, call_tokens, column, offset);
 	}
 	return false;
 }

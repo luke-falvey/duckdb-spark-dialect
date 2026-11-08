@@ -143,3 +143,45 @@ SELECT array_intersect(array(0.0D, 1.0D), array(-0.0D, 1.0D)), array_intersect(a
 SELECT array_distinct(array(CAST(0.0 AS FLOAT), CAST(-0.0 AS FLOAT))), array_distinct(array(CAST('NaN' AS DOUBLE), CAST('NaN' AS DOUBLE), 1.0D));
 
 SELECT array_distinct(array(1, 2, 2, NULL, NULL)), array_union(array(1, 2), array(2, 3)), array_except(array(1, 2, 3), array(2)), array_intersect(array(1, 2, 3), array(2, 3, 4));
+
+-- ===== L3: window / session_window keep the source's table alias =====
+
+-- @setup
+CREATE TEMPORARY VIEW l3_ev AS SELECT * FROM VALUES
+  ('u1', TIMESTAMP '2024-01-01 00:00:00', 1), ('u1', TIMESTAMP '2024-01-01 00:03:00', 2),
+  ('u1', TIMESTAMP '2024-01-01 00:20:00', 3), ('u2', TIMESTAMP '2024-01-01 00:01:00', 4),
+  ('u2', TIMESTAMP '2024-01-01 00:02:00', NULL), ('u3', TIMESTAMP '2024-01-01 00:30:00', 6),
+  ('u3', CAST(NULL AS TIMESTAMP), 7) AS l3_ev(u, ts, v);
+
+-- @setup
+CREATE TEMPORARY VIEW l3_users AS SELECT * FROM VALUES ('u1', 'Ann'), ('u2', 'Bob'), ('u3', 'Cy') AS l3_users(u, name);
+
+SELECT window.start, count(*), sum(e.v) FROM l3_ev e GROUP BY window(e.ts, '10 minutes') ORDER BY start;
+
+SELECT e.u, window.start, sum(e.v) FROM l3_ev AS e WHERE e.v > 1 GROUP BY e.u, window(e.ts, '10 minutes') HAVING sum(e.v) > 1 ORDER BY e.u, start;
+
+SELECT l3_ev.u, window.end, count(l3_ev.v) FROM l3_ev GROUP BY l3_ev.u, window(l3_ev.ts, '15 minutes', '5 minutes') ORDER BY l3_ev.u, 2;
+
+SELECT window, count(*) FROM l3_ev GROUP BY window(ts, '10 minutes') ORDER BY window.start;
+
+SELECT window.start AS s, count(*) FROM l3_ev WHERE u = 'u1' OR v IS NULL GROUP BY window(ts, '10 minutes') ORDER BY s;
+
+SELECT e.u, window.start, count(*) FROM l3_ev e GROUP BY e.u, window(e.ts, '10 minutes') ORDER BY e.u, window.start;
+
+SELECT count(*) FROM l3_ev e GROUP BY window(e.ts, '10 minutes', '5 minutes') ORDER BY window.start;
+
+SELECT window.start, count(*) FROM l3_ev GROUP BY window(ts, '10 minutes') HAVING window.start >= TIMESTAMP '2024-01-01 00:10:00' ORDER BY 1;
+
+SELECT x.start, x.n FROM (SELECT window.start AS start, count(*) AS n FROM l3_ev e GROUP BY window(e.ts, '10 minutes')) x ORDER BY x.start;
+
+WITH w AS (SELECT window.start AS start, sum(e.v) AS total FROM l3_ev e GROUP BY window(e.ts, '10 minutes')) SELECT * FROM w ORDER BY start;
+
+SELECT u.name, window.start, count(*) FROM l3_ev e JOIN l3_users u ON e.u = u.u GROUP BY u.name, window(e.ts, '10 minutes') ORDER BY u.name, start;
+
+SELECT e.u, session_window.start, session_window.end, count(*), sum(e.v) FROM l3_ev e GROUP BY e.u, session_window(e.ts, '5 minutes') ORDER BY e.u, start;
+
+SELECT l3_ev.u, session_window.start, count(l3_ev.v) FROM l3_ev WHERE l3_ev.v IS NOT NULL GROUP BY l3_ev.u, session_window(l3_ev.ts, '5 minutes') ORDER BY l3_ev.u, start;
+
+SELECT e.u, session_window.start FROM (SELECT * FROM l3_ev) AS e GROUP BY e.u, session_window(e.ts, '5 minutes') ORDER BY e.u, start;
+
+SELECT window.start, count(*) FROM (SELECT * FROM l3_ev WHERE v > 2) GROUP BY window(ts, '10 minutes') ORDER BY start;
