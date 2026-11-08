@@ -43,8 +43,10 @@ template <class T>
 inline double AsDouble(const T &value) {
 	if constexpr (std::is_same<T, timestamp_t>::value) {
 		return double(value.value) / 1000000.0;
-	} else {
+	} else if constexpr (std::is_same<T, hugeint_t>::value) {
 		return Cast::Operation<T, double>(value);
+	} else {
+		return static_cast<double>(value);
 	}
 }
 

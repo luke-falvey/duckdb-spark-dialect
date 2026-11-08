@@ -82,12 +82,14 @@ only need to succeed (Spark returns no rows, DuckDB a row count; the data is che
 queries), and cases Spark marks as random (`rand()`, `uuid()`, random-IV `aes_encrypt`, …) only
 need to succeed.
 
-**Current result: all 1308 differential cases are identical to Spark under both dialects (0 failing,
-0 lenient)**: the original 1233, plus 53 reproducers of bugs found by the fuzzers
-(`test/cases/fuzz_regressions.sql`) and the 22 TPC-H queries of the benchmark over generated data
-(`test/cases/tpch_small.sql`). Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
-rejects every one (the lenient `spark` dialect accepts 56 of them, reported as `LENIENT`, which is not a failure),
-and `test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
+**Current result: all 1,721 differential cases in `test/cases/` (including `test/cases/ansi/`) are identical to
+Spark under `spark_strict` (0 failing), and under `spark` except for 64 that Spark rejects and the lenient dialect
+accepts (reported as `LENIENT`, which is not a failure).** They are 1,233 documented examples and operator cases, 53
+reproducers of bugs found by the fuzzers (`test/cases/fuzz_regressions.sql`), the 22 TPC-H queries of the benchmark
+(`test/cases/tpch_small.sql`), 168 cases for the removed or reduced limitations (`test/cases/limitations.sql`), 112
+for ANSI mode (`test/cases/ansi/`, which sets `-- @config spark.sql.ansi.enabled=true` for the file), and others.
+`test/cases/non_spark.sql` holds 73 queries that Spark 3.5 rejects: `spark_strict` rejects every one, and
+`test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
 `python test/run_duckdb.py --dialect spark_strict`, which fails on any `LENIENT` result. CI runs both dialects. The 1233 cases cover all 106
 operator cases and every documented example of all 421 Spark built-ins that have one; the other 17
 (cast functions and operators) are covered by the operator and literal/type cases.

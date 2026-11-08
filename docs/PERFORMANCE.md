@@ -73,6 +73,12 @@ The suspects from the plan:
    (10,000 elements take 1.3 s); the README documents it.
 9. **Token rewrites that are O(n²).** None found: parse time is linear up to 10,000 items for every shape.
 10. **`CHAR(n)` padding.** Not measured separately.
+11. **Costs added by the limitations work.**
+   `format_string` / `printf` are now `java.util.Formatter`-compatible (NULL arguments, HALF_UP rounding of `%f`,
+   two's-complement `%x`): the kernel formats row by row and is about 5x slower than DuckDB's `printf` (1.0x before).
+   `sum(decimal)` keeps an exact 128-bit state for Spark's `DECIMAL(p + 10, s)` result and is about 1.6x native
+   (1.2x before); TPC-H (sf1, all threads) is at a geometric mean of 1.16x–1.18x (Spark dialects), 1.12x–1.10x
+   before, with the extra time in the grouped `sum` of decimals (Q09, Q10, Q13).
 
 ## Q1
 
