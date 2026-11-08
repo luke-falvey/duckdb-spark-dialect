@@ -93,6 +93,26 @@ operator cases and every documented example of all 421 Spark built-ins that have
 any case where DuckDB raises an internal error, even if Spark errors too. See
 [COVERAGE.md](COVERAGE.md).
 
+### Fuzzing
+
+`test/fuzz/` holds fuzzers that look for what the case files miss (details in
+[test/fuzz/README.md](test/fuzz/README.md)):
+
+- `mutate.py`: mutated and structurally extreme SQL in every dialect, also through an AddressSanitizer / UBSan
+  build; any crash, hang or `INTERNAL` error is a finding
+- `args_sweep.py`: every documented Spark function example with edge-case arguments (as constants and as
+  columns), compared with Spark
+- `differential.py`: random typed queries (joins, grouping sets, windows, `LATERAL VIEW`, `PIVOT`, subqueries,
+  ...) over tables of edge-case values, compared with Spark in both dialects, with automatic reduction
+- `isolation.py`: DuckDB's own sqllogictest statements must behave the same with the extension loaded
+  and a Spark dialect selected and reset
+- `spark_corpus.py`: Spark's own `sql-tests` inputs, as a source of findings
+
+Fixed bugs keep a reproducer in `test/cases/fuzz_regressions.sql` (compared with Spark) or
+`test/fuzz/crash_regressions.sql` (must not crash). Differences that are deliberately not fixed are listed with
+reasons in `test/fuzz/known_differences.toml`. CI runs a fixed-seed smoke of each fuzzer on every push; a nightly
+workflow runs them longer with random seeds and the sanitizer build.
+
 ### Limitations (behaviour the tests do not exercise)
 
 - ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.
@@ -105,6 +125,9 @@ any case where DuckDB raises an internal error, even if Spark errors too. See
 - Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
   and in `CAST`, not in other implicit casts.
 - `array_sort` with a comparator sorts by rank (O(n²)); it expects a consistent comparator.
+- Expressions nested more deeply than a third of the thread's stack allows (about 160 levels on an 8 MB stack)
+  fail with "Expression is nested too deeply" instead of DuckDB's limit of 1000 levels.
+- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml`.
 - Statements are rewritten at the token level in places (see the table above), so error messages
   for invalid Spark SQL can point at rewritten text.
 

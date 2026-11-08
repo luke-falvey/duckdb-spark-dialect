@@ -100,3 +100,8 @@ SELECT substr('abcdef', 2, 3), substr('abcdef', -3), substr('abc', -5, 3), subst
 
 -- ===== window sum / avg: Spark's result types, BIGINT sums wrap =====
 SELECT o, sum(x) OVER (ORDER BY o), sum(x) OVER (), typeof(sum(x) OVER ()), avg(d) OVER (), typeof(avg(d) OVER ()), sum(d) OVER (ORDER BY o), mean(x) OVER () FROM VALUES (9223372036854775807L, 1, 1.5BD), (1L, 2, 2.25BD) AS t(x, o, d) ORDER BY o;
+
+-- ===== decimal arithmetic results rescaled by the dialect's own kernel (HALF_UP, NULL on overflow) =====
+SELECT 0.000000000000000000005BD + 1.000000000000000000005BD, -1.5BD * 0.333BD, 12345678901234567890.123456789BD * 1.1BD, 2.5BD * 0.1BD, -0.05BD * 0.1BD, CAST(1.005 AS DECIMAL(4,3)) + CAST(1 AS DECIMAL(38,37));
+
+SELECT d + e, d - e, d * e, typeof(d + e), typeof(d * e) FROM VALUES (CAST(1.25 AS DECIMAL(18,2)), CAST(-2.0000000005 AS DECIMAL(38,10))), (CAST(-0.05 AS DECIMAL(18,2)), CAST(0.0000000005 AS DECIMAL(38,10))), (CAST(9999999999999999.99 AS DECIMAL(18,2)), CAST(1 AS DECIMAL(38,10))) AS t(d, e);

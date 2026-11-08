@@ -173,7 +173,11 @@ class Mutator:
         seed = self.rng.choice(self.seeds)
         r = self.rng.random()
         if r < 0.04:
-            sql, n = self.rng.choice([self.s_nest, self.s_long_list, self.s_many_statements])(seed)
+            structural = self.rng.choice([self.s_nest, self.s_long_list, self.s_many_statements])
+            if structural == self.s_many_statements:
+                # repeating a heavy query (e.g. a TPC-H case) a thousand times is slow, not a bug
+                seed = min(self.rng.sample(self.seeds, 5), key=len)
+            sql, n = structural(seed)
             return sql, ["structural"], n
         if r < 0.14:
             sql = seed

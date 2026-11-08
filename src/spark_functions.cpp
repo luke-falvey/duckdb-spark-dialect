@@ -1365,6 +1365,8 @@ LogicalType DecimalOperandType(const Expression &expr, const LogicalType &type) 
 	return AsDecimalType(type);
 }
 
+ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target);
+
 template <class OP, class CHECKED_OP, bool CHECKED>
 ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 	CheckArgs(input, duck_op, 2, 2);
@@ -1430,9 +1432,96 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 			auto common = LogicalType::DECIMAL(38, uint8_t(MaxValue(s1, s2)));
 			value = b.Op(duck_op, b.Cast(std::move(left), common), b.Cast(std::move(right), common));
 		}
-		return b.Cast(std::move(value), result_type, true);
+		return SparkDecimalResult(b, std::move(value), result_type);
 	}
 	return b.Op(duck_op, std::move(left), std::move(right));
+}
+
+//! Decimal result of Spark arithmetic: lower the scale with HALF_UP rounding and NULL on overflow. DuckDB's
+//! TRY_CAST does the same but is ~500x slower for 38-digit decimals when the scale goes down.
+template <class IN, class OUT>
+void DecimalRescaleKernel(DataChunk &args, ExpressionState &, Vector &result, hugeint_t divisor, hugeint_t limit) {
+	bool small_divisor = divisor < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t divisor64 = small_divisor ? Hugeint::Cast<int64_t>(divisor) : 0;
+	bool small_limit = limit < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t limit64 = small_limit ? Hugeint::Cast<int64_t>(limit) : 0;
+	UnaryExecutor::Execute<IN, OUT>(args.data[0], result, args.size(), [&](IN in) -> optional<OUT> {
+		hugeint_t value(in);
+		// fast path: the value fits in 63 bits (the common case) - 64-bit division instead of 128-bit
+		if (small_divisor && value < hugeint_t(NumericLimits<int64_t>::Maximum()) &&
+		    value > hugeint_t(NumericLimits<int64_t>::Minimum())) {
+			int64_t v = Hugeint::Cast<int64_t>(value);
+			int64_t q = divisor64 > 1 ? v / divisor64 : v;
+			if (divisor64 > 1) {
+				int64_t r = v % divisor64;
+				if ((r < 0 ? -r : r) * 2 >= divisor64) {
+					q += v < 0 ? -1 : 1;
+				}
+			}
+			if (small_limit && (q >= limit64 || q <= -limit64)) {
+				return optional<OUT>();
+			}
+			return OUT(q);
+		}
+		if (divisor > hugeint_t(1)) {
+			hugeint_t quotient = value / divisor;
+			hugeint_t remainder = value - quotient * divisor;
+			if (remainder < hugeint_t(0)) {
+				remainder = -remainder;
+			}
+			if (remainder * hugeint_t(2) >= divisor) {
+				quotient += value < hugeint_t(0) ? hugeint_t(-1) : hugeint_t(1);
+			}
+			value = quotient;
+		}
+		if (value >= limit || value <= -limit) {
+			return optional<OUT>();
+		}
+		return Hugeint::Cast<OUT>(value);
+	});
+}
+
+template <class IN>
+scalar_function_t DecimalRescaleFor(PhysicalType out, hugeint_t divisor, hugeint_t limit) {
+	switch (out) {
+	case PhysicalType::INT16:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, int16_t>(a, st, r, divisor, limit); };
+	case PhysicalType::INT32:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, int32_t>(a, st, r, divisor, limit); };
+	case PhysicalType::INT64:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, int64_t>(a, st, r, divisor, limit); };
+	default:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, hugeint_t>(a, st, r, divisor, limit); };
+	}
+}
+
+ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target) {
+	auto source = value->GetReturnType();
+	if (source == target) {
+		return value;
+	}
+	if (source.id() != LogicalTypeId::DECIMAL || target.id() != LogicalTypeId::DECIMAL ||
+	    DecimalType::GetScale(target) > DecimalType::GetScale(source)) {
+		return b.Cast(std::move(value), target, true);
+	}
+	auto divisor = Hugeint::POWERS_OF_TEN[DecimalType::GetScale(source) - DecimalType::GetScale(target)];
+	auto limit = Hugeint::POWERS_OF_TEN[DecimalType::GetWidth(target)];
+	scalar_function_t fn;
+	switch (source.InternalType()) {
+	case PhysicalType::INT16:
+		fn = DecimalRescaleFor<int16_t>(target.InternalType(), divisor, limit);
+		break;
+	case PhysicalType::INT32:
+		fn = DecimalRescaleFor<int32_t>(target.InternalType(), divisor, limit);
+		break;
+	case PhysicalType::INT64:
+		fn = DecimalRescaleFor<int64_t>(target.InternalType(), divisor, limit);
+		break;
+	default:
+		fn = DecimalRescaleFor<hugeint_t>(target.InternalType(), divisor, limit);
+		break;
+	}
+	return b.Kernel(ScalarFunction(Identifier("spark_decimal_result"), {source}, target, fn), std::move(value));
 }
 
 ExprP BindAdd(FunctionBindExpressionInput &input) {
