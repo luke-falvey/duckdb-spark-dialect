@@ -10,13 +10,6 @@ array_distinct / array_union / array_except / array_intersect do tell -0.0 from 
 example = "SELECT map(-0.0D, 1, 0.0D, 2)"
 
 [[difference]]
-signature = "mismatch|*"
-sql = 'FROM VALUES \((-?\d+[YSL]|CAST\(1 AS DECIMAL\(38,0\)\))\)'
-reason = """A VALUES list whose rows mix literal types (-128Y with 1, DECIMAL(38,0) with 1.8) gets DuckDB's common type
-(integer literals adapt to TINYINT; DECIMAL(38,0) wins over DECIMAL(2,1)) instead of Spark's (INT; DECIMAL(38,1))."""
-example = "SELECT typeof(x) FROM VALUES (-128Y), (1) AS t(x)"
-
-[[difference]]
 signature = "mismatch|*approx*|*"
 reason = """approx_percentile / percentile_approx / approx_count_distinct use different approximation algorithms
 (DuckDB's t-digest and HyperLogLog vs Spark's GK sketch and HLL++). The documented examples match; other inputs
@@ -31,20 +24,15 @@ example = "SELECT histogram_numeric(col, 2) FROM VALUES (0), (1), (2), (10) AS t
 [[difference]]
 signature = "mismatch|array_sort|*"
 reason = """array_sort with a comparator that is not a consistent total order: the result depends on the sort algorithm
-(Spark's TimSort vs the rank-based sort here, see README)."""
-example = "SELECT array_sort(array(5, 6, 1), (l, r) -> CASE WHEN l < r THEN -0 WHEN l > r THEN 1 ELSE 0 END)"
+(Spark's TimSort vs the rank-based sort here, see README). Comparators of the recognized shapes are consistent
+total orders and match."""
+example = "SELECT array_sort(array(3, 1, 2, 7, 4), (l, r) -> -1)"
 
 [[difference]]
 signature = "strict_lenient|[[]DATATYPE_MISMATCH.NULL_TYPE]*"
 reason = """spark_strict accepts untyped NULL arguments that Spark's analyzer rejects (array_contains(NULL, NULL)):
 NULL is typed by DuckDB's binder after the strict checks run, which only see the parsed query."""
 example = "SELECT array_contains(NULL, NULL)"
-
-[[difference]]
-signature = "duck_error|Out of Range Error: Date out of range*"
-reason = """Date arithmetic beyond DuckDB's date range (about year 5,881,580) raises an error; Spark's int day count
-wraps around silently."""
-example = "SELECT date_from_unix_date(2147483647) + INTERVAL 1 YEAR"
 
 [[difference]]
 signature = "duck_error|Invalid Input Error: Map keys can not be NULL*"

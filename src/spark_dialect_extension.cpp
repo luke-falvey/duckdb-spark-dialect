@@ -21,6 +21,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	RegisterSparkFunctions(loader);
 	RegisterSparkAggregates(loader);
 	RegisterSparkFormatString(loader);
+	RegisterSparkTypeRules(loader);
 	RegisterSparkLibrary(loader);
 	RegisterSparkDatetime(loader);
 	RegisterSparkHashes(loader);

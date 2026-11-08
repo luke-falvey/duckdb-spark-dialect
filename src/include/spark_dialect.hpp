@@ -60,6 +60,7 @@ void RegisterSparkAggregates(ExtensionLoader &loader);
 //! array indexes are errors instead of NULL / wrap-around
 bool SparkAnsiEnabled(ClientContext &context);
 void RegisterSparkFormatString(ExtensionLoader &loader);
+void RegisterSparkTypeRules(ExtensionLoader &loader);
 void RegisterSparkLibrary(ExtensionLoader &loader);
 void RegisterSparkDatetime(ExtensionLoader &loader);
 void RegisterSparkHashes(ExtensionLoader &loader);

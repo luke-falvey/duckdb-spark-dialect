@@ -311,3 +311,29 @@ INSERT INTO l5_t SELECT named_struct('x', n, 'y', concat('n', n)), n + 10 FROM l
 SELECT s, s.a, s.b, n FROM l5_t ORDER BY n;
 
 SELECT named_struct('a', 1, 'b', 2) = named_struct('a', 1, 'b', 2), struct(1, 2) = struct(1, 2L), array(struct(1, 2), struct(1, 2L));
+
+-- ===== L9: VALUES and UNION unify types like Spark =====
+
+SELECT typeof(x), x FROM VALUES (-128Y), (1) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (1), (-128Y) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (1S), (1) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (127Y), (1), (200S) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (1Y), (2Y) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (CAST(1 AS DECIMAL(38, 0))), (1.8) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (1.8), (CAST(1 AS DECIMAL(38, 0))) AS t(x);
+
+SELECT typeof(x), x FROM VALUES (CAST(1 AS DECIMAL(10, 2))), (1), (CAST(1.5 AS DECIMAL(5, 4))) AS t(x);
+
+SELECT typeof(a), typeof(b), a, b FROM VALUES (1, 1.5), (2147483648, 2) AS t(a, b);
+
+SELECT typeof(x), x FROM (SELECT CAST(1 AS DECIMAL(38, 0)) AS x UNION ALL SELECT 1.8);
+
+SELECT typeof(x), x FROM (SELECT 1 AS x UNION ALL SELECT 2Y UNION ALL SELECT 3S);
+
+SELECT CAST(1 AS DECIMAL(38, 0)) = 1.8, CAST(1 AS DECIMAL(38, 0)) < 1.8, CAST(5 AS DECIMAL(38, 0)) IN (4.5, 5.0);
