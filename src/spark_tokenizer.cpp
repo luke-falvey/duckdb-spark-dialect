@@ -1121,6 +1121,32 @@ Tokens EmptyResult(idx_t offset) {
 }
 
 //! Returns true if the statement was replaced completely.
+//! Splits the arguments of the call whose '(' is at ts[open] (top-level commas)
+vector<Tokens> CallArguments(const Tokens &ts, idx_t open, idx_t close) {
+	vector<Tokens> args;
+	Tokens current;
+	int64_t depth = 0;
+	for (idx_t k = open + 1; k + 1 < close; k++) {
+		if (IsOp(ts[k], "(")) {
+			depth++;
+		} else if (IsOp(ts[k], ")")) {
+			depth--;
+		}
+		if (depth == 0 && IsOp(ts[k], ",")) {
+			args.push_back(current);
+			current.clear();
+			continue;
+		}
+		current.push_back(ts[k]);
+	}
+	args.push_back(current);
+	return args;
+}
+
+void Append(Tokens &target, const Tokens &source) {
+	target.insert(target.end(), source.begin(), source.end());
+}
+
 bool RewriteStatement(Tokens &ts, bool strict) {
 	if (ts.empty()) {
 		return false;
@@ -1182,10 +1208,7 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 				}
 				if (depth == 1 && (IsWord(ts[k], "CHAR") || IsWord(ts[k], "CHARACTER")) && OpAt(ts, k + 1, "(") &&
 				    k + 3 < ts.size() && ts[k + 2].type == TokenType::NUMBER_LITERAL && OpAt(ts, k + 3, ")")) {
-					auto n = std::stoll(ts[k + 2].text);
-					if (n >= 1 && n <= 255) {
-						Replace(ts, k, k + 4, Lex("system . spark . spark_char_" + to_string(n), ts[k].offset));
-					}
+					Replace(ts, k, k + 4, Lex("system . spark . spark_char ( " + ts[k + 2].text + " )", ts[k].offset));
 				}
 			}
 		}
@@ -1247,6 +1270,23 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			Erase(ts, name_end, name_end + 3);
 		}
 		for (idx_t k = name_end; k + 1 < ts.size(); k++) {
+			if (IsWord(ts[k], "named_struct") && OpAt(ts, k + 1, "(")) {
+				// Spark stores struct values by position: named_struct('x', 1, 'y', 2) is ROW(1, 2) here
+				auto close = SkipParens(ts, k + 1);
+				auto fields = CallArguments(ts, k + 1, close);
+				if (!fields.empty() && fields.size() % 2 == 0) {
+					Tokens row = Lex("ROW (", ts[k].offset);
+					for (idx_t f = 1; f < fields.size(); f += 2) {
+						if (f > 1) {
+							row.emplace_back(",", ts[k].offset, TokenType::OPERATOR);
+						}
+						Append(row, fields[f]);
+					}
+					row.emplace_back(")", ts[k].offset, TokenType::OPERATOR);
+					Replace(ts, k, close, row);
+					continue;
+				}
+			}
 			if (IsWord(ts[k], "STRUCT") && OpAt(ts, k + 1, "(")) {
 				auto close = SkipParens(ts, k + 1);
 				bool named = false;
@@ -1345,6 +1385,11 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		return false;
 	}
 	if (WordAt(ts, 0, "RESET")) {
+		// RESET (all keys) and RESET spark.sql.ansi.enabled restore the default
+		if (ts.size() == 1 || (ts.size() >= 2 && StringUtil::CIEquals(Join(ts, 1, ts.size()), "spark.sql.ansi.enabled"))) {
+			ts = Lex("RESET spark_ansi_enabled", offset);
+			return true;
+		}
 		ts = EmptyResult(offset);
 		return true;
 	}
@@ -1383,6 +1428,18 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		}
 		if (StringUtil::CIEquals(key, "spark.sql.session.timeZone")) {
 			ts = Lex("SET TimeZone = " + DuckStringLiteral(value), offset);
+			return true;
+		}
+		if (StringUtil::CIEquals(key, "spark.sql.ansi.enabled")) {
+			auto lowered = StringUtil::Lower(StringUtil::Replace(StringUtil::Replace(value, " ", ""), "'", ""));
+			if (lowered != "true" && lowered != "false") {
+				throw ParserException("[INVALID_CONF_VALUE] The value '%s' in the config \"spark.sql.ansi.enabled\" "
+				                      "is invalid. The value must be \"true\" or \"false\".",
+				                      value);
+			}
+			ts = Lex("SET spark_ansi_enabled = " + lowered + " ; SELECT " + DuckStringLiteral(key) + " AS key , " +
+			             DuckStringLiteral(lowered) + " AS value",
+			         offset);
 			return true;
 		}
 		ts = Lex("SELECT " + DuckStringLiteral(key) + " AS key , " + DuckStringLiteral(value) + " AS value", offset);
@@ -1444,31 +1501,7 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 
 } // namespace
 
-//! Splits the arguments of the call whose '(' is at ts[open] (top-level commas)
-vector<Tokens> CallArguments(const Tokens &ts, idx_t open, idx_t close) {
-	vector<Tokens> args;
-	Tokens current;
-	int64_t depth = 0;
-	for (idx_t k = open + 1; k + 1 < close; k++) {
-		if (IsOp(ts[k], "(")) {
-			depth++;
-		} else if (IsOp(ts[k], ")")) {
-			depth--;
-		}
-		if (depth == 0 && IsOp(ts[k], ",")) {
-			args.push_back(current);
-			current.clear();
-			continue;
-		}
-		current.push_back(ts[k]);
-	}
-	args.push_back(current);
-	return args;
-}
 
-void Append(Tokens &target, const Tokens &source) {
-	target.insert(target.end(), source.begin(), source.end());
-}
 
 Tokens Parenthesized(const Tokens &tokens, idx_t offset) {
 	Tokens result;
@@ -1476,6 +1509,65 @@ Tokens Parenthesized(const Tokens &tokens, idx_t offset) {
 	Append(result, tokens);
 	result.emplace_back(")", offset, TokenType::OPERATOR);
 	return result;
+}
+
+//! The alias a single table or subquery source is visible under (`ev`, `ev e`, `ev AS e`, `(...) AS e`, `s.ev`), or
+//! empty for joins and anything else.
+string SourceAlias(const Tokens &source) {
+	if (source.empty()) {
+		return "";
+	}
+	int64_t depth = 0;
+	for (idx_t k = 0; k < source.size(); k++) {
+		if (IsOp(source[k], "(")) {
+			depth++;
+		} else if (IsOp(source[k], ")")) {
+			depth--;
+		} else if (depth == 0 && (IsOp(source[k], ",") || WordAt(source, k, "JOIN") || WordAt(source, k, "LATERAL") ||
+		                          WordAt(source, k, "TABLESAMPLE") || WordAt(source, k, "PIVOT") ||
+		                          WordAt(source, k, "UNPIVOT"))) {
+			return "";
+		}
+	}
+	auto &last = source.back();
+	bool name = IsWord(last) || (last.type == TokenType::IDENTIFIER && !last.text.empty());
+	if (!name || source.size() == 1) {
+		return source.size() == 1 && name ? last.text : "";
+	}
+	return last.text;
+}
+
+//! the same window(...) call in this block's select list is the grouping column too
+bool RewriteSameCalls(Tokens &ts, idx_t from, const Tokens &call_tokens, const string &column, idx_t offset) {
+	auto same_call = [&](idx_t at) {
+		if (at + call_tokens.size() > from) {
+			return false;
+		}
+		for (idx_t m = 0; m < call_tokens.size(); m++) {
+			if (!StringUtil::CIEquals(ts[at + m].text, call_tokens[m].text)) {
+				return false;
+			}
+		}
+		return true;
+	};
+	int64_t level = 0;
+	for (idx_t k = from; k > 0; k--) {
+		idx_t i = k - 1;
+		if (IsOp(ts[i], ")")) {
+			level++;
+		} else if (IsOp(ts[i], "(")) {
+			if (level == 0) {
+				break;
+			}
+			level--;
+		} else if (level == 0 && WordAt(ts, i, "SELECT")) {
+			break;
+		}
+		if (level == 0 && same_call(i)) {
+			Replace(ts, i, i + call_tokens.size(), {MatcherToken(column, offset, TokenType::IDENTIFIER)});
+		}
+	}
+	return true;
 }
 
 //! GROUP BY ..., window(ts, ...) / session_window(ts, gap): Spark adds a struct column named `window` /
@@ -1548,8 +1640,11 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			condition.assign(ts.begin() + NumericCast<int64_t>(where), ts.begin() + NumericCast<int64_t>(g));
 		}
 		auto column = string("\"") + kind + "\"";
+		auto alias = SourceAlias(source);
 		Tokens subquery = Lex("( SELECT * ,", offset);
 		if (kind == "window") {
+			// tumbling and sliding windows: the window column comes from a lateral join, so the source (and its
+			// aliases) stays as it is; rows without a window are dropped by the WHERE
 			Tokens fn = Lex(args.size() <= 2 ? "system . spark . __spark_window (" : "__spark_unnest ( system . spark . sliding_windows (", offset);
 			for (idx_t a = 0; a < args.size(); a++) {
 				if (a > 0) {
@@ -1561,12 +1656,24 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			if (args.size() > 2) {
 				fn.emplace_back(")", offset, TokenType::OPERATOR);
 			}
-			Append(subquery, fn);
-			subquery.emplace_back("AS", offset, TokenType::KEYWORD);
-			subquery.emplace_back(column, offset, TokenType::IDENTIFIER);
-			subquery.emplace_back("FROM", offset, TokenType::KEYWORD);
-			Append(subquery, source);
-			Append(subquery, condition);
+			Tokens replacement = source;
+			Append(replacement, Lex(", LATERAL ( SELECT", offset));
+			Append(replacement, fn);
+			replacement.emplace_back("AS", offset, TokenType::KEYWORD);
+			replacement.emplace_back(column, offset, TokenType::IDENTIFIER);
+			Append(replacement, Lex(") AS __spark_w WHERE", offset));
+			if (where != DConstants::INVALID_INDEX) {
+				Tokens user_condition(ts.begin() + NumericCast<int64_t>(where + 1), ts.begin() + NumericCast<int64_t>(g));
+				Append(replacement, Parenthesized(user_condition, offset));
+				Append(replacement, Lex("AND", offset));
+			}
+			replacement.emplace_back(column, offset, TokenType::IDENTIFIER);
+			Append(replacement, Lex(". start IS NOT NULL AND", offset));
+			replacement.emplace_back(column, offset, TokenType::IDENTIFIER);
+			Append(replacement, Lex(". \"end\" IS NOT NULL", offset));
+			Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});
+			Replace(ts, from + 1, g, replacement);
+			return RewriteSameCalls(ts, from, call_tokens, column, offset);
 		} else {
 			if (args.size() != 2) {
 				return false;
@@ -1620,6 +1727,11 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(level1, source);
 			Append(level1, condition);
 			level1.emplace_back(")", offset, TokenType::OPERATOR);
+			if (!alias.empty()) {
+				// every level keeps the source's alias, so the user's expressions (e.ts) resolve at each one
+				Append(level1, Lex("AS", offset));
+				level1.emplace_back(alias, offset, TokenType::IDENTIFIER);
+			}
 			// level 2: session numbers
 			Tokens level2 = Lex("( SELECT * , sum ( __spark_new_session )", offset);
 			auto running = over("");
@@ -1630,6 +1742,10 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(level2, Lex("AS __spark_session FROM", offset));
 			Append(level2, level1);
 			level2.emplace_back(")", offset, TokenType::OPERATOR);
+			if (!alias.empty()) {
+				Append(level2, Lex("AS", offset));
+				level2.emplace_back(alias, offset, TokenType::IDENTIFIER);
+			}
 			// level 3: the session window struct
 			if (!partition.empty()) {
 				partition.emplace_back(",", offset, TokenType::OPERATOR);
@@ -1658,43 +1774,16 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		filtered.emplace_back(column, offset, TokenType::IDENTIFIER);
 		Append(filtered, Lex(". \"end\" IS NOT NULL )", offset));
 		subquery = filtered;
-		Append(subquery, Lex("AS __spark_windowed", offset));
+		// the subquery takes the source's alias, so references like tab.a keep working
+		Append(subquery, Lex("AS", offset));
+		subquery.emplace_back(alias.empty() ? "__spark_windowed" : alias, offset, TokenType::IDENTIFIER);
 		// GROUP BY ..., "window" ; FROM (subquery) ; WHERE moved into the subquery
 		Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});
 		if (where != DConstants::INVALID_INDEX) {
 			Erase(ts, where, g);
 		}
 		Replace(ts, from + 1, source_end, subquery);
-		// the same window(...) call in this block's select list is the grouping column too
-		auto same_call = [&](idx_t at) {
-			if (at + call_tokens.size() > from) {
-				return false;
-			}
-			for (idx_t m = 0; m < call_tokens.size(); m++) {
-				if (!StringUtil::CIEquals(ts[at + m].text, call_tokens[m].text)) {
-					return false;
-				}
-			}
-			return true;
-		};
-		int64_t level = 0;
-		for (idx_t k = from; k > 0; k--) {
-			idx_t i = k - 1;
-			if (IsOp(ts[i], ")")) {
-				level++;
-			} else if (IsOp(ts[i], "(")) {
-				if (level == 0) {
-					break;
-				}
-				level--;
-			} else if (level == 0 && WordAt(ts, i, "SELECT")) {
-				break;
-			}
-			if (level == 0 && same_call(i)) {
-				Replace(ts, i, i + call_tokens.size(), {MatcherToken(column, offset, TokenType::IDENTIFIER)});
-			}
-		}
-		return true;
+		return RewriteSameCalls(ts, from, call_tokens, column, offset);
 	}
 	return false;
 }
@@ -1763,7 +1852,7 @@ void RewritePivotAggregates(Tokens &ts) {
 				end = end + replacement.size() - old_size;
 				k += replacement.size() - 1;
 			} else if (name == "sum" || name == "avg") {
-				Replace(ts, k, k + 1, Lex("system . main . " + name, offset));
+				Replace(ts, k, k + 1, Lex(name == "sum" ? "system . spark . spark_sum" : "system . spark . spark_avg", offset));
 				end += 4;
 				k += 4;
 			}

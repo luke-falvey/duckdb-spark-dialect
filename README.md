@@ -82,12 +82,14 @@ only need to succeed (Spark returns no rows, DuckDB a row count; the data is che
 queries), and cases Spark marks as random (`rand()`, `uuid()`, random-IV `aes_encrypt`, …) only
 need to succeed.
 
-**Current result: all 1308 differential cases are identical to Spark under both dialects (0 failing,
-0 lenient)**: the original 1233, plus 53 reproducers of bugs found by the fuzzers
-(`test/cases/fuzz_regressions.sql`) and the 22 TPC-H queries of the benchmark over generated data
-(`test/cases/tpch_small.sql`). Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
-rejects every one (the lenient `spark` dialect accepts 56 of them, reported as `LENIENT`, which is not a failure),
-and `test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
+**Current result: all 1,721 differential cases in `test/cases/` (including `test/cases/ansi/`) are identical to
+Spark under `spark_strict` (0 failing), and under `spark` except for 64 that Spark rejects and the lenient dialect
+accepts (reported as `LENIENT`, which is not a failure).** They are 1,233 documented examples and operator cases, 53
+reproducers of bugs found by the fuzzers (`test/cases/fuzz_regressions.sql`), the 22 TPC-H queries of the benchmark
+(`test/cases/tpch_small.sql`), 168 cases for the removed or reduced limitations (`test/cases/limitations.sql`), 112
+for ANSI mode (`test/cases/ansi/`, which sets `-- @config spark.sql.ansi.enabled=true` for the file), and others.
+`test/cases/non_spark.sql` holds 73 queries that Spark 3.5 rejects: `spark_strict` rejects every one, and
+`test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
 `python test/run_duckdb.py --dialect spark_strict`, which fails on any `LENIENT` result. CI runs both dialects. The 1233 cases cover all 106
 operator cases and every documented example of all 421 Spark built-ins that have one; the other 17
 (cast functions and operators) are covered by the operator and literal/type cases.
@@ -124,21 +126,37 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 
 ### Limitations (behaviour the tests do not exercise)
 
-- ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.
-- `sum`/`avg` carry an extra `any_value(x)` aggregate so that their result type can follow Spark's
-  rules (`sum(decimal(p,s))` is `decimal(p+10,s)`); this costs a little performance.
-- `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. The query's `FROM` source
-  becomes a subquery, so references to the source's table alias (e.g. `tab.a`) in that query are
-  not available.
-- `CHAR(n)` column padding is supported for `n` up to 255.
-- Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
-  and in `CAST`, not in other implicit casts.
-- `array_sort` with a comparator sorts by rank (O(n²)); it expects a consistent comparator.
-- Expressions nested more deeply than a third of the thread's stack allows (about 160 levels on an 8 MB stack)
-  fail with "Expression is nested too deeply" instead of DuckDB's limit of 1000 levels.
-- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml`.
-- Statements are rewritten at the token level in places (see the table above), so error messages
-  for invalid Spark SQL can point at rewritten text.
+- ANSI mode (`SET spark.sql.ansi.enabled = true`, which sets the DuckDB setting `spark_ansi_enabled`; `RESET` and
+  `SET ... = false` turn it off) covers runtime errors: integer overflow of `+ - * -x abs` and of `sum`, decimal
+  overflow of `+ - *` and `sum`, division by zero (`/ % div mod`), invalid and out-of-range `CAST` (strings must be
+  integers: `'1.5'` is not), array index out of bounds (`[]`, `element_at`) and `size(NULL)` returning NULL; the
+  `try_*` functions stay lenient. Not emulated: ANSI's implicit-cast rules (a string is still converted to a number
+  implicitly), map key lookups of missing keys, overflow in `avg`, `pmod`, `date`/`timestamp` arithmetic and
+  datetime parsing errors. A prepared statement is bound again when the setting changes.
+- `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. For `session_window` over a join, the
+  joined tables' aliases are not available in the query (a single table or subquery keeps its alias).
+- Struct values are matched to struct columns by position (like Spark) in `INSERT ... VALUES` and `INSERT ... SELECT`
+  when the value is written with `struct(...)` or `named_struct(...)`, and in `CAST`. Spark also matches by position in
+  `UNION` and in `IN (...)` lists; there DuckDB's by-name rules apply (replacing them would change the default
+  dialect too). Everywhere else Spark rejects structs with different field names, which the lenient dialect accepts.
+- `array_sort` with a comparator: comparators of the form `CASE WHEN f(l) < f(r) THEN -1 WHEN f(l) > f(r) THEN 1
+  ELSE 0 END` (also reversed, for a descending sort) over numbers, strings, booleans, dates and timestamps without
+  NULL keys use a stable sort (O(n log n)). Other comparators rank each element (O(n²)); an inconsistent comparator
+  can order differently from Spark's TimSort.
+- Expressions nested deeper than about 60 levels are transformed on a helper thread with a 64 MB stack (Linux and
+  macOS), so DuckDB's limit of 1000 levels applies; on other platforms the deeper statement fails with
+  "Expression is nested too deeply".
+- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml` (7 entries). Spark's
+  own SQL test inputs (`python test/fuzz/spark_corpus.py run`) still show, out of 3,734 statements, 512 DuckDB errors
+  where Spark succeeds (mostly Spark commands such as `DESC FUNCTION`, interval and datetime-format corner cases),
+  156 wrong results, 147 leniencies of `spark_strict` and 3 strict rejects of valid queries (it was 520, 157, 147
+  and 17 before the limitations work).
+- `CHAR(n)` columns: the padding casts for `n` > 255 are added when such a type is first used in a session; a
+  database file that was created with one and is opened in a new session pads again only after the type is used.
+- Statements are rewritten at the token level in places (see the table above). Error positions point at the
+  original text. Of the 1,019 errors that Spark's own SQL test inputs produce here, 2 name an internal function
+  (`to_json_impl` and `mask_impl`, for arguments of a type they do not accept); `python test/fuzz/spark_corpus.py
+  names` measures this.
 
 ## Build
 

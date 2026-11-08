@@ -4,27 +4,10 @@
 
 [[difference]]
 signature = "*"
-sql = '922337203685477580[78]L|2147483647|-2147483648|32767S|-32768S|127Y|-128Y|2147483648'
-reason = """BIGINT values outside the INT range passed to INT parameters (add_months, bround, left, make_dt_interval,
-date_from_unix_date, ...) wrap around in Spark's non-ANSI implicit casts; DuckDB's implicit casts raise an
-out-of-range error instead. Fixing it means replacing DuckDB's implicit cast rules for every function argument.
-Integer overflow in the dialect's own operators (+, -, *, abs, ...) does wrap like Spark and is tested
-separately (test/cases/operators.sql, fuzz_regressions.sql)."""
-example = "SELECT add_months('2016-08-31', 9223372036854775807L)"
-
-[[difference]]
-signature = "*"
 sql = '-0\.0D'
-reason = """Spark treats -0.0 and 0.0 as different values in array_distinct / array_union / array_except and map keys;
-DuckDB's list functions compare them as equal."""
-example = "SELECT array_distinct(array(-0.0D, 0.0D))"
-
-[[difference]]
-signature = "mismatch|*"
-sql = 'FROM VALUES \((-?\d+[YSL]|CAST\(1 AS DECIMAL\(38,0\)\))\)'
-reason = """A VALUES list whose rows mix literal types (-128Y with 1, DECIMAL(38,0) with 1.8) gets DuckDB's common type
-(integer literals adapt to TINYINT; DECIMAL(38,0) wins over DECIMAL(2,1)) instead of Spark's (INT; DECIMAL(38,1))."""
-example = "SELECT typeof(x) FROM VALUES (-128Y), (1) AS t(x)"
+reason = """Spark's map(-0.0, 1, 0.0, 2) keeps one key (the zeros are the same key there); DuckDB rejects the duplicate.
+array_distinct / array_union / array_except / array_intersect do tell -0.0 from 0.0 like Spark."""
+example = "SELECT map(-0.0D, 1, 0.0D, 2)"
 
 [[difference]]
 signature = "mismatch|*approx*|*"
@@ -39,28 +22,25 @@ reason = "histogram_numeric is approximate; bin boundaries depend on the merge o
 example = "SELECT histogram_numeric(col, 2) FROM VALUES (0), (1), (2), (10) AS tab(col)"
 
 [[difference]]
-signature = "mismatch|*"
-sql = '(format_string|printf) \('
-reason = """Java's formatter prints NULL arguments as "null"; DuckDB's printf returns NULL when an argument is NULL."""
-example = "SELECT format_string('%s', CAST(NULL AS STRING))"
-
-[[difference]]
 signature = "mismatch|array_sort|*"
 reason = """array_sort with a comparator that is not a consistent total order: the result depends on the sort algorithm
-(Spark's TimSort vs the rank-based sort here, see README)."""
-example = "SELECT array_sort(array(5, 6, 1), (l, r) -> CASE WHEN l < r THEN -0 WHEN l > r THEN 1 ELSE 0 END)"
+(Spark's TimSort vs the rank-based sort here, see README). Comparators of the recognized shapes are consistent
+total orders and match."""
+example = "SELECT array_sort(array(3, 1, 2, 7, 4), (l, r) -> -1)"
 
 [[difference]]
 signature = "strict_lenient|[[]DATATYPE_MISMATCH.NULL_TYPE]*"
-reason = """spark_strict accepts untyped NULL arguments that Spark's analyzer rejects (array_contains(NULL, NULL)):
-NULL is typed by DuckDB's binder after the strict checks run, which only see the parsed query."""
-example = "SELECT array_contains(NULL, NULL)"
+reason = """spark_strict rejects an untyped NULL literal argument of array_contains, array_position, map_contains_key,
+array_append and element_at (a parse-time check, as DuckDB types the NULL later). A NULL that only becomes untyped through
+an expression (coalesce(NULL, NULL), a column of NULLs) is still accepted: the types are only known when DuckDB binds."""
+example = "SELECT array_contains(array(1), coalesce(NULL, NULL))"
 
 [[difference]]
 signature = "duck_error|Out of Range Error: Date out of range*"
-reason = """Date arithmetic beyond DuckDB's date range (about year 5,881,580) raises an error; Spark's int day count
-wraps around silently."""
-example = "SELECT date_from_unix_date(2147483647) + INTERVAL 1 YEAR"
+reason = """Date arithmetic beyond DuckDB's date range (about year 5,881,580) raises an error; Spark evaluates the comparison
+differently: its int day count wraps around silently (and its optimizer may never evaluate the out-of-range side).
+Where both sides are evaluated and the value is out of range, both engines raise an error."""
+example = "SELECT x FROM VALUES (2147483647) AS t(x) WHERE date_from_unix_date(x) = DATE '2020-01-01' + INTERVAL 1 YEAR"
 
 [[difference]]
 signature = "duck_error|Invalid Input Error: Map keys can not be NULL*"

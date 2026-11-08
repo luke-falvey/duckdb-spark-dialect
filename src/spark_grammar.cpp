@@ -30,6 +30,9 @@
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/parser/result_modifier.hpp"
 
+#include <functional>
+#include <exception>
+
 namespace duckdb {
 
 namespace {
@@ -60,9 +63,77 @@ idx_t ThreadStackSize() {
 #endif
 }
 
+//! Runs `fn` on a thread with a large stack and waits for it; exceptions are rethrown here. Returns false (without
+//! running `fn`) on platforms where the stack size of a thread cannot be chosen.
+bool RunOnLargeStack(const std::function<void()> &fn) {
+#if defined(__linux__) || defined(__APPLE__)
+	struct Job {
+		const std::function<void()> *fn;
+		std::exception_ptr error;
+	} job {&fn, nullptr};
+	pthread_attr_t attr;
+	if (pthread_attr_init(&attr) != 0) {
+		return false;
+	}
+	// the stack is mapped lazily: only what a statement really uses is committed
+	if (pthread_attr_setstacksize(&attr, size_t(64) * 1024 * 1024) != 0) {
+		pthread_attr_destroy(&attr);
+		return false;
+	}
+	pthread_t thread;
+	auto entry = [](void *arg) -> void * {
+		auto &j = *static_cast<Job *>(arg);
+		try {
+			(*j.fn)();
+		} catch (...) {
+			j.error = std::current_exception();
+		}
+		return nullptr;
+	};
+	if (pthread_create(&thread, &attr, entry, &job) != 0) {
+		pthread_attr_destroy(&attr);
+		return false;
+	}
+	pthread_attr_destroy(&attr);
+	pthread_join(thread, nullptr);
+	if (job.error) {
+		std::rethrow_exception(job.error);
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
+const idx_t MAX_EXPRESSION_DEPTH = 1000;
+
+//! The nesting depth of an expression, not looking deeper than `limit` levels (so the walk itself cannot overflow)
+idx_t ExpressionDepth(const ParsedExpression &expr, idx_t limit = MAX_EXPRESSION_DEPTH + 1) {
+	if (limit <= 1) {
+		return 1;
+	}
+	idx_t deepest = 0;
+	ParsedExpressionIterator::EnumerateChildren(
+	    expr, [&](const ParsedExpression &child) { deepest = MaxValue(deepest, ExpressionDepth(child, limit - 1)); });
+	return deepest + 1;
+}
+
+void CheckExpressionDepth(const ParsedExpression &expr) {
+	// DuckDB rejects expressions nested deeper than 1000 levels, but only after the binder has walked them
+	// recursively on the calling thread's stack, which a very deep tree can overflow: reject them here
+	if (ExpressionDepth(expr) > MAX_EXPRESSION_DEPTH) {
+		throw ParserException("Max expression depth limit of %llu exceeded. Use \"SET max_expression_depth TO x\" to "
+		                      "increase the maximum expression depth.",
+		                      (unsigned long long)MAX_EXPRESSION_DEPTH);
+	}
+}
+
+const char *const NESTED_TOO_DEEPLY = "Expression is nested too deeply for the Spark dialect";
+
 struct HookDepthGuard {
 	struct State {
 		idx_t depth = 0;
+		bool large_stack = false;
 		uintptr_t base = 0;
 		idx_t budget = 0;
 	};
@@ -78,14 +149,17 @@ struct HookDepthGuard {
 			state.base = here;
 			if (state.budget == 0) {
 				// once per thread: pthread_getattr_np reads /proc/self/maps for the main thread
-				state.budget = ThreadStackSize() / 3;
+				// Statements deeper than this run on the helper thread, whose whole stack is reserved up front: a
+				// process short of address space then gets a clean error from the thread creation, instead of a
+				// SIGSEGV when this thread's stack cannot grow. 1 MB covers about 60 levels of nesting.
+				state.budget = MinValue<idx_t>(ThreadStackSize() / 3, 1024 * 1024);
 			}
 		}
 		state.depth++;
 		auto used = state.base > here ? state.base - here : here - state.base;
 		if (used > state.budget) {
 			state.depth--;
-			throw ParserException("Expression is nested too deeply for the Spark dialect");
+			throw ParserException(NESTED_TOO_DEEPLY);
 		}
 	}
 	~HookDepthGuard() {
@@ -95,8 +169,45 @@ struct HookDepthGuard {
 
 template <expr_fn_t FN>
 arena_ptr<TransformResultValue> FinalizeExpr(PEGTransformer &t, ParseResult &pr) {
-	HookDepthGuard guard;
-	return t.MakeResult<ExprPtr>(FN(t, pr));
+	auto &state = HookDepthGuard::Get();
+	if (state.depth > 0 || state.large_stack) {
+		HookDepthGuard guard;
+		return t.MakeResult<ExprPtr>(FN(t, pr));
+	}
+	// the outermost hook: ordinary statements are transformed right here; one that is nested too deeply for this
+	// thread's stack is transformed again on a thread with a large stack (DuckDB's own depth limit then applies)
+	try {
+		HookDepthGuard guard;
+		auto transformed = FN(t, pr);
+		CheckExpressionDepth(*transformed);
+		return t.MakeResult<ExprPtr>(std::move(transformed));
+	} catch (ParserException &e) {
+		if (string(e.what()).find(NESTED_TOO_DEEPLY) == string::npos) {
+			throw;
+		}
+	}
+	arena_ptr<TransformResultValue> result;
+	bool ran = RunOnLargeStack([&]() {
+		auto &inner = HookDepthGuard::Get();
+		inner.large_stack = true;
+		// enough for DuckDB's limit of 1000 nested expressions (about 17 KB of hooks per level); a deeper tree would
+		// only be rejected later, after the main thread had to bind, copy or free it
+		inner.budget = size_t(24) * 1024 * 1024;
+		try {
+			HookDepthGuard guard;
+			auto transformed = FN(t, pr);
+			CheckExpressionDepth(*transformed);
+			result = t.MakeResult<ExprPtr>(std::move(transformed));
+		} catch (...) {
+			inner.large_stack = false;
+			throw;
+		}
+		inner.large_stack = false;
+	});
+	if (!ran) {
+		throw ParserException(NESTED_TOO_DEEPLY);
+	}
+	return result;
 }
 
 template <expr_fn_t FN>
@@ -573,7 +684,9 @@ void CollectTokens(ParseResult &pr, vector<string> &out) {
 //! spark_strict: only Spark's built-in functions can be called by their plain name
 void CheckSparkFunctionName(const string &name) {
 	auto lower = StringUtil::Lower(name);
-	if (!IsSparkFunction(lower) && !StringUtil::StartsWith(lower, "__spark_")) {
+	// percentile_cont / percentile_disc are Spark functions (WITHIN GROUP syntax) that SHOW FUNCTIONS does not list
+	if (!IsSparkFunction(lower) && !StringUtil::StartsWith(lower, "__spark_") && lower != "percentile_cont" &&
+	    lower != "percentile_disc") {
 		throw BinderException("[UNRESOLVED_ROUTINE] Cannot resolve function `%s`: it is not a Spark SQL function", name);
 	}
 }
@@ -740,6 +853,16 @@ void Substitute(ExprPtr &expr, const string &name, const ParsedExpression &repla
 			expr = replacement.Copy();
 			return;
 		}
+		auto &names = colref.ColumnNames();
+		if (names.size() > 1 && StringUtil::CIEquals(names[0].GetIdentifierName(), name)) {
+			// l.field.sub: the parameter is a struct value
+			ExprPtr result = replacement.Copy();
+			for (idx_t i = 1; i < names.size(); i++) {
+				result = DuckCall("struct_extract", std::move(result), ConstantExpression::String(names[i].GetIdentifierName()));
+			}
+			expr = std::move(result);
+			return;
+		}
 	}
 	ParsedExpressionIterator::EnumerateChildren(
 	    *expr, [&](unique_ptr<ParsedExpression> &child) { Substitute(child, name, replacement); });
@@ -794,6 +917,109 @@ vector<ExprPtr> TakeArguments(FunctionExpression &func) {
 	return result;
 }
 
+//! The key of a comparator lambda `(l, r) -> CASE WHEN f(l) < f(r) THEN -1 WHEN f(l) > f(r) THEN 1 ELSE 0 END`
+//! (either order of the branches, or with the results swapped for a descending sort).
+string StripSpaces(string text) {
+	string out;
+	for (auto c : text) {
+		if (c != ' ' && c != '(' && c != ')') {
+			out += c;
+		}
+	}
+	return out;
+}
+
+//! `text` with the word `from` replaced by `to`
+string ReplaceWord(const string &text, const string &from, const string &to) {
+	string out;
+	for (idx_t i = 0; i < text.size();) {
+		bool boundary_before = i == 0 || !(isalnum(uint8_t(text[i - 1])) || text[i - 1] == '_' || text[i - 1] == '.');
+		if (boundary_before && text.compare(i, from.size(), from) == 0) {
+			auto after = i + from.size();
+			if (after >= text.size() || !(isalnum(uint8_t(text[after])) || text[after] == '_')) {
+				out += to;
+				i = after;
+				continue;
+			}
+		}
+		out += text[i++];
+	}
+	return out;
+}
+
+bool MentionsWord(const string &text, const string &word) {
+	return ReplaceWord(text, word, "\x01") != text;
+}
+
+bool MatchSortComparator(ParsedExpression &lambda, bool &descending, ExprPtr &key, string &key_param) {
+	vector<string> params;
+	ExprPtr body;
+	if (!LambdaParts(lambda, params, body) || params.size() != 2 ||
+	    body->GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return false;
+	}
+	auto &outer = body->Cast<FunctionExpression>();
+	if (StringUtil::Lower(outer.FunctionName().GetIdentifierName()) != "case_when" || outer.GetArguments().size() != 5 ||
+	    StripSpaces(outer.GetArguments()[4].GetExpression().ToString()) != "0") {
+		return false;
+	}
+	struct Branch {
+		bool less;
+		bool negative;
+		string left, right;
+		ExprPtr left_expr;
+	};
+	Branch branches[2];
+	for (idx_t b = 0; b < 2; b++) {
+		auto &condition = outer.GetArguments()[b * 2].GetExpression();
+		if (condition.GetExpressionClass() != ExpressionClass::FUNCTION) {
+			return false;
+		}
+		auto &compare = condition.Cast<FunctionExpression>();
+		auto compare_name = StringUtil::Lower(compare.FunctionName().GetIdentifierName());
+		if ((compare_name != "cmp_lt" && compare_name != "cmp_gt") || compare.GetArguments().size() != 2) {
+			return false;
+		}
+		auto value = StripSpaces(outer.GetArguments()[b * 2 + 1].GetExpression().ToString());
+		if (value != "1" && value != "-1") {
+			return false;
+		}
+		branches[b].less = compare_name == "cmp_lt";
+		branches[b].negative = value == "-1";
+		branches[b].left = compare.GetArguments()[0].GetExpression().ToString();
+		branches[b].right = compare.GetArguments()[1].GetExpression().ToString();
+		branches[b].left_expr = compare.GetArguments()[0].GetExpression().Copy();
+	}
+	// both branches compare the same pair, in opposite directions with opposite results
+	if (branches[0].left != branches[1].left || branches[0].right != branches[1].right ||
+	    branches[0].less == branches[1].less || branches[0].negative == branches[1].negative) {
+		return false;
+	}
+	auto &first = branches[0];
+	// "x < y gives -1" or "x > y gives 1" sorts x before y: ascending in x
+	bool ascending_in_left = first.less == first.negative;
+	auto left = first.left, right = first.right;
+	auto left_expr = std::move(first.left_expr);
+	auto &p1 = params[0], &p2 = params[1];
+	string param;
+	if (MentionsWord(left, p1) && !MentionsWord(left, p2) && ReplaceWord(left, p1, p2) == right) {
+		param = p1;
+	} else if (MentionsWord(left, p2) && !MentionsWord(left, p1) && ReplaceWord(left, p2, p1) == right) {
+		// f(r) compared with f(l): the sort direction flips
+		param = p2;
+		ascending_in_left = !ascending_in_left;
+	} else {
+		return false;
+	}
+	if (!MentionsWord(left, param)) {
+		return false;
+	}
+	descending = !ascending_in_left;
+	key = std::move(left_expr);
+	key_param = param;
+	return true;
+}
+
 ExprPtr RewriteFunction(ExprPtr expr) {
 	if (expr->GetExpressionClass() != ExpressionClass::FUNCTION) {
 		return expr;
@@ -826,6 +1052,38 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		if (entry != ARITY.end() && (count < entry->second.first || count > entry->second.second)) {
 			throw BinderException("[WRONG_NUM_ARGS] The `%s` requires %llu parameters but the actual number is %llu.",
 			                      name, (unsigned long long)entry->second.first, (unsigned long long)count);
+		}
+	}
+	{
+		// INT parameters: Spark's implicit cast of a BIGINT argument wraps around (non-ANSI); DuckDB's raises an
+		// out-of-range error. narrow_int does the wrapping for BIGINT arguments and leaves other types alone.
+		static const unordered_map<string, vector<idx_t>> INT_PARAMETERS = {
+		    {"add_months", {1}},        {"bround", {1}},            {"round", {1}},             {"bit_get", {1}},           {"getbit", {1}},
+		    {"conv", {1, 2}},           {"date_from_unix_date", {0}}, {"make_dt_interval", {0, 1, 2}},
+		    {"make_ym_interval", {0, 1}}, {"make_date", {0, 1, 2}}, {"make_interval", {0, 1, 2, 3, 4, 5}},
+		    {"left", {1}},              {"right", {1}},             {"repeat", {1}},            {"space", {0}},
+		    {"lpad", {1}},              {"rpad", {1}},              {"substring", {1, 2}},      {"substr", {1, 2}},
+		    {"shiftleft", {1}},         {"shiftright", {1}},        {"shiftrightunsigned", {1}},
+		    {"slice", {1, 2}},          {"format_number", {1}},     {"split_part", {2}},        {"overlay", {2, 3}},
+		    {"locate", {2}},            {"factorial", {0}},         {"nth_value", {1}},         {"ntile", {0}},
+		    {"levenshtein", {2}},       {"lag", {1}},               {"lead", {1}},              {"make_timestamp", {0, 1, 2, 3, 4}},
+		    {"make_timestamp_ntz", {0, 1, 2, 3, 4}}, {"make_timestamp_ltz", {0, 1, 2, 3, 4}}};
+		auto entry = INT_PARAMETERS.find(name);
+		if (entry != INT_PARAMETERS.end()) {
+			auto &arguments = func.GetArgumentsMutable();
+			for (auto position : entry->second) {
+				if (position >= arguments.size()) {
+					continue;
+				}
+				auto &argument = arguments[position].GetExpressionMutable();
+				if (argument->GetExpressionClass() == ExpressionClass::CONSTANT) {
+					// small literals are INT already; only a literal with many digits can be out of range
+					if (argument->ToString().size() < 10) {
+						continue;
+					}
+				}
+				argument = SparkCall("narrow_int", std::move(argument));
+			}
 		}
 	}
 	if (name == "named_struct") {
@@ -959,14 +1217,35 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		}
 		return SparkCall("as_string", std::move(result));
 	}
-	if ((name == "sum" || name == "avg" || name == "mean") && func.GetArguments().size() == 1 && !func.ExportState()) {
-		// Spark's result types: sum(decimal(p, s)) is decimal(p + 10, s), avg(decimal(p, s)) decimal(p + 4, s + 4),
-		// integer sums are BIGINT; any_value(x) carries the input type to the bind step
-		auto sample = DuckCall("any_value", func.GetArguments()[0].GetExpression().Copy());
-		if (name == "mean") {
-			func.SetFunctionName("avg");
+	if (name == "count" && func.GetArguments().size() > 1 && !func.ExportState()) {
+		// count(a, b, ...) counts the rows where all of the expressions are not NULL; with DISTINCT, distinct tuples
+		auto args = TakeArguments(func);
+		ExprPtr any_null;
+		vector<ExprPtr> row_fields;
+		for (auto &arg : args) {
+			ExprPtr is_null = make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, arg->Copy());
+			any_null = any_null ? make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_OR, std::move(any_null),
+			                                                       std::move(is_null))
+			                    : std::move(is_null);
+			row_fields.push_back(std::move(arg));
 		}
-		return SparkCall(name == "sum" ? "sum_typed" : "avg_typed", std::move(expr), std::move(sample));
+		auto row = make_uniq<FunctionExpression>(Identifier("row"), std::move(row_fields));
+		auto guarded = make_uniq<CaseExpression>();
+		CaseCheck check;
+		check.when_expr = std::move(any_null);
+		check.then_expr = ConstantExpression::Null();
+		guarded->CaseChecksMutable().push_back(std::move(check));
+		guarded->ElseMutable() = std::move(row);
+		func.GetArgumentsMutable().clear();
+		func.GetArgumentsMutable().emplace_back(ExprPtr(std::move(guarded)));
+		return expr;
+	}
+	if ((name == "sum" || name == "avg" || name == "mean") && func.GetArguments().size() == 1 && !func.ExportState()) {
+		// Spark's result types (sum(decimal(p, s)) is decimal(p + 10, s), integer sums are BIGINT, ...) come from
+		// the dialect's own aggregates; DISTINCT, FILTER and ORDER BY stay on the call
+		func.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
+		                      Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
+		return expr;
 	}
 	if (name == "if" || name == "iff") {
 		auto args = TakeArguments(func);
@@ -977,7 +1256,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 	}
 	if (name == "format_string" || name == "printf") {
 		auto args = TakeArguments(func);
-		return DuckCall("printf", std::move(args));
+		return SparkCall("format_string_impl", std::move(args));
 	}
 	if (name == "elt") {
 		auto args = TakeArguments(func);
@@ -1036,21 +1315,86 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		return DuckCall(name == "transform" ? "list_transform" : "list_filter", std::move(args[0]), std::move(lambda));
 	}
 	if (name == "array_sort" && func.GetArguments().size() == 2) {
-		// array_sort(a, (l, r) -> cmp): order each element by how many elements compare below it
 		auto args = TakeArguments(func);
+		// a comparator of a recognized shape sorts by key with list_sort (O(n log n)); others rank each element by
+		// how many elements the comparator puts before it (O(n^2))
+		bool descending = false;
+		ExprPtr key;
+		string key_param;
+		bool recognized = MatchSortComparator(*args[1], descending, key, key_param);
 		vector<ExprPtr> replacements;
 		replacements.push_back(ColRef("__spark_other"));
 		replacements.push_back(ColRef("__spark_elem"));
-		auto below = InlineLambda(args, 1, "array_sort", std::move(replacements));
-		auto is_below = Operator("<", SparkCall("comparator_result", std::move(below)), ConstantExpression::Integer(0));
+		auto result = InlineLambda(args, 1, "array_sort", std::move(replacements));
+		// a comparator that returns NULL is an error in Spark (when there is anything to compare)
+		auto comparison = SparkCall("comparator_result", std::move(result));
+		auto is_below_case = make_uniq<CaseExpression>();
+		CaseCheck null_check;
+		null_check.when_expr = make_uniq<ConjunctionExpression>(
+		    ExpressionType::CONJUNCTION_AND,
+		    SparkCall("cmp_gt", DuckCall("len", args[0]->Copy()), ConstantExpression::Integer(1)),
+		    make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, comparison->Copy()));
+		null_check.then_expr = make_uniq<CastExpression>(
+		    LogicalType::BOOLEAN,
+		    DuckCall("error", ConstantExpression::String("[COMPARATOR_RETURNS_NULL] The comparator has returned a NULL "
+		                                                  "for a comparison.")));
+		is_below_case->CaseChecksMutable().push_back(std::move(null_check));
+		is_below_case->ElseMutable() = Operator("<", std::move(comparison), ConstantExpression::Integer(0));
+		ExprPtr is_below = std::move(is_below_case);
 		auto rank = DuckCall("len", DuckCall("list_filter", args[0]->Copy(),
 		                                     MakeLambda({"__spark_other"}, std::move(is_below))));
 		vector<pair<string, ExprPtr>> fields;
 		fields.emplace_back("r", std::move(rank));
+		fields.emplace_back("i", ColRef("__spark_idx"));
 		fields.emplace_back("v", ColRef("__spark_elem"));
-		auto keyed = DuckCall("list_transform", args[0]->Copy(), MakeLambda({"__spark_elem"}, StructPack(std::move(fields))));
+		auto keyed = DuckCall("list_transform", args[0]->Copy(),
+		                      MakeLambda({"__spark_elem", "__spark_idx"}, StructPack(std::move(fields))));
 		auto sorted = DuckCall("list_sort", std::move(keyed));
-		return DuckCall("list_transform", std::move(sorted), MakeLambda({"__spark_e"}, StructField("__spark_e", "v")));
+		ExprPtr slow = DuckCall("list_transform", std::move(sorted), MakeLambda({"__spark_e"}, StructField("__spark_e", "v")));
+		if (!recognized) {
+			return slow;
+		}
+		// the fast path: sort (key, +-index, element); the index keeps equal keys in input order like TimSort
+		auto key_of = [&]() {
+			auto copy = key->Copy();
+			Substitute(copy, key_param, *ColRef("__spark_elem"));
+			return copy;
+		};
+		vector<pair<string, ExprPtr>> sort_fields;
+		sort_fields.emplace_back("k", key_of());
+		sort_fields.emplace_back("i", descending ? Operator("-", ConstantExpression::Integer(0), ColRef("__spark_idx"))
+		                                         : ColRef("__spark_idx"));
+		sort_fields.emplace_back("v", ColRef("__spark_elem"));
+		auto sort_keyed = DuckCall("list_transform", args[0]->Copy(),
+		                           MakeLambda({"__spark_elem", "__spark_idx"}, StructPack(std::move(sort_fields))));
+		ExprPtr fast_sorted = descending ? DuckCall("list_sort", std::move(sort_keyed), ConstantExpression::String("DESC"))
+		                                 : DuckCall("list_sort", std::move(sort_keyed));
+		auto fast = DuckCall("list_transform", std::move(fast_sorted),
+		                     MakeLambda({"__spark_e"}, StructField("__spark_e", "v")));
+		auto keys = DuckCall("list_transform", args[0]->Copy(), MakeLambda({"__spark_elem"}, key_of()));
+		// only keys that DuckDB orders like Spark's comparison does (no nested NULLs), and no NULL keys
+		auto keys_simple = SparkCall("simple_sort_key", keys->Copy());
+		auto keys_counted = DuckCall("list_count", keys->Copy());
+		auto keys_length = DuckCall("len", std::move(keys));
+		ExprPtr usable = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(keys_simple),
+		                                                  Operator("=", std::move(keys_counted), std::move(keys_length)));
+		vector<ExprPtr> choice;
+		if (key->GetExpressionClass() == ExpressionClass::COLUMN_REF && key->ToString() == key_param) {
+			// the elements themselves are the keys: equal elements are indistinguishable (except the zeros of floating
+			// point numbers, which take the general path), so a plain sort does it
+			ExprPtr direct = descending ? DuckCall("list_sort", args[0]->Copy(), ConstantExpression::String("DESC"))
+			                            : DuckCall("list_sort", args[0]->Copy());
+			auto exact = SparkCall("simple_sort_key", args[0]->Copy(), ConstantExpression::Boolean(true));
+			auto counted = DuckCall("list_count", args[0]->Copy());
+			auto length = DuckCall("len", args[0]->Copy());
+			choice.push_back(make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(exact),
+			                                                  Operator("=", std::move(counted), std::move(length))));
+			choice.push_back(std::move(direct));
+		}
+		choice.push_back(std::move(usable));
+		choice.push_back(std::move(fast));
+		choice.push_back(std::move(slow));
+		return SparkCall("case_when", std::move(choice));
 	}
 	if (name == "zip_with") {
 		auto args = TakeArguments(func);
@@ -1160,15 +1504,32 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 		if (name == "first" || name == "last") {
 			window.SetFunctionName(name + "_value");
 		}
-		if ((name == "sum" || name == "avg" || name == "mean") && window_args.size() == 1) {
-			// like the plain aggregates: Spark's result type, and BIGINT sums wrap on overflow
-			if (name == "mean") {
-				window.SetFunctionName("avg");
+		if (name == "count" && window_args.size() > 1) {
+			// count(a, b) OVER (...): rows where all of the expressions are not NULL
+			ExprPtr any_null;
+			vector<ExprPtr> row_fields;
+			for (auto &arg : window_args) {
+				ExprPtr is_null =
+				    make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, arg.GetExpression().Copy());
+				any_null = any_null ? make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_OR,
+				                                                       std::move(any_null), std::move(is_null))
+				                    : std::move(is_null);
+				row_fields.push_back(arg.GetExpression().Copy());
 			}
-			auto sample_expr = expr->Copy();
-			auto &sample = sample_expr->Cast<WindowExpression>();
-			sample.SetFunctionName("any_value");
-			return SparkCall(name == "sum" ? "sum_typed" : "avg_typed", std::move(expr), std::move(sample_expr));
+			auto guarded = make_uniq<CaseExpression>();
+			CaseCheck check;
+			check.when_expr = std::move(any_null);
+			check.then_expr = ConstantExpression::Null();
+			guarded->CaseChecksMutable().push_back(std::move(check));
+			guarded->ElseMutable() = make_uniq<FunctionExpression>(Identifier("row"), std::move(row_fields));
+			window_args.clear();
+			window_args.emplace_back(ExprPtr(std::move(guarded)));
+		}
+		if ((name == "sum" || name == "avg" || name == "mean") && window_args.size() == 1) {
+			// like the plain aggregates: Spark's result types, and BIGINT sums wrap on overflow
+			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
+			                        Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
+			return expr;
 		}
 		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("window_" + name) && IsSparkFunction(name)) {
 			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
@@ -1233,6 +1594,44 @@ void CheckFoldableArguments(const ParsedExpression &expr) {
 	}
 }
 
+//! spark_strict: an untyped NULL literal where Spark's analyzer wants a typed value (found by calling every Spark
+//! function with NULL in each position): the check has to run on the parsed query, as DuckDB types the NULL later
+void CheckNullLiteralArguments(const ParsedExpression &expr) {
+	// {function, positions, error class}
+	struct Rule {
+		vector<idx_t> positions;
+		const char *error;
+	};
+	static const unordered_map<string, Rule> RULES = {
+	    {"array_contains", {{0, 1}, "NULL_TYPE"}}, {"array_position", {{0}, "NULL_TYPE"}},
+	    {"map_contains_key", {{1}, "NULL_TYPE"}},  {"array_append", {{0}, "UNEXPECTED_INPUT_TYPE"}},
+	    {"element_at", {{0}, "UNEXPECTED_INPUT_TYPE"}}};
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return;
+	}
+	auto &func = expr.Cast<FunctionExpression>();
+	auto name = StringUtil::Lower(func.FunctionName().GetIdentifierName());
+	auto entry = RULES.find(name);
+	if (entry == RULES.end()) {
+		return;
+	}
+	auto &args = func.GetArguments();
+	for (auto position : entry->second.positions) {
+		if (position < args.size() && args[position].GetExpression().GetExpressionClass() == ExpressionClass::CONSTANT &&
+		    StringUtil::CIEquals(args[position].GetExpression().ToString(), "NULL")) {
+			if (string(entry->second.error) == "NULL_TYPE") {
+				throw BinderException("[DATATYPE_MISMATCH.NULL_TYPE] Cannot resolve \"%s\" due to data type mismatch: "
+				                      "Null typed values cannot be used as arguments of `%s`.",
+				                      func.ToString(), name);
+			}
+			throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve \"%s\" due to data type "
+			                      "mismatch: Parameter %llu requires the \"ARRAY\" type, however NULL has the type "
+			                      "\"VOID\".",
+			                      func.ToString(), (unsigned long long)position);
+		}
+	}
+}
+
 //! FunctionExpression in spark_strict: the name the user wrote must be a Spark function (checked before DuckDB's
 //! own rewrites such as count() -> count_star)
 ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
@@ -1246,6 +1645,7 @@ ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	}
 	auto expr = Expr(t, list.GetChild(0));
 	CheckFoldableArguments(*expr);
+	CheckNullLiteralArguments(*expr);
 	return FinalizeFunctionHookResult(std::move(expr));
 }
 

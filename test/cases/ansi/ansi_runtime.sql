@@ -1,0 +1,241 @@
+-- @config spark.sql.ansi.enabled=true
+-- ANSI mode: runtime errors instead of NULL / wrap-around (docs/plans/readme-limitations.md, L1)
+
+-- ===== integer overflow =====
+
+SELECT 2147483647 + 1;
+
+SELECT 2147483647 + 0, 2147483646 + 1, -2147483648 - 0;
+
+SELECT -2147483648 - 1;
+
+SELECT 2147483647 * 2;
+
+SELECT 9223372036854775807L + 1L;
+
+SELECT 9223372036854775807L * 2L, 3L * 4L;
+
+SELECT -9223372036854775808L - 1L;
+
+SELECT CAST(127 AS TINYINT) + CAST(1 AS TINYINT);
+
+SELECT CAST(100 AS TINYINT) * CAST(2 AS TINYINT);
+
+SELECT CAST(100 AS TINYINT) + CAST(27 AS TINYINT), CAST(32767 AS SMALLINT) - CAST(1 AS SMALLINT);
+
+SELECT CAST(32767 AS SMALLINT) + CAST(1 AS SMALLINT);
+
+SELECT x + 1 FROM VALUES (2147483647), (1) AS t(x);
+
+SELECT x * 2 FROM VALUES (1073741823), (1073741824) AS t(x);
+
+SELECT -x FROM VALUES (CAST(-128 AS TINYINT)) AS t(x);
+
+SELECT -x, abs(x) FROM VALUES (5), (-5), (NULL) AS t(x);
+
+SELECT abs(-2147483648);
+
+SELECT abs(CAST(-128 AS TINYINT));
+
+SELECT abs(-9223372036854775808L);
+
+SELECT abs(-2147483647), abs(CAST(-127 AS TINYINT));
+
+-- the try_ functions stay lenient
+SELECT try_add(2147483647, 1), try_subtract(-2147483648, 1), try_multiply(2147483647, 2), try_divide(1, 0);
+
+SELECT try_cast('abc' AS INT), try_cast(3000000000 AS INT), try_cast('1.5' AS INT);
+
+SELECT try_element_at(array(1, 2), 5), try_element_at(array(1, 2), 0);
+
+-- ===== division by zero =====
+
+SELECT 1 / 0;
+
+SELECT 1.5 / 0;
+
+SELECT 1 / 0.0;
+
+SELECT 5 % 0;
+
+SELECT 5.5 % 0;
+
+SELECT CAST(5 AS DECIMAL(10, 2)) % CAST(0 AS DECIMAL(10, 2));
+
+SELECT 5 div 0;
+
+SELECT 5.0D div 0;
+
+SELECT CAST(5 AS DECIMAL(10, 2)) / CAST(0 AS DECIMAL(10, 2));
+
+SELECT x / y FROM VALUES (1, 2), (1, 0) AS t(x, y);
+
+SELECT x / y, x % y, x div y FROM VALUES (7, 2), (CAST(NULL AS INT), 0), (7, CAST(NULL AS INT)) AS t(x, y);
+
+SELECT 10 / 4, 10 % 4, 10 div 4, 10.5 / 2, -7 % 3, 7 / 2.0D;
+
+SELECT mod(5, 0);
+
+SELECT pmod(5, 0);
+
+-- ===== casts =====
+
+SELECT CAST('abc' AS INT);
+
+SELECT CAST('12' AS INT), CAST(' 12 ' AS INT), CAST('+7' AS INT), CAST('-7' AS INT);
+
+SELECT CAST('1.5' AS INT);
+
+SELECT CAST('1.0' AS INT);
+
+SELECT CAST('1.' AS INT);
+
+SELECT CAST('1e3' AS INT);
+
+SELECT CAST('' AS INT);
+
+SELECT CAST(NULL AS INT), CAST(CAST(NULL AS STRING) AS INT);
+
+SELECT CAST('abc' AS DOUBLE);
+
+SELECT CAST('1.5' AS DOUBLE), CAST(' 2.5 ' AS DOUBLE), CAST('1e3' AS DOUBLE), CAST('NaN' AS DOUBLE), CAST('Infinity' AS DOUBLE);
+
+SELECT CAST('abc' AS DECIMAL(10, 2));
+
+SELECT CAST('12.345' AS DECIMAL(10, 2)), CAST('12' AS DECIMAL(10, 2));
+
+SELECT CAST('123456789012' AS DECIMAL(5, 2));
+
+SELECT CAST(123456.789 AS DECIMAL(5, 2));
+
+SELECT CAST(3000000000 AS INT);
+
+SELECT CAST(3000000000L AS INT), CAST(2147483647L AS INT), CAST(-2147483648L AS INT);
+
+SELECT CAST(300 AS TINYINT);
+
+SELECT CAST(1000 AS SMALLINT);
+
+SELECT CAST(40000 AS SMALLINT);
+
+SELECT CAST(1.5D AS INT), CAST(-1.5D AS INT), CAST(2.9D AS BIGINT), CAST(CAST(2.9 AS DECIMAL(5, 1)) AS INT);
+
+SELECT CAST(1e20D AS INT);
+
+SELECT CAST(1e20D AS BIGINT);
+
+SELECT CAST(CAST('NaN' AS DOUBLE) AS INT);
+
+SELECT CAST(CAST('Infinity' AS DOUBLE) AS BIGINT);
+
+SELECT CAST(CAST(9.9e18 AS DECIMAL(20, 0)) AS BIGINT), CAST(CAST(300 AS DECIMAL(5, 0)) AS TINYINT);
+
+SELECT CAST('2020-01-02' AS DATE), CAST(' 2020-1-2 ' AS DATE);
+
+SELECT CAST('abc' AS DATE);
+
+SELECT CAST('2020-13-45' AS DATE);
+
+SELECT CAST('2020-01-02 03:04:05' AS TIMESTAMP);
+
+SELECT CAST('abc' AS TIMESTAMP);
+
+SELECT CAST('true' AS BOOLEAN), CAST('F' AS BOOLEAN), CAST('yes' AS BOOLEAN), CAST('0' AS BOOLEAN);
+
+SELECT CAST('maybe' AS BOOLEAN);
+
+SELECT CAST(1 AS BOOLEAN), CAST(0 AS BOOLEAN), CAST(2.5D AS BOOLEAN);
+
+SELECT CAST(x AS INT) FROM VALUES ('1'), ('2'), (NULL) AS t(x);
+
+SELECT CAST(x AS INT) FROM VALUES ('1'), ('x'), (NULL) AS t(x);
+
+SELECT CAST(x AS DOUBLE), CAST(x AS STRING) FROM VALUES (1), (2) AS t(x);
+
+SELECT CAST(CAST(5 AS STRING) AS INT) + 1, CAST(CAST('7' AS INT) AS STRING);
+
+SELECT int('x');
+
+SELECT bigint('9999999999999999999');
+
+SELECT double('x'), float('1.5');
+
+SELECT date('x');
+
+-- ===== arrays =====
+
+SELECT array(1, 2, 3)[0], array(1, 2, 3)[2];
+
+SELECT array(1, 2, 3)[3];
+
+SELECT array(1, 2, 3)[-1];
+
+SELECT array(1, 2, 3)[100];
+
+SELECT array(1, NULL, 3)[1];
+
+SELECT x[1] FROM VALUES (array(1, 2)), (array(3, 4)), (CAST(NULL AS ARRAY<INT>)) AS t(x);
+
+SELECT x[1] FROM VALUES (array(1, 2)), (array(3)) AS t(x);
+
+SELECT element_at(array(1, 2, 3), 1), element_at(array(1, 2, 3), -1), element_at(array(1, 2, 3), 3);
+
+SELECT element_at(array(1, 2, 3), 4);
+
+SELECT element_at(array(1, 2, 3), -4);
+
+SELECT element_at(array(1, 2, 3), 0);
+
+SELECT element_at(x, 2) FROM VALUES (array(1, 2)), (array(3)) AS t(x);
+
+SELECT size(array(1, 2)), size(map(1, 2)), size(array());
+
+SELECT size(CAST(NULL AS ARRAY<INT>)), size(CAST(NULL AS MAP<INT, INT>));
+
+SELECT size(NULL);
+
+SELECT x, size(x) FROM VALUES (array(1)), (CAST(NULL AS ARRAY<INT>)) AS t(x);
+
+-- ===== decimals =====
+
+SELECT CAST(99999999999999999999999999999999999999 AS DECIMAL(38, 0)) + CAST(1 AS DECIMAL(38, 0));
+
+SELECT CAST(10000000000000000000 AS DECIMAL(38, 0)) * CAST(10000000000000000000 AS DECIMAL(38, 0));
+
+SELECT CAST(99999 AS DECIMAL(5, 0)) + CAST(1 AS DECIMAL(5, 0)), CAST(99999 AS DECIMAL(5, 0)) * CAST(99999 AS DECIMAL(5, 0));
+
+SELECT CAST(1.5 AS DECIMAL(5, 2)) + CAST(2.25 AS DECIMAL(5, 2)), CAST(1.5 AS DECIMAL(5, 2)) * CAST(2.5 AS DECIMAL(5, 2));
+
+-- ===== sums and averages =====
+
+SELECT sum(x) FROM VALUES (9223372036854775807L), (1L) AS t(x);
+
+SELECT sum(x), avg(x) FROM VALUES (1), (2), (NULL) AS t(x);
+
+SELECT sum(x) FROM VALUES (CAST(99999999999999999999999999999999999999 AS DECIMAL(38, 0))), (CAST(1 AS DECIMAL(38, 0))) AS t(x);
+
+-- ===== the setting can be switched off again =====
+
+SET spark.sql.ansi.enabled = false;
+
+SELECT 2147483647 + 1, 1 / 0, CAST('abc' AS INT), array(1)[5], size(CAST(NULL AS ARRAY<INT>));
+
+SET spark.sql.ansi.enabled = true;
+
+SELECT 2147483647 + 1;
+
+SELECT 1 / 0;
+
+RESET spark.sql.ansi.enabled;
+
+SELECT 2147483647 + 1, 1 / 0, CAST('abc' AS INT);
+
+SET spark.sql.ansi.enabled = true;
+
+RESET;
+
+SELECT 2147483647 + 1, 1 / 0;
+
+SET spark.sql.ansi.enabled = true;
+
+SELECT 1;

@@ -291,6 +291,11 @@ struct Builder {
 		otherwise = Cast(std::move(otherwise), type);
 		return make_uniq<BoundCaseExpression>(std::move(when), std::move(then), std::move(otherwise));
 	}
+	ExprP IsNotNull(ExprP e) {
+		auto result = make_uniq<BoundOperatorExpression>(ExpressionType::OPERATOR_IS_NOT_NULL, LogicalType::BOOLEAN);
+		result->GetChildrenMutable().push_back(std::move(e));
+		return std::move(result);
+	}
 	ExprP IsNull(ExprP e) {
 		auto result = make_uniq<BoundOperatorExpression>(ExpressionType::OPERATOR_IS_NULL, LogicalType::BOOLEAN);
 		result->GetChildrenMutable().push_back(std::move(e));
@@ -580,6 +585,140 @@ void SparkIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//===----------------------------------------------------------------------===//
+// ANSI mode (spark.sql.ansi.enabled): runtime errors instead of NULL / wrap-around
+//===----------------------------------------------------------------------===//
+bool AnsiEnabled(ClientContext &context) {
+	Value setting;
+	if (context.TryGetCurrentSetting(Identifier("spark_ansi_enabled"), setting) && !setting.IsNull()) {
+		return setting.GetValue<bool>();
+	}
+	return false;
+}
+
+[[noreturn]] void ThrowDivideByZero() {
+	throw InvalidInputException("[DIVIDE_BY_ZERO] Division by zero. Use `try_divide` to tolerate divisor being 0 and "
+	                            "return NULL instead. If necessary set \"spark.sql.ansi.enabled\" to \"false\" to "
+	                            "bypass this error.");
+}
+
+//! the divisor itself; an error where it is zero and the dividend is not NULL (ANSI mode)
+template <class T>
+void AnsiNonZeroKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<bool, T, T>(args.data[0], args.data[1], result, args.size(), [](bool dividend_present, T a) {
+		if (dividend_present && a == T(0)) {
+			ThrowDivideByZero();
+		}
+		return a;
+	});
+}
+
+ExprP AnsiNonZero(Builder &b, ExprP value, ExprP dividend) {
+	auto type = value->GetReturnType();
+	scalar_function_t fn;
+	switch (type.InternalType()) {
+	case PhysicalType::INT8:
+		fn = AnsiNonZeroKernel<int8_t>;
+		break;
+	case PhysicalType::INT16:
+		fn = AnsiNonZeroKernel<int16_t>;
+		break;
+	case PhysicalType::INT32:
+		fn = AnsiNonZeroKernel<int32_t>;
+		break;
+	case PhysicalType::INT64:
+		fn = AnsiNonZeroKernel<int64_t>;
+		break;
+	case PhysicalType::INT128:
+		fn = AnsiNonZeroKernel<hugeint_t>;
+		break;
+	case PhysicalType::FLOAT:
+		fn = AnsiNonZeroKernel<float>;
+		break;
+	case PhysicalType::DOUBLE:
+		fn = AnsiNonZeroKernel<double>;
+		break;
+	default:
+		return value;
+	}
+	ScalarFunction function(Identifier("spark_ansi_nonzero"), {LogicalType::BOOLEAN, type}, type, fn);
+	function.SetFallible();
+	return b.Kernel(function, b.IsNotNull(std::move(dividend)), std::move(value));
+}
+
+//! a 0-based array index checked against the array length (ANSI mode): the 1-based index, or an error
+void AnsiIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<int64_t, int64_t, int64_t>(
+	    args.data[0], args.data[1], result, args.size(), [](int64_t index, int64_t length) -> int64_t {
+		    if (index < 0 || index >= length) {
+			    throw InvalidInputException("[INVALID_ARRAY_INDEX] The index %lld is out of bounds. The array has "
+			                                "%lld elements. Use the SQL function `get()` to tolerate accessing "
+			                                "element at invalid index and return NULL instead.",
+			                                (long long)index, (long long)length);
+		    }
+		    return index + 1;
+	    });
+}
+
+//! element_at(array, index) in ANSI mode: the index must be within -length..-1 or 1..length
+void AnsiElementAtKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<int64_t, int64_t, int64_t>(
+	    args.data[0], args.data[1], result, args.size(), [](int64_t index, int64_t length) -> int64_t {
+		    if (index == 0 || index > length || index < -length) {
+			    throw InvalidInputException("[INVALID_ARRAY_INDEX_IN_ELEMENT_AT] The index %lld is out of bounds. The "
+			                                "array has %lld elements. Use `try_element_at` to tolerate accessing "
+			                                "element at invalid index and return NULL instead.",
+			                                (long long)index, (long long)length);
+		    }
+		    return index;
+	    });
+}
+
+//! args: a value (the non-ANSI result of an operation) and whether its inputs were all present. The value must not
+//! be NULL where the inputs were present.
+void AnsiNullCheckKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	auto count = args.size();
+	UnifiedVectorFormat value_data, present_data;
+	args.data[0].ToUnifiedFormat(count, value_data);
+	args.data[1].ToUnifiedFormat(count, present_data);
+	for (idx_t i = 0; i < count; i++) {
+		auto value_index = value_data.sel->get_index(i);
+		auto present_index = present_data.sel->get_index(i);
+		bool present = present_data.validity.RowIsValid(present_index) &&
+		               UnifiedVectorFormat::GetData<bool>(present_data)[present_index];
+		if (!value_data.validity.RowIsValid(value_index) && present) {
+			throw InvalidInputException("[CAST_INVALID_INPUT] The value cannot be cast to the target type because it "
+			                            "is malformed or out of range. Use `try_cast` to tolerate malformed input and "
+			                            "return NULL instead. If necessary set \"spark.sql.ansi.enabled\" to "
+			                            "\"false\" to bypass this error.");
+		}
+	}
+	result.Reference(args.data[0]);
+}
+
+//! `value`, or an error where it is NULL although all of `inputs` are not
+ExprP AnsiNullCheck(Builder &b, ExprP value, vector<ExprP> inputs) {
+	auto type = value->GetReturnType();
+	ExprP present;
+	for (auto &input : inputs) {
+		auto not_null = make_uniq<BoundOperatorExpression>(ExpressionType::OPERATOR_IS_NOT_NULL, LogicalType::BOOLEAN);
+		not_null->GetChildrenMutable().push_back(std::move(input));
+		if (!present) {
+			present = std::move(not_null);
+		} else {
+			present = make_uniq<BoundConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(present),
+			                                                std::move(not_null));
+		}
+	}
+	vector<ExprP> args;
+	args.push_back(std::move(value));
+	args.push_back(std::move(present));
+	ScalarFunction function(Identifier("spark_ansi_null_check"), {type, LogicalType::BOOLEAN}, type, AnsiNullCheckKernel);
+	function.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+	function.SetFallible();
+	return b.Kernel(function, std::move(args));
+}
+
 ExprP ZeroToNull(Builder &b, ExprP value) {
 	auto type = value->GetReturnType();
 	scalar_function_t fn;
@@ -775,7 +914,7 @@ string_t TrimView(string_t s) {
 }
 
 //! [+-]digits[.digits] -> truncated integer, false on invalid input or overflow
-bool ParseSparkIntegral(string_t input, int64_t &result) {
+bool ParseSparkIntegral(string_t input, int64_t &result, bool allow_fraction = true) {
 	auto s = TrimView(input);
 	auto data = s.GetData();
 	idx_t n = s.GetSize();
@@ -796,6 +935,9 @@ bool ParseSparkIntegral(string_t input, int64_t &result) {
 	for (; i < n; i++) {
 		char c = data[i];
 		if (c == '.') {
+			if (!allow_fraction) {
+				return false;
+			}
 			break;
 		}
 		if (c < '0' || c > '9') {
@@ -829,11 +971,11 @@ bool ParseSparkIntegral(string_t input, int64_t &result) {
 	return true;
 }
 
-template <class DST>
+template <class DST, bool ALLOW_FRACTION = true>
 void StringToIntegralKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	UnaryExecutor::Execute<string_t, DST>(args.data[0], result, args.size(), [](string_t s) -> optional<DST> {
 		int64_t value;
-		if (!ParseSparkIntegral(s, value) || value > int64_t(NumericLimits<DST>::Maximum()) ||
+		if (!ParseSparkIntegral(s, value, ALLOW_FRACTION) || value > int64_t(NumericLimits<DST>::Maximum()) ||
 		    value < int64_t(NumericLimits<DST>::Minimum())) {
 			return optional<DST>();
 		}
@@ -841,20 +983,21 @@ void StringToIntegralKernel(DataChunk &args, ExpressionState &, Vector &result) 
 	});
 }
 
-ScalarFunction StringToIntegralFunction(const LogicalType &target) {
+//! `exact`: ANSI mode, where "1.5" is not an integer
+ScalarFunction StringToIntegralFunction(const LogicalType &target, bool exact = false) {
 	scalar_function_t fn;
 	switch (target.id()) {
 	case LogicalTypeId::TINYINT:
-		fn = StringToIntegralKernel<int8_t>;
+		fn = exact ? StringToIntegralKernel<int8_t, false> : StringToIntegralKernel<int8_t>;
 		break;
 	case LogicalTypeId::SMALLINT:
-		fn = StringToIntegralKernel<int16_t>;
+		fn = exact ? StringToIntegralKernel<int16_t, false> : StringToIntegralKernel<int16_t>;
 		break;
 	case LogicalTypeId::INTEGER:
-		fn = StringToIntegralKernel<int32_t>;
+		fn = exact ? StringToIntegralKernel<int32_t, false> : StringToIntegralKernel<int32_t>;
 		break;
 	default:
-		fn = StringToIntegralKernel<int64_t>;
+		fn = exact ? StringToIntegralKernel<int64_t, false> : StringToIntegralKernel<int64_t>;
 		break;
 	}
 	return ScalarFunction(Identifier("spark_string_to_integral"), {LogicalType::VARCHAR}, target, fn);
@@ -1322,8 +1465,33 @@ ExprP BindCastValue(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "cast", 2, 2);
 	Builder b(input.context);
 	auto target = input.children[1]->GetReturnType();
-	auto result = SparkCast(b, Arg(input, 0), target);
-	return result;
+	auto e = Arg(input, 0);
+	auto source = Normalize(e->GetReturnType());
+	if (AnsiEnabled(input.context) && source != target && !IsNull(source) &&
+	    (IsIntegral(target) || IsFloating(target) || IsDecimal(target) || target.id() == LogicalTypeId::BOOLEAN ||
+	     target.id() == LogicalTypeId::DATE || target.id() == LogicalTypeId::TIMESTAMP)) {
+		if (IsIntegral(target) && IsString(source)) {
+			// a string must be an integer: "1.5" is malformed
+			auto copy = e->Copy();
+			vector<ExprP> inputs;
+			inputs.push_back(std::move(copy));
+			auto parsed = b.Kernel(StringToIntegralFunction(target, true), std::move(e));
+			return AnsiNullCheck(b, std::move(parsed), std::move(inputs));
+		}
+		if (IsIntegral(target) && (IsIntegral(source) || IsFloating(source) || IsDecimal(source))) {
+			// overflow (and NaN) is an error; fractions are dropped
+			if (!IsIntegral(source)) {
+				e = b.Call("trunc", b.Cast(std::move(e), IsDecimal(source) ? source : LogicalType::DOUBLE));
+			}
+			return b.Cast(std::move(e), target);
+		}
+		auto copy = e->Copy();
+		auto result = SparkCast(b, std::move(e), target);
+		vector<ExprP> inputs;
+		inputs.push_back(std::move(copy));
+		return AnsiNullCheck(b, std::move(result), std::move(inputs));
+	}
+	return SparkCast(b, std::move(e), target);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1379,8 +1547,13 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 	auto right = NumericOperand(b, Arg(input, 1));
 	auto lt = Normalize(left->GetReturnType());
 	auto rt = Normalize(right->GetReturnType());
+	bool ansi = !CHECKED && AnsiEnabled(input.context);
 	if (IsIntegral(lt) && IsIntegral(rt)) {
 		auto type = WiderIntegral(lt, rt);
+		if (ansi) {
+			// DuckDB's own operators raise on overflow
+			return b.Op(duck_op, b.Cast(std::move(left), type), b.Cast(std::move(right), type));
+		}
 		auto fn = CHECKED ? IntegralBinaryFunction<CHECKED_OP, CheckedKernel>(type)
 		                  : IntegralBinaryFunction<OP, WrapKernel>(type);
 		return b.Kernel(fn, b.Cast(std::move(left), type), b.Cast(std::move(right), type));
@@ -1422,19 +1595,34 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 			precision = MaxValue(p1 - s1, p2 - s2) + scale + 1;
 		}
 		auto result_type = AdjustDecimal(precision, scale);
+		ExprP left_copy, right_copy;
+		if (ansi) {
+			left_copy = left->Copy();
+			right_copy = right->Copy();
+		}
+		auto finish = [&](ExprP result) {
+			if (!ansi) {
+				return result;
+			}
+			// the overflow of the result type is an error, not NULL
+			vector<ExprP> inputs;
+			inputs.push_back(std::move(left_copy));
+			inputs.push_back(std::move(right_copy));
+			return AnsiNullCheck(b, std::move(result), std::move(inputs));
+		};
 		ExprP value;
 		if (op == "*") {
 			if (p1 + p2 <= 38) {
 				auto wide_left = LogicalType::DECIMAL(uint8_t(MinValue(38, MaxValue(p1, 38 - p2))), uint8_t(s1));
 				value = b.Op("*", b.Cast(std::move(left), wide_left), b.Cast(std::move(right), rd));
 			} else {
-				return SparkWideDecimalMultiply(b, std::move(left), s1, std::move(right), s2, result_type);
+				return finish(SparkWideDecimalMultiply(b, std::move(left), s1, std::move(right), s2, result_type));
 			}
 		} else {
 			auto common = LogicalType::DECIMAL(38, uint8_t(MaxValue(s1, s2)));
 			value = b.Op(duck_op, b.Cast(std::move(left), common), b.Cast(std::move(right), common));
 		}
-		return SparkDecimalResult(b, std::move(value), result_type);
+		return finish(SparkDecimalResult(b, std::move(value), result_type));
 	}
 	return b.Op(duck_op, std::move(left), std::move(right));
 }
@@ -1656,7 +1844,8 @@ LogicalType AsDecimal(const LogicalType &type) {
 	}
 }
 
-ExprP BindDivide(FunctionBindExpressionInput &input) {
+template <bool TRY>
+ExprP BindDivideImpl(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "/", 2, 2);
 	Builder b(input.context);
 	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
@@ -1667,6 +1856,9 @@ ExprP BindDivide(FunctionBindExpressionInput &input) {
 	auto rt = Normalize(right->GetReturnType());
 	if (lt.id() == LogicalTypeId::INTERVAL && IsNumeric(rt)) {
 		return b.Spark("interval_divide", std::move(left), b.Cast(std::move(right), LogicalType::DOUBLE));
+	}
+	if (!TRY && AnsiEnabled(input.context) && IsNumeric(rt)) {
+		right = AnsiNonZero(b, std::move(right), left->Copy());
 	}
 	if ((IsDecimal(lt) || IsDecimal(rt)) && !IsFloating(lt) && !IsFloating(rt)) {
 		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal);
@@ -1680,6 +1872,13 @@ ExprP BindDivide(FunctionBindExpressionInput &input) {
 	                b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
 }
 
+ExprP BindDivide(FunctionBindExpressionInput &input) {
+	return BindDivideImpl<false>(input);
+}
+ExprP BindTryDivide(FunctionBindExpressionInput &input) {
+	return BindDivideImpl<true>(input);
+}
+
 ExprP BindDiv(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "div", 2, 2);
 	Builder b(input.context);
@@ -1689,6 +1888,9 @@ ExprP BindDiv(FunctionBindExpressionInput &input) {
 	auto rt = Normalize(right->GetReturnType());
 	if (lt.id() == LogicalTypeId::INTERVAL && rt.id() == LogicalTypeId::INTERVAL) {
 		return b.Spark("interval_div", std::move(left), std::move(right));
+	}
+	if (AnsiEnabled(input.context) && IsNumeric(rt)) {
+		right = AnsiNonZero(b, std::move(right), left->Copy());
 	}
 	if (IsIntegral(lt) && IsIntegral(rt)) {
 		return b.Kernel(ScalarFunction(Identifier("spark_div"), {LogicalType::BIGINT, LogicalType::BIGINT},
@@ -1707,6 +1909,9 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 	auto right = NumericOperand(b, Arg(input, 1));
 	auto lt = Normalize(left->GetReturnType());
 	auto rt = Normalize(right->GetReturnType());
+	if (AnsiEnabled(input.context) && IsNumeric(rt)) {
+		right = AnsiNonZero(b, std::move(right), left->Copy());
+	}
 	if (IsIntegral(lt) && IsIntegral(rt)) {
 		auto type = WiderIntegral(lt, rt);
 		scalar_function_t fn;
@@ -1746,7 +1951,7 @@ ExprP BindNegative(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto child = NumericOperand(b, Arg(input, 0));
 	auto type = Normalize(child->GetReturnType());
-	if (IsIntegral(type)) {
+	if (IsIntegral(type) && !AnsiEnabled(input.context)) {
 		return b.Kernel(NegateFunction(type), std::move(child));
 	}
 	vector<ExprP> args;
@@ -1803,6 +2008,73 @@ ExprP BindComparatorResult(FunctionBindExpressionInput &input) {
 		                      SparkTypeName(type));
 	}
 	return result;
+}
+
+//! zero_key(x): for DOUBLE / FLOAT, -0.0 mapped to a value no other number has in practice (-denorm_min), so that
+//! equality-based list functions tell it from 0.0 like Spark does; other types unchanged
+ExprP BindZeroKey(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "zero_key", 1, 1);
+	Builder b(input.context);
+	auto value = Arg(input, 0);
+	auto type = Normalize(value->GetReturnType());
+	if (type.id() != LogicalTypeId::DOUBLE && type.id() != LogicalTypeId::FLOAT) {
+		return value;
+	}
+	auto as_double = b.Cast(value->Copy(), LogicalType::DOUBLE);
+	auto is_negative_zero = make_uniq<BoundConjunctionExpression>(
+	    ExpressionType::CONJUNCTION_AND,
+	    b.Compare(ExpressionType::COMPARE_EQUAL, as_double->Copy(), b.Constant(Value::DOUBLE(0))),
+	    b.Compare(ExpressionType::COMPARE_LESSTHAN, b.Call("atan2", as_double->Copy(), b.Constant(Value::DOUBLE(-1))),
+	              b.Constant(Value::DOUBLE(0))));
+	return b.Case(std::move(is_negative_zero), b.Constant(Value::DOUBLE(-4.9406564584124654e-324)),
+	              std::move(as_double));
+}
+
+//! narrow_int(x): a BIGINT (or wider) argument wraps to INT like Spark's implicit cast; other types are unchanged
+ExprP BindNarrowInt(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "narrow_int", 1, 1);
+	Builder b(input.context);
+	auto value = Arg(input, 0);
+	auto type = Normalize(value->GetReturnType());
+	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT) {
+		return SparkCast(b, std::move(value), LogicalType::INTEGER);
+	}
+	return value;
+}
+
+//! simple_sort_key(list): true when DuckDB's sort order of the list's elements is Spark's comparison order
+//! (numbers, strings, booleans, dates and timestamps; nested values may contain NULLs and are left to the slow path)
+ExprP BindSimpleSortKey(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "simple_sort_key", 1, 2);
+	Builder b(input.context);
+	auto type = Normalize(Arg(input, 0)->GetReturnType());
+	// the second argument asks for exact types: equal values are indistinguishable (no floating point zeros)
+	bool exact = input.children.size() > 1;
+	bool simple = false;
+	if (type.id() == LogicalTypeId::LIST) {
+		switch (Normalize(ListType::GetChildType(type)).id()) {
+		case LogicalTypeId::TINYINT:
+		case LogicalTypeId::SMALLINT:
+		case LogicalTypeId::INTEGER:
+		case LogicalTypeId::BIGINT:
+		case LogicalTypeId::HUGEINT:
+		case LogicalTypeId::DECIMAL:
+		case LogicalTypeId::VARCHAR:
+		case LogicalTypeId::BOOLEAN:
+		case LogicalTypeId::DATE:
+		case LogicalTypeId::TIMESTAMP:
+		case LogicalTypeId::TIMESTAMP_TZ:
+			simple = true;
+			break;
+		case LogicalTypeId::FLOAT:
+		case LogicalTypeId::DOUBLE:
+			simple = !exact;
+			break;
+		default:
+			break;
+		}
+	}
+	return b.Constant(Value::BOOLEAN(simple));
 }
 
 ExprP BindPositive(FunctionBindExpressionInput &input) {
@@ -1923,6 +2195,13 @@ ExprP BindSubscript(FunctionBindExpressionInput &input) {
 	if (type.id() == LogicalTypeId::LIST || type.id() == LogicalTypeId::ARRAY) {
 		// 0-based; out of range (including negative) is NULL
 		auto idx = b.Cast(std::move(index), LogicalType::BIGINT);
+		if (AnsiEnabled(input.context)) {
+			ScalarFunction check(Identifier("spark_ansi_index"), {LogicalType::BIGINT, LogicalType::BIGINT},
+			                     LogicalType::BIGINT, AnsiIndexKernel);
+			check.SetFallible();
+			auto checked = b.Kernel(check, std::move(idx), b.Cast(b.Call("len", base->Copy()), LogicalType::BIGINT));
+			return b.Call("list_extract", std::move(base), std::move(checked));
+		}
 		auto one_based = b.Kernel(ScalarFunction(Identifier("spark_index"), {LogicalType::BIGINT}, LogicalType::BIGINT,
 		                                         SparkIndexKernel),
 		                          std::move(idx));
@@ -2198,9 +2477,13 @@ ExprP BindSize(FunctionBindExpressionInput &input) {
 	} else if (type.id() == LogicalTypeId::LIST || type.id() == LogicalTypeId::ARRAY) {
 		length = b.Call("len", e->Copy());
 	} else if (IsNull(type)) {
-		return b.Constant(Value::INTEGER(-1));
+		return b.Constant(AnsiEnabled(input.context) ? Value(LogicalType::INTEGER) : Value::INTEGER(-1));
 	} else {
 		throw BinderException("size: argument must be an array or a map, not %s", SparkTypeName(type));
+	}
+	if (AnsiEnabled(input.context)) {
+		// size(NULL) is NULL in ANSI mode
+		return b.Cast(std::move(length), LogicalType::INTEGER);
 	}
 	vector<ExprP> options;
 	options.push_back(b.Cast(std::move(length), LogicalType::INTEGER));
@@ -2262,12 +2545,18 @@ ExprP BindElementAt(FunctionBindExpressionInput &input) {
 	}
 	if (type.id() == LogicalTypeId::LIST) {
 		auto idx = b.Cast(std::move(index), LogicalType::BIGINT);
-		if (!TRY && idx->IsFoldable()) {
+		if (idx->IsFoldable()) {
 			auto value = ExpressionExecutor::EvaluateScalar(input.context, *idx);
 			if (!value.IsNull() && value.GetValue<int64_t>() == 0) {
 				throw InvalidInputException("[INVALID_INDEX_OF_ZERO] The index 0 is invalid. An index shall be "
 				                            "either < 0 or > 0 (the first element has index 1).");
 			}
+		}
+		if (!TRY && AnsiEnabled(input.context)) {
+			ScalarFunction check(Identifier("spark_ansi_element_at"), {LogicalType::BIGINT, LogicalType::BIGINT},
+			                     LogicalType::BIGINT, AnsiElementAtKernel);
+			check.SetFallible();
+			idx = b.Kernel(check, std::move(idx), b.Cast(b.Call("len", base->Copy()), LogicalType::BIGINT));
 		}
 		return b.Call("list_extract", std::move(base), std::move(idx));
 	}
@@ -2468,6 +2757,10 @@ ExprP BindAbs(FunctionBindExpressionInput &input) {
 	if (type.id() == LogicalTypeId::INTERVAL) {
 		return b.Spark("interval_abs", std::move(e));
 	}
+	if (IsIntegral(type) && AnsiEnabled(input.context)) {
+		// DuckDB's abs raises on the minimum value
+		return b.Call("abs", std::move(e));
+	}
 	if (IsIntegral(type)) {
 		scalar_function_t fn;
 		switch (type.id()) {
@@ -2525,6 +2818,9 @@ ExprP BindTryCastValue(FunctionBindExpressionInput &input) {
 	auto target = input.children[1]->GetReturnType();
 	auto e = Arg(input, 0);
 	auto source = Normalize(e->GetReturnType());
+	if (IsIntegral(target) && IsString(source) && AnsiEnabled(input.context)) {
+		return b.Kernel(StringToIntegralFunction(target, true), std::move(e));
+	}
 	if (IsIntegral(target) && IsNumeric(source) && source != target) {
 		if (!IsIntegral(source)) {
 			e = b.Call("trunc", b.Cast(std::move(e), IsDecimal(source) ? source : LogicalType::DOUBLE));
@@ -2559,46 +2855,6 @@ ExprP BindFromNumber(FunctionBindExpressionInput &input) {
 		return b.Spark("number_to_interval", b.Cast(std::move(n), LogicalType::DOUBLE), std::move(sample));
 	}
 	return n;
-}
-
-//! the low 64 bits: Java long overflow
-void WrapHugeintKernel(DataChunk &args, ExpressionState &, Vector &result) {
-	UnaryExecutor::Execute<hugeint_t, int64_t>(args.data[0], result, args.size(),
-	                                            [](hugeint_t h) { return int64_t(h.lower); });
-}
-
-//! sum(x) with Spark's result type, given any_value(x) for the input type
-ExprP BindSumTyped(FunctionBindExpressionInput &input) {
-	CheckArgs(input, "sum", 2, 2);
-	Builder b(input.context);
-	auto sum = Arg(input, 0);
-	auto sample_type = Normalize(input.children[1]->GetReturnType());
-	if (IsDecimal(sample_type)) {
-		auto type = LogicalType::DECIMAL(uint8_t(MinValue(38, DecimalType::GetWidth(sample_type) + 10)),
-		                                 uint8_t(DecimalType::GetScale(sample_type)));
-		return b.Cast(std::move(sum), type, true);
-	}
-	if (sum->GetReturnType().id() == LogicalTypeId::HUGEINT) {
-		// Spark sums integral types into a BIGINT that wraps on overflow
-		return b.Kernel(ScalarFunction(Identifier("spark_wrap_hugeint"), {LogicalType::HUGEINT}, LogicalType::BIGINT,
-		                               WrapHugeintKernel),
-		                std::move(sum));
-	}
-	return sum;
-}
-
-//! avg(x) with Spark's result type: DECIMAL(p + 4, s + 4) for decimals, DOUBLE otherwise
-ExprP BindAvgTyped(FunctionBindExpressionInput &input) {
-	CheckArgs(input, "avg", 2, 2);
-	Builder b(input.context);
-	auto avg = Arg(input, 0);
-	auto sample_type = Normalize(input.children[1]->GetReturnType());
-	if (IsDecimal(sample_type)) {
-		auto type = LogicalType::DECIMAL(uint8_t(MinValue(38, DecimalType::GetWidth(sample_type) + 4)),
-		                                 uint8_t(MinValue(38, DecimalType::GetScale(sample_type) + 4)));
-		return b.Cast(std::move(avg), type, true);
-	}
-	return avg;
 }
 
 //! try_avg: NULL when Spark's sum would overflow its type
@@ -2650,11 +2906,15 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"subtract", BindSubtract},
 	    {"multiply", BindMultiply},
 	    {"divide", BindDivide},
+	    {"try_divide_impl", BindTryDivide},
 	    {"div", BindDiv},
 	    {"remainder", BindRemainder},
 	    {"mod", BindRemainder},
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
+	    {"zero_key", BindZeroKey},
+	    {"simple_sort_key", BindSimpleSortKey},
+	    {"narrow_int", BindNarrowInt},
 	    {"comparator_result", BindComparatorResult},
 	    {"cmp_eq", BindComparison<ExpressionType::COMPARE_EQUAL>},
 	    {"cmp_ne", BindComparison<ExpressionType::COMPARE_NOTEQUAL>},
@@ -2698,8 +2958,6 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"signum", BindSign},
 	    {"as_number", BindAsNumber},
 	    {"from_number", BindFromNumber},
-	    {"sum_typed", BindSumTyped},
-	    {"avg_typed", BindAvgTyped},
 	    {"try_avg_result", BindTryAvgResult},
 	    {"try_add", BindTryAdd},
 	    {"try_subtract", BindTrySubtract},
@@ -2728,6 +2986,10 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	RegisterFallible(loader, ExplodeRowsFunction<false, true>("explode_outer_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, false>("posexplode_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, true>("posexplode_outer_rows"));
+}
+
+bool SparkAnsiEnabled(ClientContext &context) {
+	return AnsiEnabled(context);
 }
 
 unique_ptr<Expression> BindSparkKernel(ClientContext &context, ScalarFunction function,

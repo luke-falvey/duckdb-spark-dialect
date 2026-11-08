@@ -16,7 +16,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from engines import DuckRunner, extension_path, scratch_dir, use_utc  # noqa: E402
-from harness import ROOT, load_cases, results_equal  # noqa: E402
+from harness import ROOT, file_config, load_cases, results_equal  # noqa: E402
 
 EXTENSION = extension_path()
 CASE_TIMEOUT = 60.0
@@ -35,6 +35,8 @@ def run_file(path, verbose, keyword, dialect="spark"):
     golden_path = ROOT / "golden" / (path.name + ".pkl")
     golden = pickle.loads(golden_path.read_bytes())
     duck = DuckRunner(dialect=dialect, timeout=CASE_TIMEOUT, extension=EXTENSION)
+    # file-level `-- @config key=value`: the same setting in the dialect (Spark's SET) as in the golden run
+    duck.setup([f"SET {key} = {value}" for key, value in file_config(path)])
     results = []
     for case in load_cases([path]):
         expected = golden.get(case.index)
@@ -93,7 +95,7 @@ def main():
     parser.add_argument("--dialect", choices=["spark", "spark_strict"], default="spark")
     parser.add_argument("files", nargs="*")
     args = parser.parse_args()
-    files = [Path(f).resolve() for f in args.files] or sorted((ROOT / "cases").glob("*.sql"))
+    files = [Path(f).resolve() for f in args.files] or sorted((ROOT / "cases").rglob("*.sql"))
     use_utc()
     # statements that write files (COPY, EXPORT DATABASE, ...) must not write into the repository
     os.chdir(scratch_dir("duck-cases-"))

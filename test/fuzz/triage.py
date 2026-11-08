@@ -59,6 +59,18 @@ def signature(rec):
     return f"{kind}|?"
 
 
+# names of the dialect's internal functions: they should not show up in error messages for invalid Spark SQL
+INTERNAL_NAMES = re.compile(
+    r'system\.spark|"system"|spark_kernel|__spark_|\bcast_value|_impl\b|concat_ws_array|\bspark_char|comparator_result|'
+    r'zero_key|narrow_int|case_when|inline_rows|sum_result|try_avg_result|\bcmp_(eq|ne|lt|gt|le|ge)\b|op_bit|'
+    r'\bas_(int|long|double|string|date|timestamp|boolean|binary|number)\b|from_number|\bsubscript\b|get_field')
+
+
+def internal_name_errors(findings):
+    """Findings whose DuckDB error message mentions an internal function name."""
+    return [f for f in findings if INTERNAL_NAMES.search(str((f.get("duck") or {}).get("error") or ""))]
+
+
 def summarize(findings, counts=None, title="fuzz run", examples=1):
     by_sig = defaultdict(list)
     for f in findings:
@@ -69,6 +81,9 @@ def summarize(findings, counts=None, title="fuzz run", examples=1):
         lines += ["## Inputs", "", "| outcome | count |", "|---|---|"]
         lines += [f"| {k} | {v} |" for k, v in sorted(counts.items())]
         lines.append("")
+    leaking = internal_name_errors(findings)
+    lines += ["## Error messages", "", f"{len(leaking)} of {len(findings)} findings have an internal function name in "
+              "the DuckDB error message", ""]
     lines += ["## Findings", "", f"{len(findings)} findings, {len(by_sig)} signatures: "
               + ", ".join(f"{k}={v}" for k, v in sorted(kinds.items())), ""]
     for sig, items in sorted(by_sig.items(), key=lambda kv: (-len(kv[1]), kv[0])):

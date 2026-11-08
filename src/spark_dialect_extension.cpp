@@ -19,6 +19,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 	loader.CreateSchema(Identifier(SPARK_SCHEMA));
 	loader.UseDefaultSchema(Identifier(SPARK_SCHEMA));
 	RegisterSparkFunctions(loader);
+	RegisterSparkAggregates(loader);
+	RegisterSparkFormatString(loader);
+	RegisterSparkTypeRules(loader);
 	RegisterSparkLibrary(loader);
 	RegisterSparkDatetime(loader);
 	RegisterSparkHashes(loader);
@@ -28,6 +31,10 @@ static void LoadInternal(ExtensionLoader &loader) {
 	RegisterSparkCasts(loader);
 	RegisterSparkMacros(loader);
 	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
+	// SET spark.sql.ansi.enabled = true/false (rewritten to this setting by the tokenizer)
+	config.AddExtensionOption(Identifier("spark_ansi_enabled"), "Spark ANSI mode: runtime errors for overflow, invalid "
+	                                                            "casts, division by zero and invalid array indexes",
+	                          LogicalType::BOOLEAN, Value::BOOLEAN(false));
 	DialectExtension::Register(config, make_shared_ptr<SparkDialect>(false));
 	DialectExtension::Register(config, make_shared_ptr<SparkDialect>(true));
 }

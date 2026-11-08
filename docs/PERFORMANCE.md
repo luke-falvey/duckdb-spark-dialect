@@ -56,17 +56,29 @@ The suspects from the plan:
 1. **Operators as dispatcher calls.** `+`, `-`, `*` on integers are 1.0x to 1.2x; comparisons now bind to native
    `BoundComparisonExpression`s (they also gained Spark's string coercion), and filter pushdown is unchanged:
    `filter_int_eq` 1.1x, `filter_date_range` 1.1x.
-2. **`sum` / `avg` with the extra `any_value`.** 1.0x to 1.3x; left as is.
+2. **`sum` / `avg`.** They were `sum_typed(sum(x), any_value(x))` (1.0x to 1.3x). They are now the dialect's own
+   aggregates `spark_sum` / `spark_avg` (`src/spark_aggregates.cpp`), which choose Spark's result type at bind time,
+   so the extra `any_value` is gone. Measured against native on 1M rows, single-threaded: `sum_int` 1.24x,
+   `sum_bigint` 1.26x, `sum_double` 1.28x, `avg_int` 1.32x, `avg_double` 1.31x, `avg_decimal` 1.09x,
+   `group_sum_int` 1.08x, `group_avg_double` 1.03x, `group_sum_high_cardinality` 1.09x; `sum_decimal` is 1.6x (the
+   128-bit state; it was 1.2x). At 20M rows `sum` of an INT column takes the same time as the native `sum`.
 3. **`split` with `std::regex`.** Fixed, see above.
 4. **`as_string` wrappers in macros.** `rlike` is 1.0x: no cost.
 5. **`case_when`.** 1.1x; it binds to a native CASE.
 6. **Java datetime patterns.** Fixed (pattern cache). `date_format` is still 3.6x: the formatter itself is
    slower than `strftime`.
 7. **`window` / `session_window` grouping rewrite.** 10M rows in about 1 s (`scaling_bench.py`); fine.
-8. **`array_sort` with a comparator.** 4.4x and O(n²): 10,000 elements take 1.3 s. Not changed; the README
-   documents it.
+8. **`array_sort` with a comparator.** Comparators of the common `CASE WHEN f(l) < f(r) ...` shape are recognized at
+   parse time and use `list_sort` (1.2x; 10,000 elements take about 50 ms). Other comparators are still O(n²)
+   (10,000 elements take 1.3 s); the README documents it.
 9. **Token rewrites that are O(n²).** None found: parse time is linear up to 10,000 items for every shape.
 10. **`CHAR(n)` padding.** Not measured separately.
+11. **Costs added by the limitations work.**
+   `format_string` / `printf` are now `java.util.Formatter`-compatible (NULL arguments, HALF_UP rounding of `%f`,
+   two's-complement `%x`): the kernel formats row by row and is about 5x slower than DuckDB's `printf` (1.0x before).
+   `sum(decimal)` keeps an exact 128-bit state for Spark's `DECIMAL(p + 10, s)` result and is about 1.6x native
+   (1.2x before); TPC-H (sf1, all threads) is at a geometric mean of 1.16x–1.18x (Spark dialects), 1.12x–1.10x
+   before, with the extra time in the grouped `sum` of decimals (Q09, Q10, Q13).
 
 ## Q1
 

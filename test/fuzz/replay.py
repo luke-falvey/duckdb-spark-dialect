@@ -6,7 +6,10 @@ an INTERNAL error or a timeout. Ordinary errors are fine. Directives (see test/h
   -- @timeout 30                   seconds (default 10)
   -- @upstream <reason>            a DuckDB bug that also happens without the extension: skipped
 
-usage: python test/fuzz/replay.py [--findings test/fuzz/out/<run>] [--shell asan/duckdb]
+With --known, instead check known_differences.toml: the `example` of every entry is run in Spark and in both
+dialects and must still differ from Spark; an entry whose example now matches is stale and fails.
+
+usage: python test/fuzz/replay.py [--findings test/fuzz/out/<run>] [--shell asan/duckdb] [--known]
 """
 import argparse
 import sys
@@ -16,10 +19,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import corpus  # noqa: E402,F401
 from engines import DuckRunner, ShellRunner, use_utc  # noqa: E402
 from harness import load_cases  # noqa: E402
+import compare  # noqa: E402
 import triage  # noqa: E402
 
 REGRESSIONS = Path(__file__).resolve().parent / "crash_regressions.sql"
 ALL = ("spark", "spark_strict", "duckdb")
+
+
+def check_known():
+    from engines import SparkOracle
+    spark = SparkOracle()
+    lenient = DuckRunner(dialect="spark", timeout=30.0)
+    strict = DuckRunner(dialect="spark_strict", timeout=30.0)
+    stale = 0
+    entries = compare.load_known()
+    for entry in entries:
+        sql = entry.get("example")
+        if not sql:
+            stale += 1
+            print(f"FAIL entry without an example: {entry['signature']} {entry['reason'][:60]!r}")
+            continue
+        findings = compare.classify(spark.run(sql), lenient.run(sql), strict.run(sql), ordered=False)
+        if not findings:
+            stale += 1
+            print(f"STALE example no longer differs from Spark: {sql}")
+    for r in (lenient, strict):
+        r.close()
+    spark.stop()
+    print(f"known differences: {len(entries)} entries, {stale} stale")
+    return 1 if stale else 0
 
 
 def main():
@@ -27,8 +55,11 @@ def main():
     ap.add_argument("--findings", help="a fuzz output directory: replay its crash/internal/timeout findings")
     ap.add_argument("--shell", help="also replay through this (sanitizer) duckdb shell")
     ap.add_argument("--shell-extension", help="the extension built with the same sanitizer flags as --shell")
+    ap.add_argument("--known", action="store_true", help="check that known_differences.toml has no stale entry")
     args = ap.parse_args()
     use_utc()
+    if args.known:
+        sys.exit(check_known())
 
     items = []  # (label, sql, dialects, timeout)
     for case in load_cases([REGRESSIONS]):
