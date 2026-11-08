@@ -188,23 +188,6 @@ jobs:
           SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
         run: python test/fuzz/replay.py
 
-      - name: Backtrace of a replay crash (diagnostics)
-        if: failure()
-        run: |
-          sudo apt-get install -y gdb >/dev/null
-          cat > /tmp/crash.py <<'EOF'
-          import duckdb
-          con = duckdb.connect(config={"allow_unsigned_extensions": "true"})
-          con.execute("LOAD '${{ github.workspace }}/build/spark_dialect.duckdb_extension'")
-          con.execute("SET current_dialect='spark'")
-          try:
-              con.execute("SELECT " + "NOT " * 5000 + "true").fetchall()
-          except Exception as e:
-              print("error:", str(e)[:100])
-          EOF
-          ulimit -s
-          gdb -batch -ex run -ex "bt 25" -ex "info threads" --args python /tmp/crash.py 2>&1 | tail -60
-
       - name: Check known differences are not stale
         env:
           SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension

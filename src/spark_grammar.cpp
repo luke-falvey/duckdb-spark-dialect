@@ -149,7 +149,10 @@ struct HookDepthGuard {
 			state.base = here;
 			if (state.budget == 0) {
 				// once per thread: pthread_getattr_np reads /proc/self/maps for the main thread
-				state.budget = ThreadStackSize() / 3;
+				// Statements deeper than this run on the helper thread, whose whole stack is reserved up front: a
+				// process short of address space then gets a clean error from the thread creation, instead of a
+				// SIGSEGV when this thread's stack cannot grow. 1 MB covers about 60 levels of nesting.
+				state.budget = MinValue<idx_t>(ThreadStackSize() / 3, 1024 * 1024);
 			}
 		}
 		state.depth++;
