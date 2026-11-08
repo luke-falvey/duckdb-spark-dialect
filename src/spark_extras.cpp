@@ -612,17 +612,14 @@ struct NumberFormat {
 					if (d != ' ') {
 						started = true;
 					}
-					if (d != ' ' || c == '0') {
-						out += d;
-					}
+					// unused leading positions are spaces: the result has the width of the format, like Spark
+					out += d;
 				}
 			} else if (c == '.' || c == 'D') {
 				out += '.';
 				after_point = true;
 			} else if (c == ',' || c == 'G') {
-				if (started) {
-					out += ',';
-				}
+				out += started ? ',' : ' ';
 			} else if (c == '$') {
 				out += '$';
 			} else if (c == 'S') {
@@ -638,9 +635,8 @@ struct NumberFormat {
 		}
 		if (brackets && negative) {
 			out = "<" + out + ">";
-		} else if (negative && !sign_start && !sign_end && !mi_end) {
-			out = "-" + out;
 		}
+		// without S / MI / PR in the format, Spark prints the absolute value
 		return true;
 	}
 

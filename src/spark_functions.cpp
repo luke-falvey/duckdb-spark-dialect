@@ -30,6 +30,7 @@
 #include <mutex>
 
 #include "spark_function_names.hpp"
+#include "utf8proc.hpp"
 
 namespace duckdb {
 
@@ -633,6 +634,16 @@ void DoubleDivTruncKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	                                                 });
 }
 
+//! Java's Math.signum: NaN and signed zeros are returned unchanged
+void SignumKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<double, double>(args.data[0], result, args.size(), [](double d) {
+		if (d == 0 || std::isnan(d)) {
+			return d;
+		}
+		return d > 0 ? 1.0 : -1.0;
+	});
+}
+
 void DoubleRemainderKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<double, double, double>(args.data[0], args.data[1], result, args.size(),
 	                                                [](double a, double b) -> optional<double> {
@@ -1037,6 +1048,25 @@ string SparkScalarString(const Value &value) {
 
 namespace {
 
+//! Bytes as UTF-8 text, each malformed sequence replaced by U+FFFD (like Java's new String(bytes, UTF_8))
+string Utf8Lossy(const string &bytes) {
+	string out;
+	auto data = reinterpret_cast<const utf8proc_uint8_t *>(bytes.data());
+	utf8proc_ssize_t pos = 0, len = utf8proc_ssize_t(bytes.size());
+	while (pos < len) {
+		utf8proc_int32_t cp;
+		auto n = utf8proc_iterate(data + pos, len - pos, &cp);
+		if (n <= 0) {
+			out += "\xEF\xBF\xBD";
+			pos++;
+			continue;
+		}
+		out.append(bytes, size_t(pos), size_t(n));
+		pos += n;
+	}
+	return out;
+}
+
 string SparkValueToString(const Value &value, bool nested) {
 	if (value.IsNull()) {
 		return "null";
@@ -1049,10 +1079,8 @@ string SparkValueToString(const Value &value, bool nested) {
 		return JavaFloatingToString(value.GetValue<float>());
 	case LogicalTypeId::BOOLEAN:
 		return value.GetValue<bool>() ? "true" : "false";
-	case LogicalTypeId::BLOB: {
-		auto &str = StringValue::Get(value);
-		return str;
-	}
+	case LogicalTypeId::BLOB:
+		return Utf8Lossy(StringValue::Get(value));
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::ARRAY: {
 		auto &children = ListValue::GetChildren(value);
@@ -2302,7 +2330,42 @@ ExprP BindSign(FunctionBindExpressionInput &input) {
 	if (Normalize(e->GetReturnType()).id() == LogicalTypeId::INTERVAL) {
 		return b.Spark("interval_sign", std::move(e));
 	}
-	return b.Cast(b.Call("sign", b.Cast(std::move(e), LogicalType::DOUBLE)), LogicalType::DOUBLE);
+	return b.Kernel(ScalarFunction(Identifier("spark_signum"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, SignumKernel),
+	                b.Cast(std::move(e), LogicalType::DOUBLE));
+}
+
+//! floor / ceil with one argument: BIGINT for integral and floating input (Java's (long) of Math.floor, so NaN
+//! is 0 and huge values saturate), DECIMAL(p - s + 1, 0) for decimals
+template <bool CEIL>
+ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
+	CheckArgs(input, CEIL ? "ceil" : "floor", 1, 1);
+	Builder b(input.context);
+	auto e = NumericOperand(b, Arg(input, 0));
+	auto type = Normalize(e->GetReturnType());
+	if (IsIntegral(type)) {
+		return b.Cast(std::move(e), LogicalType::BIGINT);
+	}
+	if (IsDecimal(type)) {
+		return b.Call(CEIL ? "ceil" : "floor", std::move(e));
+	}
+	auto rounded = b.Call(CEIL ? "ceil" : "floor", b.Cast(std::move(e), LogicalType::DOUBLE));
+	return b.Kernel(DoubleToIntegralFunction(LogicalType::BIGINT), b.Cast(std::move(rounded), LogicalType::DOUBLE));
+}
+
+//! try_cast: like cast, but numeric conversions that overflow are NULL (Spark's ANSI cast semantics)
+ExprP BindTryCastValue(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "try_cast", 2, 2);
+	Builder b(input.context);
+	auto target = input.children[1]->GetReturnType();
+	auto e = Arg(input, 0);
+	auto source = Normalize(e->GetReturnType());
+	if (IsIntegral(target) && IsNumeric(source) && source != target) {
+		if (!IsIntegral(source)) {
+			e = b.Call("trunc", b.Cast(std::move(e), IsDecimal(source) ? source : LogicalType::DOUBLE));
+		}
+		return b.Cast(std::move(e), target, true);
+	}
+	return SparkCast(b, std::move(e), target);
 }
 
 //! intervals as numbers (months or microseconds), everything else unchanged
@@ -2481,7 +2544,9 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"subscript", BindSubscript},
 	    {"get_field", BindGetField},
 	    {"cast_value", BindCastValue},
-	    {"try_cast_value", BindCastValue},
+	    {"try_cast_value", BindTryCastValue},
+	    {"floor_value", BindFloorCeil<false>},
+	    {"ceil_value", BindFloorCeil<true>},
 	    {"typeof", BindTypeOf},
 	    {"array", BindArray},
 	    {"map_from_arrays", BindMapFromArrays},

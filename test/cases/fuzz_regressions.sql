@@ -79,3 +79,16 @@ SELECT id, typeof(id) FROM range(3);
 SELECT r.id FROM range(1, 7, 2) AS r JOIN range(10) AS s ON r.id = s.id;
 
 SELECT count(*), sum(id) FROM range(0, 10, 3, 4);
+
+-- ===== found by the generated-query fuzzer (test/fuzz/differential.py) =====
+SELECT signum(CAST('NaN' AS DOUBLE)), signum(-0.0D), signum(-2.5), signum(3), 5 % signum(CAST('NaN' AS DOUBLE));
+
+SELECT floor(CAST('NaN' AS DOUBLE)), typeof(floor(1.5D)), floor(1e30D), ceil(-1.5D), typeof(ceil(1.5BD)), floor(-0.5BD), floor(5), typeof(floor(5)), floor(-0.1);
+
+SELECT try_cast(9223372036854775807L AS INT), CAST(9223372036854775807L AS INT), try_cast(300 AS TINYINT), try_cast(1.9D AS INT), try_cast(CAST('NaN' AS DOUBLE) AS INT), try_cast(1e20D AS BIGINT), try_cast(12.7BD AS TINYINT);
+
+SELECT CAST(X'00FF61' AS STRING), crc32(X'FF00'), crc32('abc');
+
+SELECT count_if(b), count_if(CAST(NULL AS BOOLEAN)) FROM VALUES (CAST(NULL AS BOOLEAN)), (NULL) AS t(b);
+
+SELECT to_char(2, '999'), to_char(1.5, '999.99'), to_char(12454, '99G999'), to_char(2, '99G999'), to_char(-12, '9999'), to_char(-12454.8, '99G999D9S'), to_char(12345, '999.99'), to_char(454, '000D00');

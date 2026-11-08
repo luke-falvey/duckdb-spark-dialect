@@ -1100,6 +1100,7 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("hypot"), {LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE,
 	                   HypotKernel));
 	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::VARCHAR}, LogicalType::BIGINT, Crc32Kernel));
+	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::BLOB}, LogicalType::BIGINT, Crc32Kernel));
 	reg(ScalarFunction(Identifier("sha2_impl"), {LogicalType::VARCHAR, LogicalType::INTEGER}, LogicalType::VARCHAR,
 	                   Sha2Kernel));
 	reg(ScalarFunction(Identifier("parse_url_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
