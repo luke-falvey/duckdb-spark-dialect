@@ -8,7 +8,7 @@ import pickle
 import sys
 
 from engines import SparkOracle, scratch_dir, use_utc  # noqa: E402
-from harness import ROOT, load_cases  # noqa: E402
+from harness import ROOT, file_config, load_cases  # noqa: E402
 
 
 def main():

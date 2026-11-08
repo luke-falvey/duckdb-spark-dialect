@@ -16,7 +16,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from engines import DuckRunner, extension_path, scratch_dir, use_utc  # noqa: E402
-from harness import ROOT, load_cases, results_equal  # noqa: E402
+from harness import ROOT, file_config, load_cases, results_equal  # noqa: E402
 
 EXTENSION = extension_path()
 CASE_TIMEOUT = 60.0

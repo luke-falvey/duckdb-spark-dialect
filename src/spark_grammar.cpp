@@ -960,13 +960,11 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		return SparkCall("as_string", std::move(result));
 	}
 	if ((name == "sum" || name == "avg" || name == "mean") && func.GetArguments().size() == 1 && !func.ExportState()) {
-		// Spark's result types: sum(decimal(p, s)) is decimal(p + 10, s), avg(decimal(p, s)) decimal(p + 4, s + 4),
-		// integer sums are BIGINT; any_value(x) carries the input type to the bind step
-		auto sample = DuckCall("any_value", func.GetArguments()[0].GetExpression().Copy());
-		if (name == "mean") {
-			func.SetFunctionName("avg");
-		}
-		return SparkCall(name == "sum" ? "sum_typed" : "avg_typed", std::move(expr), std::move(sample));
+		// Spark's result types (sum(decimal(p, s)) is decimal(p + 10, s), integer sums are BIGINT, ...) come from
+		// the dialect's own aggregates; DISTINCT, FILTER and ORDER BY stay on the call
+		func.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
+		                      Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
+		return expr;
 	}
 	if (name == "if" || name == "iff") {
 		auto args = TakeArguments(func);
@@ -1161,14 +1159,10 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 			window.SetFunctionName(name + "_value");
 		}
 		if ((name == "sum" || name == "avg" || name == "mean") && window_args.size() == 1) {
-			// like the plain aggregates: Spark's result type, and BIGINT sums wrap on overflow
-			if (name == "mean") {
-				window.SetFunctionName("avg");
-			}
-			auto sample_expr = expr->Copy();
-			auto &sample = sample_expr->Cast<WindowExpression>();
-			sample.SetFunctionName("any_value");
-			return SparkCall(name == "sum" ? "sum_typed" : "avg_typed", std::move(expr), std::move(sample_expr));
+			// like the plain aggregates: Spark's result types, and BIGINT sums wrap on overflow
+			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
+			                        Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
+			return expr;
 		}
 		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("window_" + name) && IsSparkFunction(name)) {
 			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),

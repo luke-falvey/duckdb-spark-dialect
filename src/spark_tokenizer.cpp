@@ -1763,7 +1763,7 @@ void RewritePivotAggregates(Tokens &ts) {
 				end = end + replacement.size() - old_size;
 				k += replacement.size() - 1;
 			} else if (name == "sum" || name == "avg") {
-				Replace(ts, k, k + 1, Lex("system . main . " + name, offset));
+				Replace(ts, k, k + 1, Lex(name == "sum" ? "system . spark . spark_sum" : "system . spark . spark_avg", offset));
 				end += 4;
 				k += 4;
 			}

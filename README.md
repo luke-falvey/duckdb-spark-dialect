@@ -125,8 +125,6 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 ### Limitations (behaviour the tests do not exercise)
 
 - ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.
-- `sum`/`avg` carry an extra `any_value(x)` aggregate so that their result type can follow Spark's
-  rules (`sum(decimal(p,s))` is `decimal(p+10,s)`); this costs a little performance.
 - `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. The query's `FROM` source
   becomes a subquery, so references to the source's table alias (e.g. `tab.a`) in that query are
   not available.

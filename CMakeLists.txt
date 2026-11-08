@@ -14,7 +14,8 @@ set(EXTENSION_SOURCES
     src/spark_library.cpp
     src/spark_datetime.cpp
     src/spark_formats.cpp
-    src/spark_extras.cpp)
+    src/spark_extras.cpp
+    src/spark_aggregates.cpp)
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})

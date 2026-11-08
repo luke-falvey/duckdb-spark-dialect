@@ -55,6 +55,7 @@ inline void RegisterFallible(ExtensionLoader &loader, ScalarFunction function) {
 //! Register the Spark function library in the `spark` schema.
 void RegisterSparkFunctions(ExtensionLoader &loader);
 void RegisterSparkMacros(ExtensionLoader &loader);
+void RegisterSparkAggregates(ExtensionLoader &loader);
 void RegisterSparkLibrary(ExtensionLoader &loader);
 void RegisterSparkDatetime(ExtensionLoader &loader);
 void RegisterSparkHashes(ExtensionLoader &loader);

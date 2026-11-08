@@ -2561,46 +2561,6 @@ ExprP BindFromNumber(FunctionBindExpressionInput &input) {
 	return n;
 }
 
-//! the low 64 bits: Java long overflow
-void WrapHugeintKernel(DataChunk &args, ExpressionState &, Vector &result) {
-	UnaryExecutor::Execute<hugeint_t, int64_t>(args.data[0], result, args.size(),
-	                                            [](hugeint_t h) { return int64_t(h.lower); });
-}
-
-//! sum(x) with Spark's result type, given any_value(x) for the input type
-ExprP BindSumTyped(FunctionBindExpressionInput &input) {
-	CheckArgs(input, "sum", 2, 2);
-	Builder b(input.context);
-	auto sum = Arg(input, 0);
-	auto sample_type = Normalize(input.children[1]->GetReturnType());
-	if (IsDecimal(sample_type)) {
-		auto type = LogicalType::DECIMAL(uint8_t(MinValue(38, DecimalType::GetWidth(sample_type) + 10)),
-		                                 uint8_t(DecimalType::GetScale(sample_type)));
-		return b.Cast(std::move(sum), type, true);
-	}
-	if (sum->GetReturnType().id() == LogicalTypeId::HUGEINT) {
-		// Spark sums integral types into a BIGINT that wraps on overflow
-		return b.Kernel(ScalarFunction(Identifier("spark_wrap_hugeint"), {LogicalType::HUGEINT}, LogicalType::BIGINT,
-		                               WrapHugeintKernel),
-		                std::move(sum));
-	}
-	return sum;
-}
-
-//! avg(x) with Spark's result type: DECIMAL(p + 4, s + 4) for decimals, DOUBLE otherwise
-ExprP BindAvgTyped(FunctionBindExpressionInput &input) {
-	CheckArgs(input, "avg", 2, 2);
-	Builder b(input.context);
-	auto avg = Arg(input, 0);
-	auto sample_type = Normalize(input.children[1]->GetReturnType());
-	if (IsDecimal(sample_type)) {
-		auto type = LogicalType::DECIMAL(uint8_t(MinValue(38, DecimalType::GetWidth(sample_type) + 4)),
-		                                 uint8_t(MinValue(38, DecimalType::GetScale(sample_type) + 4)));
-		return b.Cast(std::move(avg), type, true);
-	}
-	return avg;
-}
-
 //! try_avg: NULL when Spark's sum would overflow its type
 ExprP BindTryAvgResult(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "try_avg", 3, 3);
@@ -2698,8 +2658,6 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"signum", BindSign},
 	    {"as_number", BindAsNumber},
 	    {"from_number", BindFromNumber},
-	    {"sum_typed", BindSumTyped},
-	    {"avg_typed", BindAvgTyped},
 	    {"try_avg_result", BindTryAvgResult},
 	    {"try_add", BindTryAdd},
 	    {"try_subtract", BindTrySubtract},

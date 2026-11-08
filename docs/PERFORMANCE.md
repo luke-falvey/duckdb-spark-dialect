@@ -56,7 +56,12 @@ The suspects from the plan:
 1. **Operators as dispatcher calls.** `+`, `-`, `*` on integers are 1.0x to 1.2x; comparisons now bind to native
    `BoundComparisonExpression`s (they also gained Spark's string coercion), and filter pushdown is unchanged:
    `filter_int_eq` 1.1x, `filter_date_range` 1.1x.
-2. **`sum` / `avg` with the extra `any_value`.** 1.0x to 1.3x; left as is.
+2. **`sum` / `avg`.** They were `sum_typed(sum(x), any_value(x))` (1.0x to 1.3x). They are now the dialect's own
+   aggregates `spark_sum` / `spark_avg` (`src/spark_aggregates.cpp`), which choose Spark's result type at bind time,
+   so the extra `any_value` is gone. Measured against native on 1M rows, single-threaded: `sum_int` 1.24x,
+   `sum_bigint` 1.26x, `sum_double` 1.28x, `avg_int` 1.32x, `avg_double` 1.31x, `avg_decimal` 1.09x,
+   `group_sum_int` 1.08x, `group_avg_double` 1.03x, `group_sum_high_cardinality` 1.09x; `sum_decimal` is 1.6x (the
+   128-bit state; it was 1.2x). At 20M rows `sum` of an INT column takes the same time as the native `sum`.
 3. **`split` with `std::regex`.** Fixed, see above.
 4. **`as_string` wrappers in macros.** `rlike` is 1.0x: no cost.
 5. **`case_when`.** 1.1x; it binds to a native CASE.
