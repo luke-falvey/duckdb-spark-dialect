@@ -56,6 +56,7 @@ inline void RegisterFallible(ExtensionLoader &loader, ScalarFunction function) {
 void RegisterSparkFunctions(ExtensionLoader &loader);
 void RegisterSparkMacros(ExtensionLoader &loader);
 void RegisterSparkAggregates(ExtensionLoader &loader);
+void RegisterSparkFormatString(ExtensionLoader &loader);
 void RegisterSparkLibrary(ExtensionLoader &loader);
 void RegisterSparkDatetime(ExtensionLoader &loader);
 void RegisterSparkHashes(ExtensionLoader &loader);

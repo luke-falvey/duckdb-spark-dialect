@@ -85,3 +85,61 @@ SELECT sum(1), sum(1.5), sum(NULL), avg(1), avg(1.5), avg(NULL), typeof(avg(NULL
 SELECT sum(x), avg(x) FROM range(1, 5001) AS t(x);
 
 SELECT g, sum(x), avg(x) FROM (SELECT id % 7 AS g, id AS x FROM range(1, 5001)) GROUP BY g ORDER BY g;
+
+-- ===== L9: format_string / printf follow java.util.Formatter =====
+
+SELECT format_string('%s', CAST(NULL AS STRING)), format_string('%d', CAST(NULL AS INT)), format_string('%5s|%-5s|', CAST(NULL AS STRING), CAST(NULL AS STRING)), format_string('%b', CAST(NULL AS INT)), format_string('%f', CAST(NULL AS DOUBLE));
+
+SELECT format_string(CAST(NULL AS STRING), 1), printf(CAST(NULL AS STRING));
+
+SELECT format_string('Hello %s, you are %d years old', 'Bob', 30), printf('%s-%s', 'a', 'b'), format_string('no args');
+
+SELECT format_string('%5d|%-5d|%05d|%+d|% d|%,d|%(d', 42, 42, 42, 42, 42, 1234567, -5);
+
+SELECT format_string('%d %d %d %d', CAST(1 AS TINYINT), CAST(2 AS SMALLINT), 3, 4L);
+
+SELECT format_string('%x|%X|%o|%08x|%#x', 255, 255, 8, 255, 255), format_string('%x', -1), format_string('%x', CAST(-1 AS TINYINT)), format_string('%x', -1L);
+
+SELECT format_string('%.2f|%10.3f|%-10.1f|%+.1f|%,.2f|%f', 3.14159D, 2.5D, 0.25D, 1.05D, 1234567.891D, 1.5D);
+
+SELECT format_string('%.1f|%.1f|%.1f|%.0f|%.0f|%.0f', 0.25D, 0.35D, 0.15D, 0.5D, 1.5D, 2.5D);
+
+SELECT format_string('%s|%s', CAST(1.005 AS DECIMAL(10, 3)), CAST(2.0005 AS DECIMAL(10, 4)));
+
+SELECT format_string('%e|%.2e|%E|%g|%.3g|%g', 12345.6789D, 0.000123D, 1.5D, 12345.6789D, 0.0001234D, 1234567.0D);
+
+SELECT format_string('%f|%e|%s|%.1f', CAST('NaN' AS DOUBLE), CAST('Infinity' AS DOUBLE), CAST('-Infinity' AS DOUBLE), CAST('Infinity' AS DOUBLE));
+
+SELECT format_string('%s|%s|%s|%s|%s', 1.0D, 100.0D, 1.0E10D, 0.00012D, 123456.789D), format_string('%s|%s', CAST(1.5 AS FLOAT), true);
+
+SELECT format_string('%s|%10s|%-10s|%.2s|%S', 'abc', 'abc', 'abc', 'abc', 'abc');
+
+SELECT format_string('%b|%b|%B', true, false, 'x'), format_string('%c|%c', 65, 233);
+
+SELECT format_string('%2$s %1$s %2$s', 'a', 'b'), format_string('%s %<s %s', 'a', 'b'), format_string('100%%'), format_string('a%nb');
+
+SELECT format_string('%d', 'x');
+
+SELECT format_string('%s %s', 'only-one');
+
+SELECT format_string('%y', 1);
+
+SELECT format_string('%d', 1.5D);
+
+SELECT format_string('%s', array(1, 2)), format_string('%s', DATE '2020-01-02'), format_string('%s', CAST('2020-01-02 03:04:05' AS TIMESTAMP));
+
+SELECT format_string('%s|%d', s, i) FROM VALUES ('a', 1), (CAST(NULL AS STRING), 2), ('c', CAST(NULL AS INT)) AS t(s, i);
+
+-- ===== L9: -0.0 and 0.0 are different values in array set functions =====
+
+SELECT array_distinct(array(-0.0D, 0.0D)), array_distinct(array(0.0D, -0.0D, 0.0D, -0.0D)), array_distinct(array(1.0D, NULL, 1.0D, NULL, -0.0D));
+
+SELECT array_union(array(0.0D), array(-0.0D)), array_union(array(1.0D, -0.0D), array(0.0D, 2.0D));
+
+SELECT array_except(array(0.0D, 1.0D), array(-0.0D)), array_except(array(-0.0D, 1.0D), array(-0.0D)), array_except(array(0.0D), array(0.0D));
+
+SELECT array_intersect(array(0.0D, 1.0D), array(-0.0D, 1.0D)), array_intersect(array(-0.0D, 1.0D), array(-0.0D));
+
+SELECT array_distinct(array(CAST(0.0 AS FLOAT), CAST(-0.0 AS FLOAT))), array_distinct(array(CAST('NaN' AS DOUBLE), CAST('NaN' AS DOUBLE), 1.0D));
+
+SELECT array_distinct(array(1, 2, 2, NULL, NULL)), array_union(array(1, 2), array(2, 3)), array_except(array(1, 2, 3), array(2)), array_intersect(array(1, 2, 3), array(2, 3, 4));

@@ -258,11 +258,11 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_append", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_append(a, v) END"},
     {"array_prepend", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_prepend(v, a) END"},
     {"array_compact", "(a) AS list_filter(a, lambda x: x IS NOT NULL)"},
-    {"array_distinct", "(a) AS list_filter(a, lambda x, i: list_position(a, x) = i + 1)"},
+    {"array_distinct", "(a) AS list_filter(a, lambda x, i: list_position(list_transform(a, lambda y: " S "zero_key(y)), " S "zero_key(x)) = i + 1)"},
     // NULL if either array is NULL (DuckDB's list functions treat a NULL list as empty)
     {"array_union", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE " S "array_distinct(list_concat(a, b)) END"},
-    {"array_intersect", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NOT NULL) END"},
-    {"array_except", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NULL) END"},
+    {"array_intersect", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(list_transform(b, lambda y: " S "zero_key(y)), " S "zero_key(x)) IS NOT NULL) END"},
+    {"array_except", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(list_transform(b, lambda y: " S "zero_key(y)), " S "zero_key(x)) IS NULL) END"},
     {"array_join", "(a, d) AS " S "array_join_impl(list_transform(a, lambda x: " S "as_string(x)), d), "
                    "(a, d, r) AS " S "array_join_impl(list_transform(a, lambda x: " S "as_string(x)), d, r)"},
     {"array_max", "(a) AS list_max(a)"},

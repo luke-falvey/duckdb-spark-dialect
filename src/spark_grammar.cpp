@@ -975,7 +975,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 	}
 	if (name == "format_string" || name == "printf") {
 		auto args = TakeArguments(func);
-		return DuckCall("printf", std::move(args));
+		return SparkCall("format_string_impl", std::move(args));
 	}
 	if (name == "elt") {
 		auto args = TakeArguments(func);

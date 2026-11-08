@@ -20,6 +20,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	loader.UseDefaultSchema(Identifier(SPARK_SCHEMA));
 	RegisterSparkFunctions(loader);
 	RegisterSparkAggregates(loader);
+	RegisterSparkFormatString(loader);
 	RegisterSparkLibrary(loader);
 	RegisterSparkDatetime(loader);
 	RegisterSparkHashes(loader);

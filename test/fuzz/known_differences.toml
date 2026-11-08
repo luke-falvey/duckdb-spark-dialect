@@ -15,9 +15,9 @@ example = "SELECT add_months('2016-08-31', 9223372036854775807L)"
 [[difference]]
 signature = "*"
 sql = '-0\.0D'
-reason = """Spark treats -0.0 and 0.0 as different values in array_distinct / array_union / array_except and map keys;
-DuckDB's list functions compare them as equal."""
-example = "SELECT array_distinct(array(-0.0D, 0.0D))"
+reason = """Spark's map(-0.0, 1, 0.0, 2) keeps one key (the zeros are the same key there); DuckDB rejects the duplicate.
+array_distinct / array_union / array_except / array_intersect do tell -0.0 from 0.0 like Spark."""
+example = "SELECT map(-0.0D, 1, 0.0D, 2)"
 
 [[difference]]
 signature = "mismatch|*"
@@ -37,12 +37,6 @@ example = "SELECT percentile_approx(col, array(0.5, 0.4, 0.1), 2) FROM VALUES (0
 signature = "mismatch|histogram_numeric|*"
 reason = "histogram_numeric is approximate; bin boundaries depend on the merge order of the algorithm."
 example = "SELECT histogram_numeric(col, 2) FROM VALUES (0), (1), (2), (10) AS tab(col)"
-
-[[difference]]
-signature = "mismatch|*"
-sql = '(format_string|printf) \('
-reason = """Java's formatter prints NULL arguments as "null"; DuckDB's printf returns NULL when an argument is NULL."""
-example = "SELECT format_string('%s', CAST(NULL AS STRING))"
 
 [[difference]]
 signature = "mismatch|array_sort|*"

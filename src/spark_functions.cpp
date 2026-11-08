@@ -1805,6 +1805,26 @@ ExprP BindComparatorResult(FunctionBindExpressionInput &input) {
 	return result;
 }
 
+//! zero_key(x): for DOUBLE / FLOAT, -0.0 mapped to a value no other number has in practice (-denorm_min), so that
+//! equality-based list functions tell it from 0.0 like Spark does; other types unchanged
+ExprP BindZeroKey(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "zero_key", 1, 1);
+	Builder b(input.context);
+	auto value = Arg(input, 0);
+	auto type = Normalize(value->GetReturnType());
+	if (type.id() != LogicalTypeId::DOUBLE && type.id() != LogicalTypeId::FLOAT) {
+		return value;
+	}
+	auto as_double = b.Cast(value->Copy(), LogicalType::DOUBLE);
+	auto is_negative_zero = make_uniq<BoundConjunctionExpression>(
+	    ExpressionType::CONJUNCTION_AND,
+	    b.Compare(ExpressionType::COMPARE_EQUAL, as_double->Copy(), b.Constant(Value::DOUBLE(0))),
+	    b.Compare(ExpressionType::COMPARE_LESSTHAN, b.Call("atan2", as_double->Copy(), b.Constant(Value::DOUBLE(-1))),
+	              b.Constant(Value::DOUBLE(0))));
+	return b.Case(std::move(is_negative_zero), b.Constant(Value::DOUBLE(-4.9406564584124654e-324)),
+	              std::move(as_double));
+}
+
 ExprP BindPositive(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "positive", 1, 1);
 	Builder b(input.context);
@@ -2615,6 +2635,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"mod", BindRemainder},
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
+	    {"zero_key", BindZeroKey},
 	    {"comparator_result", BindComparatorResult},
 	    {"cmp_eq", BindComparison<ExpressionType::COMPARE_EQUAL>},
 	    {"cmp_ne", BindComparison<ExpressionType::COMPARE_NOTEQUAL>},
