@@ -146,7 +146,13 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 - Expressions nested deeper than about 160 levels are transformed on a helper thread with a 512 MB stack (Linux and
   macOS), so DuckDB's limit of 1000 levels applies; on other platforms the deeper statement fails with
   "Expression is nested too deeply".
-- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml`.
+- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml` (7 entries). Spark's
+  own SQL test inputs (`python test/fuzz/spark_corpus.py run`) still show, out of 3,734 statements, 512 DuckDB errors
+  where Spark succeeds (mostly Spark commands such as `DESC FUNCTION`, interval and datetime-format corner cases),
+  156 wrong results, 147 leniencies of `spark_strict` and 3 strict rejects of valid queries (it was 520, 157, 147
+  and 17 before the limitations work).
+- `CHAR(n)` columns: the padding casts for `n` > 255 are added when such a type is first used in a session; a
+  database file that was created with one and is opened in a new session pads again only after the type is used.
 - Statements are rewritten at the token level in places (see the table above). Error positions point at the
   original text. Of the 1,019 errors that Spark's own SQL test inputs produce here, 2 name an internal function
   (`to_json_impl` and `mask_impl`, for arguments of a type they do not accept); `python test/fuzz/spark_corpus.py
