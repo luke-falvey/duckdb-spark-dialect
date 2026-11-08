@@ -262,8 +262,7 @@ struct Builder {
 		return Call(op, std::move(a), std::move(b), true);
 	}
 	ExprP Kernel(const ScalarFunction &function, vector<ExprP> args) {
-		FunctionBinder binder(context);
-		return binder.BindScalarFunction(function, std::move(args));
+		return BindSparkKernel(context, function, std::move(args));
 	}
 	ExprP Kernel(const ScalarFunction &function, ExprP a) {
 		vector<ExprP> args;
@@ -327,6 +326,100 @@ ExprP Arg(FunctionBindExpressionInput &input, idx_t i) {
 
 void NotExecutable(DataChunk &, ExpressionState &, Vector &) {
 	throw InternalException("spark dispatch function was not rewritten at bind time");
+}
+
+//===----------------------------------------------------------------------===//
+// Kernels created at bind time
+//===----------------------------------------------------------------------===//
+// The dispatchers bind ad-hoc ScalarFunctions (a kernel for the argument types at hand) that are not in the
+// catalog. Some optimizers (grouping sets with DISTINCT aggregates, CTE inlining) copy a plan by serializing it,
+// and deserializing a function looks it up in the catalog by name. So every kernel is bound as
+// system.spark.spark_kernel, which is in the catalog, with a key in its bind data; deserialization restores
+// the kernel from a process-wide registry of the kernels bound so far.
+struct SparkKernelData : public FunctionData {
+	explicit SparkKernelData(string key_p) : key(std::move(key_p)) {
+	}
+	string key;
+	unique_ptr<FunctionData> Copy() const override {
+		return make_uniq<SparkKernelData>(key);
+	}
+	bool Equals(const FunctionData &other) const override {
+		return key == other.Cast<SparkKernelData>().key;
+	}
+};
+
+struct SparkKernelEntry {
+	scalar_function_t function;
+	FunctionNullHandling null_handling;
+	FunctionErrors errors;
+};
+
+std::mutex &SparkKernelLock() {
+	static std::mutex lock;
+	return lock;
+}
+
+unordered_map<string, SparkKernelEntry> &SparkKernels() {
+	static unordered_map<string, SparkKernelEntry> kernels;
+	return kernels;
+}
+
+void SerializeSparkKernel(Serializer &serializer, const optional_ptr<FunctionData> bind_data,
+                          const BoundScalarFunction &) {
+	serializer.WriteProperty(100, "kernel", bind_data->Cast<SparkKernelData>().key);
+}
+
+unique_ptr<FunctionData> DeserializeSparkKernel(Deserializer &deserializer, BoundScalarFunction &function) {
+	auto key = deserializer.ReadProperty<string>(100, "kernel");
+	SparkKernelEntry entry;
+	{
+		std::lock_guard<std::mutex> guard(SparkKernelLock());
+		auto it = SparkKernels().find(key);
+		if (it == SparkKernels().end()) {
+			throw SerializationException("Spark dialect kernel %s is not available in this process", key);
+		}
+		entry = it->second;
+	}
+	function.SetFunctionCallback(entry.function);
+	function.SetNullHandling(entry.null_handling);
+	function.SetErrorMode(entry.errors);
+	return make_uniq<SparkKernelData>(key);
+}
+
+ScalarFunction SparkKernelCatalogEntry() {
+	ScalarFunction fun(Identifier("spark_kernel"), {}, LogicalType::ANY, NotExecutable, nullptr, nullptr, nullptr,
+	                   LogicalType::ANY);
+	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+	fun.SetSerializeCallback(SerializeSparkKernel);
+	fun.SetDeserializeCallback(DeserializeSparkKernel);
+	return fun;
+}
+
+unique_ptr<Expression> BindSparkKernelImpl(ClientContext &context, ScalarFunction function,
+                                           vector<unique_ptr<Expression>> args) {
+	using raw_fn_t = void (*)(DataChunk &, ExpressionState &, Vector &);
+	auto callback = function.GetFunctionCallback();
+	auto raw = callback.target<raw_fn_t>();
+	string key = function.GetName() + "(";
+	for (auto &param : function.GetSignature().GetParameters()) {
+		key += param.GetType().ToString() + ",";
+	}
+	key += ")->" + function.GetReturnType().ToString() + "@" +
+	       to_string(raw ? reinterpret_cast<uintptr_t>(*raw) : uintptr_t(0));
+	{
+		std::lock_guard<std::mutex> guard(SparkKernelLock());
+		SparkKernels()[key] = SparkKernelEntry {callback, function.GetNullHandling(), function.GetErrorMode()};
+	}
+	function.SetQualifiedName(
+	    QualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA), Identifier("spark_kernel")));
+	function.SetSerializeCallback(SerializeSparkKernel);
+	function.SetDeserializeCallback(DeserializeSparkKernel);
+	FunctionBinder binder(context);
+	auto expr = binder.BindScalarFunction(function, std::move(args));
+	if (expr->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
+		expr->Cast<BoundFunctionExpression>().BindInfoMutable() = make_uniq<SparkKernelData>(key);
+	}
+	return expr;
 }
 
 ScalarFunction Dispatcher(const string &name, function_bind_expression_t bind_expression, idx_t min_args = 0) {
@@ -2395,6 +2488,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"inline_rows", BindInlineRows},
 	    {"inline_outer_rows", BindInlineOuterRows},
 	};
+	loader.RegisterFunction(SparkKernelCatalogEntry());
 	for (auto &entry : dispatchers) {
 		RegisterFallible(loader, Dispatcher(entry.first, entry.second));
 		AddSparkOverride(entry.first);
@@ -2403,6 +2497,11 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	RegisterFallible(loader, ExplodeRowsFunction<false, true>("explode_outer_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, false>("posexplode_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, true>("posexplode_outer_rows"));
+}
+
+unique_ptr<Expression> BindSparkKernel(ClientContext &context, ScalarFunction function,
+                                       vector<unique_ptr<Expression>> args) {
+	return BindSparkKernelImpl(context, std::move(function), std::move(args));
 }
 
 } // namespace duckdb

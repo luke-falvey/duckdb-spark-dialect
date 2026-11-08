@@ -64,3 +64,11 @@ SELECT a, session_window.start, session_window.end, count(*) AS cnt FROM VALUES 
 SELECT a, count(*) FROM VALUES ('A1', '2021-01-01 00:00:00') AS tab(a, b) GROUP BY a, session_window(b, '%_');
 
 SELECT a, window.start, count(*) FROM VALUES ('A1', '2021-01-01 00:00:00'), ('A1', NULL), ('A2', 'x') AS tab(a, b) GROUP BY a, window(b, '5 minutes');
+
+-- ===== plans copied by serialization (grouping sets with DISTINCT aggregates) used to lose bind-time kernels =====
+-- @setup
+CREATE OR REPLACE TEMPORARY VIEW fz_cube AS SELECT CAST(c0 AS TINYINT) AS k, c1 AS g, CAST(c2 AS BOOLEAN) AS b FROM VALUES (1, 'x', 'true'), (2, 'y', 'false'), (3, 'x', NULL) AS v(c0, c1, c2);
+
+SELECT g, b, array_sort(collect_set(k)) AS a0, grouping(g) AS gid FROM fz_cube GROUP BY CUBE(g, b);
+
+SELECT g, count(DISTINCT k), sum(k) FROM fz_cube GROUP BY ROLLUP(g);

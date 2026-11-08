@@ -60,11 +60,22 @@ class Differential:
 
     def reduce(self, rec, max_steps=200):
         kind, dialect = rec["kind"], rec["dialect"]
-        want = (kind, dialect)
+        # the same failure: same kind and dialect, and the same (masked) error or kind of difference
+        want_error = triage.mask_message(rec["duck"]["error"]) if kind in ("duck_error", "internal") else None
+        want_diff = rec.get("difference")
 
         def still(cand):
-            *_, found = self.run(cand)
-            return any((k, dd) == want for k, dd, _ in found)
+            s, d, t, found = self.run(cand)
+            duck = d if dialect == "spark" else t
+            for k, dd, diff in found:
+                if (k, dd) != (kind, dialect):
+                    continue
+                if want_error is not None and triage.mask_message(duck.error) != want_error:
+                    continue
+                if want_diff is not None and diff != want_diff:
+                    continue
+                return True
+            return False
         out, steps = reducer.reduce(rec["sql"], still, max_steps)
         rec["reduced_sql"] = out
         rec["reduce_steps"] = steps
