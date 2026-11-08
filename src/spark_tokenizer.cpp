@@ -1334,6 +1334,16 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		return true;
 	}
 	// ---- SET / RESET ----
+	// SET / RESET current_dialect always go to DuckDB: they are how a connection leaves the Spark dialects.
+	// Selecting a Spark dialect also set dialect_compatibility_mode = 'spark', which DuckDB's RESET current_dialect
+	// leaves in place (it changes DuckDB SQL, e.g. list comprehension indexes become 0-based), so reset it first;
+	// SET current_dialect = 'x' then applies x's own mode, if it has one.
+	if ((WordAt(ts, 0, "RESET") || WordAt(ts, 0, "SET")) && WordAt(ts, 1, "current_dialect")) {
+		Tokens prefix = Lex("RESET dialect_compatibility_mode", offset);
+		prefix.emplace_back(";", offset, TokenType::TERMINATOR);
+		ts.insert(ts.begin(), prefix.begin(), prefix.end());
+		return false;
+	}
 	if (WordAt(ts, 0, "RESET")) {
 		ts = EmptyResult(offset);
 		return true;
