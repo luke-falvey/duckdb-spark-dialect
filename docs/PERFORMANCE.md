@@ -68,8 +68,9 @@ The suspects from the plan:
 6. **Java datetime patterns.** Fixed (pattern cache). `date_format` is still 3.6x: the formatter itself is
    slower than `strftime`.
 7. **`window` / `session_window` grouping rewrite.** 10M rows in about 1 s (`scaling_bench.py`); fine.
-8. **`array_sort` with a comparator.** 4.4x and O(n²): 10,000 elements take 1.3 s. Not changed; the README
-   documents it.
+8. **`array_sort` with a comparator.** Comparators of the common `CASE WHEN f(l) < f(r) ...` shape are recognized at
+   parse time and use `list_sort` (1.2x; 10,000 elements take about 50 ms). Other comparators are still O(n²)
+   (10,000 elements take 1.3 s); the README documents it.
 9. **Token rewrites that are O(n²).** None found: parse time is linear up to 10,000 items for every shape.
 10. **`CHAR(n)` padding.** Not measured separately.
 

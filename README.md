@@ -130,7 +130,10 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 - `CHAR(n)` column padding is supported for `n` up to 255.
 - Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
   and in `CAST`, not in other implicit casts.
-- `array_sort` with a comparator sorts by rank (O(n²)); it expects a consistent comparator.
+- `array_sort` with a comparator: comparators of the form `CASE WHEN f(l) < f(r) THEN -1 WHEN f(l) > f(r) THEN 1
+  ELSE 0 END` (also reversed, for a descending sort) over numbers, strings, booleans, dates and timestamps without
+  NULL keys use a stable sort (O(n log n)). Other comparators rank each element (O(n²)); an inconsistent comparator
+  can order differently from Spark's TimSort.
 - Expressions nested deeper than about 160 levels are transformed on a helper thread with a 512 MB stack (Linux and
   macOS), so DuckDB's limit of 1000 levels applies; on other platforms the deeper statement fails with
   "Expression is nested too deeply".

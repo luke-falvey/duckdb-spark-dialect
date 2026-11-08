@@ -1837,6 +1837,41 @@ ExprP BindNarrowInt(FunctionBindExpressionInput &input) {
 	return value;
 }
 
+//! simple_sort_key(list): true when DuckDB's sort order of the list's elements is Spark's comparison order
+//! (numbers, strings, booleans, dates and timestamps; nested values may contain NULLs and are left to the slow path)
+ExprP BindSimpleSortKey(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "simple_sort_key", 1, 2);
+	Builder b(input.context);
+	auto type = Normalize(Arg(input, 0)->GetReturnType());
+	// the second argument asks for exact types: equal values are indistinguishable (no floating point zeros)
+	bool exact = input.children.size() > 1;
+	bool simple = false;
+	if (type.id() == LogicalTypeId::LIST) {
+		switch (Normalize(ListType::GetChildType(type)).id()) {
+		case LogicalTypeId::TINYINT:
+		case LogicalTypeId::SMALLINT:
+		case LogicalTypeId::INTEGER:
+		case LogicalTypeId::BIGINT:
+		case LogicalTypeId::HUGEINT:
+		case LogicalTypeId::DECIMAL:
+		case LogicalTypeId::VARCHAR:
+		case LogicalTypeId::BOOLEAN:
+		case LogicalTypeId::DATE:
+		case LogicalTypeId::TIMESTAMP:
+		case LogicalTypeId::TIMESTAMP_TZ:
+			simple = true;
+			break;
+		case LogicalTypeId::FLOAT:
+		case LogicalTypeId::DOUBLE:
+			simple = !exact;
+			break;
+		default:
+			break;
+		}
+	}
+	return b.Constant(Value::BOOLEAN(simple));
+}
+
 ExprP BindPositive(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "positive", 1, 1);
 	Builder b(input.context);
@@ -2648,6 +2683,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
 	    {"zero_key", BindZeroKey},
+	    {"simple_sort_key", BindSimpleSortKey},
 	    {"narrow_int", BindNarrowInt},
 	    {"comparator_result", BindComparatorResult},
 	    {"cmp_eq", BindComparison<ExpressionType::COMPARE_EQUAL>},

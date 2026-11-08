@@ -819,6 +819,16 @@ void Substitute(ExprPtr &expr, const string &name, const ParsedExpression &repla
 			expr = replacement.Copy();
 			return;
 		}
+		auto &names = colref.ColumnNames();
+		if (names.size() > 1 && StringUtil::CIEquals(names[0].GetIdentifierName(), name)) {
+			// l.field.sub: the parameter is a struct value
+			ExprPtr result = replacement.Copy();
+			for (idx_t i = 1; i < names.size(); i++) {
+				result = DuckCall("struct_extract", std::move(result), ConstantExpression::String(names[i].GetIdentifierName()));
+			}
+			expr = std::move(result);
+			return;
+		}
 	}
 	ParsedExpressionIterator::EnumerateChildren(
 	    *expr, [&](unique_ptr<ParsedExpression> &child) { Substitute(child, name, replacement); });
@@ -871,6 +881,109 @@ vector<ExprPtr> TakeArguments(FunctionExpression &func) {
 		result.push_back(std::move(arg.GetExpressionMutable()));
 	}
 	return result;
+}
+
+//! The key of a comparator lambda `(l, r) -> CASE WHEN f(l) < f(r) THEN -1 WHEN f(l) > f(r) THEN 1 ELSE 0 END`
+//! (either order of the branches, or with the results swapped for a descending sort).
+string StripSpaces(string text) {
+	string out;
+	for (auto c : text) {
+		if (c != ' ' && c != '(' && c != ')') {
+			out += c;
+		}
+	}
+	return out;
+}
+
+//! `text` with the word `from` replaced by `to`
+string ReplaceWord(const string &text, const string &from, const string &to) {
+	string out;
+	for (idx_t i = 0; i < text.size();) {
+		bool boundary_before = i == 0 || !(isalnum(uint8_t(text[i - 1])) || text[i - 1] == '_' || text[i - 1] == '.');
+		if (boundary_before && text.compare(i, from.size(), from) == 0) {
+			auto after = i + from.size();
+			if (after >= text.size() || !(isalnum(uint8_t(text[after])) || text[after] == '_')) {
+				out += to;
+				i = after;
+				continue;
+			}
+		}
+		out += text[i++];
+	}
+	return out;
+}
+
+bool MentionsWord(const string &text, const string &word) {
+	return ReplaceWord(text, word, "\x01") != text;
+}
+
+bool MatchSortComparator(ParsedExpression &lambda, bool &descending, ExprPtr &key, string &key_param) {
+	vector<string> params;
+	ExprPtr body;
+	if (!LambdaParts(lambda, params, body) || params.size() != 2 ||
+	    body->GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return false;
+	}
+	auto &outer = body->Cast<FunctionExpression>();
+	if (StringUtil::Lower(outer.FunctionName().GetIdentifierName()) != "case_when" || outer.GetArguments().size() != 5 ||
+	    StripSpaces(outer.GetArguments()[4].GetExpression().ToString()) != "0") {
+		return false;
+	}
+	struct Branch {
+		bool less;
+		bool negative;
+		string left, right;
+		ExprPtr left_expr;
+	};
+	Branch branches[2];
+	for (idx_t b = 0; b < 2; b++) {
+		auto &condition = outer.GetArguments()[b * 2].GetExpression();
+		if (condition.GetExpressionClass() != ExpressionClass::FUNCTION) {
+			return false;
+		}
+		auto &compare = condition.Cast<FunctionExpression>();
+		auto compare_name = StringUtil::Lower(compare.FunctionName().GetIdentifierName());
+		if ((compare_name != "cmp_lt" && compare_name != "cmp_gt") || compare.GetArguments().size() != 2) {
+			return false;
+		}
+		auto value = StripSpaces(outer.GetArguments()[b * 2 + 1].GetExpression().ToString());
+		if (value != "1" && value != "-1") {
+			return false;
+		}
+		branches[b].less = compare_name == "cmp_lt";
+		branches[b].negative = value == "-1";
+		branches[b].left = compare.GetArguments()[0].GetExpression().ToString();
+		branches[b].right = compare.GetArguments()[1].GetExpression().ToString();
+		branches[b].left_expr = compare.GetArguments()[0].GetExpression().Copy();
+	}
+	// both branches compare the same pair, in opposite directions with opposite results
+	if (branches[0].left != branches[1].left || branches[0].right != branches[1].right ||
+	    branches[0].less == branches[1].less || branches[0].negative == branches[1].negative) {
+		return false;
+	}
+	auto &first = branches[0];
+	// "x < y gives -1" or "x > y gives 1" sorts x before y: ascending in x
+	bool ascending_in_left = first.less == first.negative;
+	auto left = first.left, right = first.right;
+	auto left_expr = std::move(first.left_expr);
+	auto &p1 = params[0], &p2 = params[1];
+	string param;
+	if (MentionsWord(left, p1) && !MentionsWord(left, p2) && ReplaceWord(left, p1, p2) == right) {
+		param = p1;
+	} else if (MentionsWord(left, p2) && !MentionsWord(left, p1) && ReplaceWord(left, p2, p1) == right) {
+		// f(r) compared with f(l): the sort direction flips
+		param = p2;
+		ascending_in_left = !ascending_in_left;
+	} else {
+		return false;
+	}
+	if (!MentionsWord(left, param)) {
+		return false;
+	}
+	descending = !ascending_in_left;
+	key = std::move(left_expr);
+	key_param = param;
+	return true;
 }
 
 ExprPtr RewriteFunction(ExprPtr expr) {
@@ -1145,21 +1258,86 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		return DuckCall(name == "transform" ? "list_transform" : "list_filter", std::move(args[0]), std::move(lambda));
 	}
 	if (name == "array_sort" && func.GetArguments().size() == 2) {
-		// array_sort(a, (l, r) -> cmp): order each element by how many elements compare below it
 		auto args = TakeArguments(func);
+		// a comparator of a recognized shape sorts by key with list_sort (O(n log n)); others rank each element by
+		// how many elements the comparator puts before it (O(n^2))
+		bool descending = false;
+		ExprPtr key;
+		string key_param;
+		bool recognized = MatchSortComparator(*args[1], descending, key, key_param);
 		vector<ExprPtr> replacements;
 		replacements.push_back(ColRef("__spark_other"));
 		replacements.push_back(ColRef("__spark_elem"));
-		auto below = InlineLambda(args, 1, "array_sort", std::move(replacements));
-		auto is_below = Operator("<", SparkCall("comparator_result", std::move(below)), ConstantExpression::Integer(0));
+		auto result = InlineLambda(args, 1, "array_sort", std::move(replacements));
+		// a comparator that returns NULL is an error in Spark (when there is anything to compare)
+		auto comparison = SparkCall("comparator_result", std::move(result));
+		auto is_below_case = make_uniq<CaseExpression>();
+		CaseCheck null_check;
+		null_check.when_expr = make_uniq<ConjunctionExpression>(
+		    ExpressionType::CONJUNCTION_AND,
+		    SparkCall("cmp_gt", DuckCall("len", args[0]->Copy()), ConstantExpression::Integer(1)),
+		    make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, comparison->Copy()));
+		null_check.then_expr = make_uniq<CastExpression>(
+		    LogicalType::BOOLEAN,
+		    DuckCall("error", ConstantExpression::String("[COMPARATOR_RETURNS_NULL] The comparator has returned a NULL "
+		                                                  "for a comparison.")));
+		is_below_case->CaseChecksMutable().push_back(std::move(null_check));
+		is_below_case->ElseMutable() = Operator("<", std::move(comparison), ConstantExpression::Integer(0));
+		ExprPtr is_below = std::move(is_below_case);
 		auto rank = DuckCall("len", DuckCall("list_filter", args[0]->Copy(),
 		                                     MakeLambda({"__spark_other"}, std::move(is_below))));
 		vector<pair<string, ExprPtr>> fields;
 		fields.emplace_back("r", std::move(rank));
+		fields.emplace_back("i", ColRef("__spark_idx"));
 		fields.emplace_back("v", ColRef("__spark_elem"));
-		auto keyed = DuckCall("list_transform", args[0]->Copy(), MakeLambda({"__spark_elem"}, StructPack(std::move(fields))));
+		auto keyed = DuckCall("list_transform", args[0]->Copy(),
+		                      MakeLambda({"__spark_elem", "__spark_idx"}, StructPack(std::move(fields))));
 		auto sorted = DuckCall("list_sort", std::move(keyed));
-		return DuckCall("list_transform", std::move(sorted), MakeLambda({"__spark_e"}, StructField("__spark_e", "v")));
+		ExprPtr slow = DuckCall("list_transform", std::move(sorted), MakeLambda({"__spark_e"}, StructField("__spark_e", "v")));
+		if (!recognized) {
+			return slow;
+		}
+		// the fast path: sort (key, +-index, element); the index keeps equal keys in input order like TimSort
+		auto key_of = [&]() {
+			auto copy = key->Copy();
+			Substitute(copy, key_param, *ColRef("__spark_elem"));
+			return copy;
+		};
+		vector<pair<string, ExprPtr>> sort_fields;
+		sort_fields.emplace_back("k", key_of());
+		sort_fields.emplace_back("i", descending ? Operator("-", ConstantExpression::Integer(0), ColRef("__spark_idx"))
+		                                         : ColRef("__spark_idx"));
+		sort_fields.emplace_back("v", ColRef("__spark_elem"));
+		auto sort_keyed = DuckCall("list_transform", args[0]->Copy(),
+		                           MakeLambda({"__spark_elem", "__spark_idx"}, StructPack(std::move(sort_fields))));
+		ExprPtr fast_sorted = descending ? DuckCall("list_sort", std::move(sort_keyed), ConstantExpression::String("DESC"))
+		                                 : DuckCall("list_sort", std::move(sort_keyed));
+		auto fast = DuckCall("list_transform", std::move(fast_sorted),
+		                     MakeLambda({"__spark_e"}, StructField("__spark_e", "v")));
+		auto keys = DuckCall("list_transform", args[0]->Copy(), MakeLambda({"__spark_elem"}, key_of()));
+		// only keys that DuckDB orders like Spark's comparison does (no nested NULLs), and no NULL keys
+		auto keys_simple = SparkCall("simple_sort_key", keys->Copy());
+		auto keys_counted = DuckCall("list_count", keys->Copy());
+		auto keys_length = DuckCall("len", std::move(keys));
+		ExprPtr usable = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(keys_simple),
+		                                                  Operator("=", std::move(keys_counted), std::move(keys_length)));
+		vector<ExprPtr> choice;
+		if (key->GetExpressionClass() == ExpressionClass::COLUMN_REF && key->ToString() == key_param) {
+			// the elements themselves are the keys: equal elements are indistinguishable (except the zeros of floating
+			// point numbers, which take the general path), so a plain sort does it
+			ExprPtr direct = descending ? DuckCall("list_sort", args[0]->Copy(), ConstantExpression::String("DESC"))
+			                            : DuckCall("list_sort", args[0]->Copy());
+			auto exact = SparkCall("simple_sort_key", args[0]->Copy(), ConstantExpression::Boolean(true));
+			auto counted = DuckCall("list_count", args[0]->Copy());
+			auto length = DuckCall("len", args[0]->Copy());
+			choice.push_back(make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(exact),
+			                                                  Operator("=", std::move(counted), std::move(length))));
+			choice.push_back(std::move(direct));
+		}
+		choice.push_back(std::move(usable));
+		choice.push_back(std::move(fast));
+		choice.push_back(std::move(slow));
+		return SparkCall("case_when", std::move(choice));
 	}
 	if (name == "zip_with") {
 		auto args = TakeArguments(func);

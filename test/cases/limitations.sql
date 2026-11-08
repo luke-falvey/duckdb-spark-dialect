@@ -210,8 +210,50 @@ SELECT add_months('2016-08-31', x), left('abcdef', x) FROM VALUES (2L), (CAST(NU
 
 -- ===== L7: deep nesting =====
 
-SELECT ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
+SELECT ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
 
 SELECT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT NOT true;
 
 SELECT - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1;
+
+-- ===== L6: array_sort comparator shapes use a sort =====
+
+SELECT array_sort(array(5, 6, 1, 3, 2), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(5, 6, 1, 3, 2), (l, r) -> CASE WHEN l < r THEN 1 WHEN l > r THEN -1 ELSE 0 END);
+
+SELECT array_sort(array(5, 6, 1, 3, 2), (l, r) -> CASE WHEN l > r THEN 1 WHEN l < r THEN -1 ELSE 0 END), array_sort(array(5, 6, 1, 3, 2), (l, r) -> CASE WHEN l > r THEN -1 WHEN l < r THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(5, 6, 1, 3, 2), (x, y) -> CASE WHEN y < x THEN -1 WHEN y > x THEN 1 ELSE 0 END), array_sort(array(5, 6, 1, 3, 2), (x, y) -> CASE WHEN y > x THEN 1 WHEN y < x THEN -1 ELSE 0 END);
+
+SELECT array_sort(array(3, 1, 3, 2, 1, 2), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END), array_sort(array(3, 1, 3, 2, 1, 2), (l, r) -> CASE WHEN l < r THEN 1 WHEN l > r THEN -1 ELSE 0 END);
+
+SELECT array_sort(array('bc', 'ab', 'a', 'abc', ''), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END), array_sort(array('bc', 'ab', 'a', 'abc', ''), (l, r) -> CASE WHEN length(l) < length(r) THEN -1 WHEN length(l) > length(r) THEN 1 ELSE 0 END);
+
+SELECT array_sort(array('bb', 'a', 'cc', 'd', 'eee', 'ff'), (l, r) -> CASE WHEN length(l) < length(r) THEN 1 WHEN length(l) > length(r) THEN -1 ELSE 0 END);
+
+SELECT array_sort(array(1.5D, -0.5D, CAST('NaN' AS DOUBLE), 0.0D, 2.5D), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END), array_sort(array(true, false, true), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(DATE '2020-03-01', DATE '2019-01-01', DATE '2021-01-01'), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(struct(2, 'b'), struct(1, 'z'), struct(2, 'a')), (l, r) -> CASE WHEN l.col1 < r.col1 THEN -1 WHEN l.col1 > r.col1 THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(struct(2, 'b'), struct(1, 'z'), struct(2, 'a')), (l, r) -> CASE WHEN l.col2 < r.col2 THEN 1 WHEN l.col2 > r.col2 THEN -1 ELSE 0 END);
+
+SELECT array_sort(array(5, NULL, 1, 3), (l, r) -> CASE WHEN l IS NULL AND r IS NULL THEN 0 WHEN l IS NULL THEN -1 WHEN r IS NULL THEN 1 WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(5, NULL, 1, 3), (l, r) -> CASE WHEN l IS NULL AND r IS NULL THEN 0 WHEN l IS NULL THEN 1 WHEN r IS NULL THEN -1 WHEN l < r THEN 1 WHEN l > r THEN -1 ELSE 0 END);
+
+SELECT array_sort(array(5, 6, 1), (l, r) -> r - l), array_sort(array(5, 6, 1), (l, r) -> l - r), array_sort(array(2, 4, 1, 3), (l, r) -> CASE WHEN l % 2 < r % 2 THEN -1 WHEN l % 2 > r % 2 THEN 1 ELSE 0 END);
+
+SELECT array_sort(array(CAST(NULL AS INT)), (l, r) -> l - r), array_sort(array(1), (l, r) -> CAST(NULL AS INT)), array_sort(CAST(array() AS ARRAY<INT>), (l, r) -> CAST(NULL AS INT));
+
+SELECT array_sort(array(1, 2, 3), (l, r) -> CAST(NULL AS INT));
+
+SELECT array_sort(array(5, NULL, 1), (l, r) -> l - r);
+
+SELECT array_sort(CAST(NULL AS ARRAY<INT>), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END);
+
+SELECT a, array_sort(a, (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END) FROM VALUES (array(3, 1, 2)), (array(CAST(NULL AS INT), 2)), (array(9, 8)), (CAST(NULL AS ARRAY<INT>)) AS t(a);
+
+SELECT size(array_sort(sequence(2000, 1, -1), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END)), array_sort(sequence(2000, 1, -1), (l, r) -> CASE WHEN l < r THEN -1 WHEN l > r THEN 1 ELSE 0 END)[0];
