@@ -127,8 +127,10 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 - ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.
 - `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. For `session_window` over a join, the
   joined tables' aliases are not available in the query (a single table or subquery keeps its alias).
-- Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
-  and in `CAST`, not in other implicit casts.
+- Struct values are matched to struct columns by position (like Spark) in `INSERT ... VALUES` and `INSERT ... SELECT`
+  when the value is written with `struct(...)` or `named_struct(...)`, and in `CAST`. Spark also matches by position in
+  `UNION` and in `IN (...)` lists; there DuckDB's by-name rules apply (replacing them would change the default
+  dialect too). Everywhere else Spark rejects structs with different field names, which the lenient dialect accepts.
 - `array_sort` with a comparator: comparators of the form `CASE WHEN f(l) < f(r) THEN -1 WHEN f(l) > f(r) THEN 1
   ELSE 0 END` (also reversed, for a descending sort) over numbers, strings, booleans, dates and timestamps without
   NULL keys use a stable sort (O(n log n)). Other comparators rank each element (O(n²)); an inconsistent comparator

@@ -292,3 +292,22 @@ INSERT INTO l4_t2 SELECT 'abc';
 SELECT length(a), a = 'abc' FROM l4_t2;
 
 SELECT cast('ab' AS CHAR(300)), length(cast('ab' AS CHAR(3))), typeof(cast('ab' AS CHAR(5)));
+
+-- ===== L5: struct values are stored by position =====
+
+-- @setup
+CREATE TABLE l5_t (s STRUCT<a: INT, b: STRING>, n INT) USING parquet;
+
+INSERT INTO l5_t VALUES (named_struct('x', 1, 'y', 'q'), 1);
+
+INSERT INTO l5_t SELECT named_struct('p', 2, 'q', 'r'), 2;
+
+INSERT INTO l5_t SELECT struct(3, 's'), 3;
+
+INSERT INTO l5_t VALUES (named_struct('a', 4, 'b', 't'), 4), (named_struct('a', 5, 'b', 'u'), 5);
+
+INSERT INTO l5_t SELECT named_struct('x', n, 'y', concat('n', n)), n + 10 FROM l5_t WHERE n < 3;
+
+SELECT s, s.a, s.b, n FROM l5_t ORDER BY n;
+
+SELECT named_struct('a', 1, 'b', 2) = named_struct('a', 1, 'b', 2), struct(1, 2) = struct(1, 2L), array(struct(1, 2), struct(1, 2L));

@@ -1121,6 +1121,32 @@ Tokens EmptyResult(idx_t offset) {
 }
 
 //! Returns true if the statement was replaced completely.
+//! Splits the arguments of the call whose '(' is at ts[open] (top-level commas)
+vector<Tokens> CallArguments(const Tokens &ts, idx_t open, idx_t close) {
+	vector<Tokens> args;
+	Tokens current;
+	int64_t depth = 0;
+	for (idx_t k = open + 1; k + 1 < close; k++) {
+		if (IsOp(ts[k], "(")) {
+			depth++;
+		} else if (IsOp(ts[k], ")")) {
+			depth--;
+		}
+		if (depth == 0 && IsOp(ts[k], ",")) {
+			args.push_back(current);
+			current.clear();
+			continue;
+		}
+		current.push_back(ts[k]);
+	}
+	args.push_back(current);
+	return args;
+}
+
+void Append(Tokens &target, const Tokens &source) {
+	target.insert(target.end(), source.begin(), source.end());
+}
+
 bool RewriteStatement(Tokens &ts, bool strict) {
 	if (ts.empty()) {
 		return false;
@@ -1244,6 +1270,23 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			Erase(ts, name_end, name_end + 3);
 		}
 		for (idx_t k = name_end; k + 1 < ts.size(); k++) {
+			if (IsWord(ts[k], "named_struct") && OpAt(ts, k + 1, "(")) {
+				// Spark stores struct values by position: named_struct('x', 1, 'y', 2) is ROW(1, 2) here
+				auto close = SkipParens(ts, k + 1);
+				auto fields = CallArguments(ts, k + 1, close);
+				if (!fields.empty() && fields.size() % 2 == 0) {
+					Tokens row = Lex("ROW (", ts[k].offset);
+					for (idx_t f = 1; f < fields.size(); f += 2) {
+						if (f > 1) {
+							row.emplace_back(",", ts[k].offset, TokenType::OPERATOR);
+						}
+						Append(row, fields[f]);
+					}
+					row.emplace_back(")", ts[k].offset, TokenType::OPERATOR);
+					Replace(ts, k, close, row);
+					continue;
+				}
+			}
 			if (IsWord(ts[k], "STRUCT") && OpAt(ts, k + 1, "(")) {
 				auto close = SkipParens(ts, k + 1);
 				bool named = false;
@@ -1441,31 +1484,7 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 
 } // namespace
 
-//! Splits the arguments of the call whose '(' is at ts[open] (top-level commas)
-vector<Tokens> CallArguments(const Tokens &ts, idx_t open, idx_t close) {
-	vector<Tokens> args;
-	Tokens current;
-	int64_t depth = 0;
-	for (idx_t k = open + 1; k + 1 < close; k++) {
-		if (IsOp(ts[k], "(")) {
-			depth++;
-		} else if (IsOp(ts[k], ")")) {
-			depth--;
-		}
-		if (depth == 0 && IsOp(ts[k], ",")) {
-			args.push_back(current);
-			current.clear();
-			continue;
-		}
-		current.push_back(ts[k]);
-	}
-	args.push_back(current);
-	return args;
-}
 
-void Append(Tokens &target, const Tokens &source) {
-	target.insert(target.end(), source.begin(), source.end());
-}
 
 Tokens Parenthesized(const Tokens &tokens, idx_t offset) {
 	Tokens result;
