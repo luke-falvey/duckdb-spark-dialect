@@ -113,6 +113,13 @@ Fixed bugs keep a reproducer in `test/cases/fuzz_regressions.sql` (compared with
 reasons in `test/fuzz/known_differences.toml`. CI runs a fixed-seed smoke of each fuzzer on every push; a nightly
 workflow runs them longer with random seeds and the sanitizer build.
 
+### Performance
+
+`bench/` measures the cost of the dialect against equivalent native DuckDB SQL: TPC-H SF1 runs at 1.12x native
+(geometric mean of the 22 queries), most functions and operators at 1.0x to 1.3x, and parsing at about 3x.
+See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
+[docs/PERFORMANCE_RESULTS.md](docs/PERFORMANCE_RESULTS.md) for the numbers.
+
 ### Limitations (behaviour the tests do not exercise)
 
 - ANSI mode (`spark.sql.ansi.enabled = true`) is not emulated; semantics are Spark 3.5's default.

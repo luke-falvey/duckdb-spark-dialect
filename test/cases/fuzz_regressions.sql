@@ -118,3 +118,6 @@ SELECT window(ts, '1 hour').start AS s, count(*) FROM (SELECT timestamp_seconds(
 SELECT sha2('abc', 256), sha2(X'FF', 256), sha2('abc', 0), sha2(X'00FF', 384), sha2('abc', 999), split('a,b,,c,', ','), split('a::b', '::'), split('a,b', ',', 1);
 
 SELECT sha2('abc', 224), sha2('abc', 384), sha2('abc', 512), sha2(X'FF00', 224);
+
+-- ===== decimal multiplication beyond 38 digits of operand precision: exact, not via DOUBLE =====
+SELECT p * (1 - d) * (1 + t), typeof(p * (1 - d) * (1 + t)), CAST(12345678901234567890.12 AS DECIMAL(22,2)) * CAST(98765432109876543.21 AS DECIMAL(19,2)), CAST(9999999999999999999999999999999999.9999 AS DECIMAL(38,4)) * CAST(99999 AS DECIMAL(5,0)) FROM VALUES (CAST(31234.56 AS DECIMAL(15,2)), CAST(0.07 AS DECIMAL(15,2)), CAST(0.03 AS DECIMAL(15,2))), (CAST(-0.05 AS DECIMAL(15,2)), CAST(0.10 AS DECIMAL(15,2)), CAST(0.08 AS DECIMAL(15,2))) AS v(p, d, t);

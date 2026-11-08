@@ -1,0 +1,121 @@
+{
+ "note": "func_smoke ratios (spark / native) recorded by `python bench/func_bench.py --smoke --rows 300000 --runs 3`; CI fails when a ratio exceeds 3x its baseline. Update deliberately, in its own commit.",
+ "machine": {
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+  "nproc": 4,
+  "python": "3.13.18",
+  "duckdb": "2.0.0",
+  "extension_sha": "daf472a",
+  "date": "2026-11-08 07:02"
+ },
+ "func": [
+  {
+   "name": "add_int",
+   "ratio": 1.234
+  },
+  {
+   "name": "divide_int",
+   "ratio": 1.321
+  },
+  {
+   "name": "add_double",
+   "ratio": 1.209
+  },
+  {
+   "name": "mul_decimal",
+   "ratio": 2.912
+  },
+  {
+   "name": "compare_eq",
+   "ratio": 1.052
+  },
+  {
+   "name": "concat_op",
+   "ratio": 1.001
+  },
+  {
+   "name": "cast_int_to_string",
+   "ratio": 1.033
+  },
+  {
+   "name": "cast_string_to_int",
+   "ratio": 1.9
+  },
+  {
+   "name": "case_when",
+   "ratio": 1.121
+  },
+  {
+   "name": "array_subscript",
+   "ratio": 1.073
+  },
+  {
+   "name": "sum_int",
+   "ratio": 1.289
+  },
+  {
+   "name": "sum_decimal",
+   "ratio": 1.317
+  },
+  {
+   "name": "group_sum_int",
+   "ratio": 1.234
+  },
+  {
+   "name": "upper",
+   "ratio": 1.033
+  },
+  {
+   "name": "substr",
+   "ratio": 1.489
+  },
+  {
+   "name": "split_regex",
+   "ratio": 1.262
+  },
+  {
+   "name": "regexp_extract",
+   "ratio": 1.009
+  },
+  {
+   "name": "like",
+   "ratio": 1.638
+  },
+  {
+   "name": "get_json_object",
+   "ratio": 1.859
+  },
+  {
+   "name": "date_format",
+   "ratio": 3.568
+  },
+  {
+   "name": "array_sort",
+   "ratio": 1.001
+  },
+  {
+   "name": "transform",
+   "ratio": 0.854
+  },
+  {
+   "name": "explode",
+   "ratio": 1.713
+  },
+  {
+   "name": "round",
+   "ratio": 0.859
+  },
+  {
+   "name": "row_number",
+   "ratio": 1.358
+  },
+  {
+   "name": "filter_int_eq",
+   "ratio": 1.129
+  },
+  {
+   "name": "filter_date_range",
+   "ratio": 1.207
+  }
+ ]
+}

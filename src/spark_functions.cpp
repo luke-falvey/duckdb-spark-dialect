@@ -13,6 +13,7 @@
 #include "duckdb/common/vector_operations/unary_executor.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
+#include "duckdb/common/operator/multiply.hpp"
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/function/function_binder.hpp"
@@ -1366,6 +1367,7 @@ LogicalType DecimalOperandType(const Expression &expr, const LogicalType &type) 
 }
 
 ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target);
+ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int s2, const LogicalType &target);
 
 template <class OP, class CHECKED_OP, bool CHECKED>
 ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
@@ -1426,7 +1428,7 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 				auto wide_left = LogicalType::DECIMAL(uint8_t(MinValue(38, MaxValue(p1, 38 - p2))), uint8_t(s1));
 				value = b.Op("*", b.Cast(std::move(left), wide_left), b.Cast(std::move(right), rd));
 			} else {
-				value = b.Op("*", b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+				return SparkWideDecimalMultiply(b, std::move(left), s1, std::move(right), s2, result_type);
 			}
 		} else {
 			auto common = LogicalType::DECIMAL(38, uint8_t(MaxValue(s1, s2)));
@@ -1522,6 +1524,85 @@ ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target) {
 		break;
 	}
 	return b.Kernel(ScalarFunction(Identifier("spark_decimal_result"), {source}, target, fn), std::move(value));
+}
+
+//! Decimal multiplication whose operand precisions add up to more than 38: the exact 128-bit product (NULL when
+//! it overflows), then rounded HALF_UP to Spark's result scale (NULL when it does not fit). Both inputs are
+//! DECIMAL(38, s).
+template <class OUT>
+void DecimalMultiplyKernel(DataChunk &args, ExpressionState &, Vector &result, hugeint_t divisor, hugeint_t limit) {
+	bool small_divisor = divisor < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t divisor64 = small_divisor ? Hugeint::Cast<int64_t>(divisor) : 0;
+	bool small_limit = limit < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t limit64 = small_limit ? Hugeint::Cast<int64_t>(limit) : 0;
+	const hugeint_t int64_max(NumericLimits<int64_t>::Maximum());
+	const hugeint_t int64_min(NumericLimits<int64_t>::Minimum());
+	BinaryExecutor::Execute<hugeint_t, hugeint_t, OUT>(
+	    args.data[0], args.data[1], result, args.size(), [&](hugeint_t a, hugeint_t b) -> optional<OUT> {
+		    // fast path: both operands and the product fit in 64 bits (the common case)
+		    if (small_divisor && a < int64_max && a > int64_min && b < int64_max && b > int64_min) {
+			    int64_t product;
+			    if (TryMultiplyOperator::Operation<int64_t, int64_t, int64_t>(Hugeint::Cast<int64_t>(a),
+			                                                                   Hugeint::Cast<int64_t>(b), product) &&
+			        product != NumericLimits<int64_t>::Minimum()) {
+				    int64_t q = product;
+				    if (divisor64 > 1) {
+					    q = product / divisor64;
+					    int64_t r = product % divisor64;
+					    if ((r < 0 ? -r : r) >= divisor64 - (r < 0 ? -r : r)) {
+						    q += product < 0 ? -1 : 1;
+					    }
+				    }
+				    if (small_limit && (q >= limit64 || q <= -limit64)) {
+					    return optional<OUT>();
+				    }
+				    return OUT(q);
+			    }
+		    }
+		    hugeint_t value;
+		    if (!Hugeint::TryMultiply(a, b, value)) {
+			    return optional<OUT>();
+		    }
+		    if (divisor > hugeint_t(1)) {
+			    hugeint_t quotient = value / divisor;
+			    hugeint_t remainder = value - quotient * divisor;
+			    if (remainder < hugeint_t(0)) {
+				    remainder = -remainder;
+			    }
+			    if (remainder * hugeint_t(2) >= divisor) {
+				    quotient += value < hugeint_t(0) ? hugeint_t(-1) : hugeint_t(1);
+			    }
+			    value = quotient;
+		    }
+		    if (value >= limit || value <= -limit) {
+			    return optional<OUT>();
+		    }
+		    return Hugeint::Cast<OUT>(value);
+	    });
+}
+
+ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int s2, const LogicalType &target) {
+	auto divisor = Hugeint::POWERS_OF_TEN[s1 + s2 - DecimalType::GetScale(target)];
+	auto limit = Hugeint::POWERS_OF_TEN[DecimalType::GetWidth(target)];
+	scalar_function_t fn;
+	switch (target.InternalType()) {
+	case PhysicalType::INT16:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<int16_t>(a, st, r, divisor, limit); };
+		break;
+	case PhysicalType::INT32:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<int32_t>(a, st, r, divisor, limit); };
+		break;
+	case PhysicalType::INT64:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<int64_t>(a, st, r, divisor, limit); };
+		break;
+	default:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<hugeint_t>(a, st, r, divisor, limit); };
+		break;
+	}
+	auto lt = LogicalType::DECIMAL(38, uint8_t(s1));
+	auto rt = LogicalType::DECIMAL(38, uint8_t(s2));
+	return b.Kernel(ScalarFunction(Identifier("spark_decimal_multiply"), {lt, rt}, target, fn),
+	                b.Cast(std::move(left), lt), b.Cast(std::move(right), rt));
 }
 
 ExprP BindAdd(FunctionBindExpressionInput &input) {
