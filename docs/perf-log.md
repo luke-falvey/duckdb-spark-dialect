@@ -111,3 +111,11 @@ uses `snprintf`, the output string is reused per thread. A/B (9 runs): `date_for
 (0.914, faster). A two-digit shortcut gave no further gain. Checks: suites, replay, `args_sweep` over the datetime
 functions: 4 failing findings, the same 4 with the previous build (`from_unixtime(9223372036854775807L)` raises where
 Spark wraps: backlog item 12).
+
+## split_comma 126x in --db mode (investigated, not a regression)
+In the in-memory tables the pair is 3.3x. With `--db` (persisted, compressed tables) the `csv` column has ~70
+distinct values, so DuckDB stores it dictionary-compressed and native `string_split` runs on the dictionary only
+(~1.6 ms for 1M rows). The Spark kernel is evaluated per row (~200 ms). The ratio is a property of low-cardinality
+stored data, not of the kernel; the in-memory 3.3x is the honest per-row cost. Treat low-cardinality-column pairs
+in `--db` mode as dictionary-biased; pair changed to `size(split(...))` / `len(string_split(...))` so list
+construction cannot be elided. Follow-up for backlog item 6 (literal separator fast path).

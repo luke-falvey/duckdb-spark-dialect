@@ -381,8 +381,8 @@ smoke = true
 
 [[pair]]
 name = "split_comma"
-spark = "split(csv, ',')"
-native = "string_split(csv, ',')"
+spark = "size(split(csv, ','))"
+native = "len(string_split(csv, ','))"
 table = "strs"
 
 [[pair]]
