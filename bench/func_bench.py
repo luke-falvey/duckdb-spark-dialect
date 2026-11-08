@@ -80,6 +80,21 @@ def limit_rows(pair, sql, rows):
     return sql
 
 
+DB_PATH = common.OUT_DIR / "func_tables.duckdb"
+
+
+def make_db(rows):
+    """The benchmark tables once, in bench/out/func_tables.duckdb, so every tool (func_bench, ab, profile) times
+    identical data and opens it read-only instead of regenerating it."""
+    common.OUT_DIR.mkdir(exist_ok=True)
+    DB_PATH.unlink(missing_ok=True)
+    con = common.connect(str(DB_PATH), threads=2, load=False)
+    create_tables(con, rows)
+    con.execute("CREATE TABLE bench_meta AS SELECT %d AS rows" % rows)
+    con.close()
+    print(f"wrote {DB_PATH} ({rows} rows per table)")
+
+
 def run(args):
     pairs = tomllib.loads(PAIRS.read_text())["pair"]
     if args.only:
@@ -87,8 +102,12 @@ def run(args):
         pairs = [p for p in pairs if p["name"] in wanted]
     if args.smoke:
         pairs = [p for p in pairs if p.get("smoke")]
-    con = common.connect(threads=1)
-    create_tables(con, args.rows)
+    if args.db:
+        con = common.connect(str(DB_PATH), threads=1, read_only=True)
+        args.rows = con.execute("SELECT rows FROM bench_meta").fetchone()[0]
+    else:
+        con = common.connect(threads=1)
+        create_tables(con, args.rows)
     results = []
     for p in pairs:
         spark_sql = limit_rows(p, wrap(p, "spark"), args.rows)
@@ -131,10 +150,16 @@ def main():
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--name", default=None)
+    ap.add_argument("--make-db", action="store_true", help="write bench/out/func_tables.duckdb and exit")
+    ap.add_argument("--db", action="store_true", help="use bench/out/func_tables.duckdb (read-only) instead of tables in memory")
     args = ap.parse_args()
+    if args.make_db:
+        make_db(args.rows)
+        return
     results = run(args)
     common.write_results(args.name or ("func_smoke" if args.smoke else "func"), results)
 
 
 if __name__ == "__main__":
-    main()
+    with common.BenchLock():
+        main()

@@ -1,0 +1,18 @@
+# Performance backlog
+
+Plan: [plans/performance-testing.md](plans/performance-testing.md). Log: [perf-log.md](perf-log.md).
+Status: `todo`, `in progress`, `done`, `dropped: <reason>`. Ordered by end-to-end impact. Each item gets about two
+hours; update this file whenever an item changes state.
+
+| # | item | today | idea to start from | target | status |
+|---|---|---|---|---|---|
+| 1 | `sum(decimal)` / `avg(decimal)` 128-bit state (TPC-H Q09, Q10, Q13) | 1.6x | accumulate in `int64_t` while the running sum fits (checked add), switch the state to `hugeint_t` on overflow; or pick the state by input precision at bind time | <= 1.15x; TPC-H geomean <= 1.12x | todo |
+| 2 | Q01 / `mul_decimal`: 128-bit decimal products | 2.57x / 4.0x | `EXPLAIN ANALYZE` for the dominant operator; keep 64-bit physical types where Spark's precision <= 18 | Q01 <= 2.0x | todo |
+| 3 | `format_string` / `printf` | 5.3x | parse the format string once (constant: cache per thread); fast paths for `%s` / `%d` | <= 1.5x | todo |
+| 4 | `to_json` | 18x | write JSON from the vectors directly instead of `Value`s per row | <= 2x | todo |
+| 5 | `date_format` / `to_timestamp` with patterns | 3.5x / 2.2x | profile the formatter after the pattern cache; no `std::string` per field | <= 1.5x | todo |
+| 6 | `split` with a literal separator | 3.4x | build the list child vector directly | <= 1.3x | todo |
+| 7 | `substr` | 2.3x | detect ASCII once per string; use DuckDB's `substring` when the start is positive | <= 1.3x | todo |
+| 8 | `array_contains`, `size`, `floor`, `hex`, string to int / date casts, `cast_double_to_string` | 1.8x to 2.3x | small kernels instead of macros wrapping conversions | <= 1.3x | todo |
+| 9 | parsing | 3.35x | order `SpAtom` alternatives, first-set check for keyword alternatives, fewer hook frames, merge tokenizer passes | <= 2.0x | todo |
+| 10 | findings of phase B | | | | todo |
