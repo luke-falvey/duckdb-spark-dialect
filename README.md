@@ -82,8 +82,10 @@ only need to succeed (Spark returns no rows, DuckDB a row count; the data is che
 queries), and cases Spark marks as random (`rand()`, `uuid()`, random-IV `aes_encrypt`, …) only
 need to succeed.
 
-**Current result: all 1233 differential cases are identical to Spark under both dialects (0 failing,
-0 lenient).** Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
+**Current result: all 1308 differential cases are identical to Spark under both dialects (0 failing,
+0 lenient)**: the original 1233, plus 53 reproducers of bugs found by the fuzzers
+(`test/cases/fuzz_regressions.sql`) and the 22 TPC-H queries of the benchmark over generated data
+(`test/cases/tpch_small.sql`). Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
 rejects every one (the lenient `spark` dialect accepts 56 of them, reported as `LENIENT`, which is not a failure),
 and `test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
 `python test/run_duckdb.py --dialect spark_strict`, which fails on any `LENIENT` result. CI runs both dialects. The 1233 cases cover all 106
@@ -92,6 +94,33 @@ operator cases and every documented example of all 421 Spark built-ins that have
 `test/cases/regressions.sql` re-checks the later fixes with different data. The harness also fails
 any case where DuckDB raises an internal error, even if Spark errors too. See
 [COVERAGE.md](COVERAGE.md).
+
+### Fuzzing
+
+`test/fuzz/` holds fuzzers that look for what the case files miss (details in
+[test/fuzz/README.md](test/fuzz/README.md)):
+
+- `mutate.py`: mutated and structurally extreme SQL in every dialect, also through an AddressSanitizer / UBSan
+  build; any crash, hang or `INTERNAL` error is a finding
+- `args_sweep.py`: every documented Spark function example with edge-case arguments (as constants and as
+  columns), compared with Spark
+- `differential.py`: random typed queries (joins, grouping sets, windows, `LATERAL VIEW`, `PIVOT`, subqueries,
+  ...) over tables of edge-case values, compared with Spark in both dialects, with automatic reduction
+- `isolation.py`: DuckDB's own sqllogictest statements must behave the same with the extension loaded
+  and a Spark dialect selected and reset
+- `spark_corpus.py`: Spark's own `sql-tests` inputs, as a source of findings
+
+Fixed bugs keep a reproducer in `test/cases/fuzz_regressions.sql` (compared with Spark) or
+`test/fuzz/crash_regressions.sql` (must not crash). Differences that are deliberately not fixed are listed with
+reasons in `test/fuzz/known_differences.toml`. CI runs a fixed-seed smoke of each fuzzer on every push; a nightly
+workflow runs them longer with random seeds and the sanitizer build.
+
+### Performance
+
+`bench/` measures the cost of the dialect against equivalent native DuckDB SQL: TPC-H SF1 runs at 1.12x native
+(geometric mean of the 22 queries), most functions and operators at 1.0x to 1.3x, and parsing at about 3x.
+See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
+[docs/PERFORMANCE_RESULTS.md](docs/PERFORMANCE_RESULTS.md) for the numbers.
 
 ### Limitations (behaviour the tests do not exercise)
 
@@ -105,6 +134,9 @@ any case where DuckDB raises an internal error, even if Spark errors too. See
 - Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
   and in `CAST`, not in other implicit casts.
 - `array_sort` with a comparator sorts by rank (O(n²)); it expects a consistent comparator.
+- Expressions nested more deeply than a third of the thread's stack allows (about 160 levels on an 8 MB stack)
+  fail with "Expression is nested too deeply" instead of DuckDB's limit of 1000 levels.
+- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml`.
 - Statements are rewritten at the token level in places (see the table above), so error messages
   for invalid Spark SQL can point at rewritten text.
 

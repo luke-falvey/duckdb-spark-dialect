@@ -612,17 +612,14 @@ struct NumberFormat {
 					if (d != ' ') {
 						started = true;
 					}
-					if (d != ' ' || c == '0') {
-						out += d;
-					}
+					// unused leading positions are spaces: the result has the width of the format, like Spark
+					out += d;
 				}
 			} else if (c == '.' || c == 'D') {
 				out += '.';
 				after_point = true;
 			} else if (c == ',' || c == 'G') {
-				if (started) {
-					out += ',';
-				}
+				out += started ? ',' : ' ';
 			} else if (c == '$') {
 				out += '$';
 			} else if (c == 'S') {
@@ -638,9 +635,8 @@ struct NumberFormat {
 		}
 		if (brackets && negative) {
 			out = "<" + out + ">";
-		} else if (negative && !sign_start && !sign_end && !mi_end) {
-			out = "-" + out;
 		}
+		// without S / MI / PR in the format, Spark prints the absolute value
 		return true;
 	}
 
@@ -1081,6 +1077,21 @@ void RegisterSparkExtras(ExtensionLoader &loader) {
 		auto &create = parser.statements[0]->Cast<CreateStatement>();
 		auto &info = create.info->Cast<CreateMacroInfo>();
 		info.SetQualifiedName(QualifiedName({Identifier(SPARK_SCHEMA)}, Identifier("sql_keywords")));
+		info.internal = true;
+		loader.RegisterFunction(info);
+	}
+	// Spark's range() table function: one BIGINT column named id (DuckDB's is named range); one macro per
+	// argument count (the tokenizer picks it), the optional 4th argument (numPartitions) is ignored
+	for (auto &def : vector<pair<string, string>> {
+	         {"spark_range_1(a)", "range(CAST(a AS BIGINT))"},
+	         {"spark_range_2(a, b)", "range(CAST(a AS BIGINT), CAST(b AS BIGINT))"},
+	         {"spark_range_3(a, b, c)", "range(CAST(a AS BIGINT), CAST(b AS BIGINT), CAST(c AS BIGINT))"},
+	         {"spark_range_4(a, b, c, d)", "range(CAST(a AS BIGINT), CAST(b AS BIGINT), CAST(c AS BIGINT))"}}) {
+		auto parser = Parser::GetBuiltinParser();
+		parser.ParseQuery("CREATE MACRO " + def.first + " AS TABLE SELECT range AS id FROM " + def.second);
+		auto &create = parser.statements[0]->Cast<CreateStatement>();
+		auto &info = create.info->Cast<CreateMacroInfo>();
+		info.SetQualifiedName(QualifiedName({Identifier(SPARK_SCHEMA)}, Identifier(def.first.substr(0, 13))));
 		info.internal = true;
 		loader.RegisterFunction(info);
 	}

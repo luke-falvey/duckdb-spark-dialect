@@ -1,0 +1,727 @@
+# Spark expression (run in the `spark` dialect) vs the closest native DuckDB expression (default dialect).
+#
+# kind = "scalar" (default): SELECT count(v) FROM (SELECT <expr> AS v FROM <table>)
+# kind = "agg":              SELECT <expr> FROM <table>
+# kind = "group":            SELECT count(*) FROM (SELECT j, <expr> AS v FROM <table> GROUP BY j)
+# kind = "query":            SELECT count(*) FROM (<query>)
+# native = "" means there is no native equivalent: only the absolute throughput is reported.
+# smoke = true marks the subset used in CI (bench-smoke).
+#
+# Tables (bench/func_bench.py creates them in the default dialect, 10% NULLs in every column):
+#   ints(i INT, j INT 1..97, b BIGINT)   doubles(x DOUBLE, y DOUBLE)   decs(d DECIMAL(18,2), e DECIMAL(38,10))
+#   strs(s short ASCII, s2, l ~200 chars, u non-ASCII, csv 'a,b;c..', sn numeric string, sd date string,
+#        sts timestamp string, js JSON object)
+#   dates(dt DATE, ts TIMESTAMP)   arrs(a INT[] length 0..20, sa VARCHAR[])   maps(m MAP(VARCHAR, INT))
+
+# ---- operators ----
+[[pair]]
+name = "add_int"
+spark = "i + j"
+native = "i + j"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "mul_int"
+spark = "i * j"
+native = "i * j"
+table = "ints"
+
+[[pair]]
+name = "add_bigint"
+spark = "b + 1"
+native = "b + 1"
+table = "ints"
+
+[[pair]]
+name = "divide_int"
+spark = "i / j"
+native = "i / j"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "div_int"
+spark = "i div j"
+native = "i // j"
+table = "ints"
+
+[[pair]]
+name = "mod_int"
+spark = "i % j"
+native = "i % j"
+table = "ints"
+
+[[pair]]
+name = "pmod"
+spark = "pmod(i, 7)"
+native = "((i % 7) + 7) % 7"
+table = "ints"
+
+[[pair]]
+name = "negate"
+spark = "-i"
+native = "-i"
+table = "ints"
+
+[[pair]]
+name = "bitand"
+spark = "i & j"
+native = "i & j"
+table = "ints"
+
+[[pair]]
+name = "add_double"
+spark = "x + y"
+native = "x + y"
+table = "doubles"
+smoke = true
+
+[[pair]]
+name = "mul_decimal"
+spark = "d * d"
+native = "d * d"
+table = "decs"
+smoke = true
+
+[[pair]]
+name = "add_decimal_wide"
+spark = "d + e"
+native = "d + e"
+table = "decs"
+
+[[pair]]
+name = "compare_eq"
+spark = "i = j"
+native = "i = j"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "compare_lt_literal"
+spark = "i < 100"
+native = "i < 100"
+table = "ints"
+
+[[pair]]
+name = "null_safe_eq"
+spark = "i <=> j"
+native = "i IS NOT DISTINCT FROM j"
+table = "ints"
+
+[[pair]]
+name = "concat_op"
+spark = "s || s2"
+native = "s || s2"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "and_or"
+spark = "(i > 0 AND j < 50) OR b IS NULL"
+native = "(i > 0 AND j < 50) OR b IS NULL"
+table = "ints"
+
+# ---- casts ----
+[[pair]]
+name = "cast_int_to_string"
+spark = "CAST(i AS STRING)"
+native = "CAST(i AS VARCHAR)"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "cast_string_to_int"
+spark = "CAST(sn AS INT)"
+native = "TRY_CAST(sn AS INT)"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "cast_double_to_string"
+spark = "CAST(x AS STRING)"
+native = "CAST(x AS VARCHAR)"
+table = "doubles"
+
+[[pair]]
+name = "cast_string_to_date"
+spark = "CAST(sd AS DATE)"
+native = "TRY_CAST(sd AS DATE)"
+table = "strs"
+
+[[pair]]
+name = "cast_decimal"
+spark = "CAST(d AS DECIMAL(10,1))"
+native = "CAST(d AS DECIMAL(10,1))"
+table = "decs"
+
+[[pair]]
+name = "cast_double_to_int"
+spark = "CAST(x AS INT)"
+native = "TRY_CAST(trunc(x) AS INT)"
+table = "doubles"
+
+# ---- conditionals ----
+[[pair]]
+name = "case_when"
+spark = "CASE WHEN i > 0 THEN i WHEN j > 10 THEN j ELSE 0 END"
+native = "CASE WHEN i > 0 THEN i WHEN j > 10 THEN j ELSE 0 END"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "if"
+spark = "if(i > 0, i, j)"
+native = "if(i > 0, i, j)"
+table = "ints"
+
+[[pair]]
+name = "coalesce"
+spark = "coalesce(i, j, 0)"
+native = "coalesce(i, j, 0)"
+table = "ints"
+
+[[pair]]
+name = "nvl"
+spark = "nvl(i, 0)"
+native = "coalesce(i, 0)"
+table = "ints"
+
+# ---- subscripts ----
+[[pair]]
+name = "array_subscript"
+spark = "a[0]"
+native = "a[1]"
+table = "arrs"
+smoke = true
+
+[[pair]]
+name = "element_at_array"
+spark = "element_at(a, 1)"
+native = "a[1]"
+table = "arrs"
+
+[[pair]]
+name = "map_subscript"
+spark = "m['k1']"
+native = "m['k1']"
+table = "maps"
+
+# ---- aggregates ----
+[[pair]]
+name = "sum_int"
+kind = "agg"
+spark = "sum(i)"
+native = "sum(i)"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "sum_bigint"
+kind = "agg"
+spark = "sum(b)"
+native = "sum(b)"
+table = "ints"
+
+[[pair]]
+name = "sum_double"
+kind = "agg"
+spark = "sum(x)"
+native = "sum(x)"
+table = "doubles"
+
+[[pair]]
+name = "sum_decimal"
+kind = "agg"
+spark = "sum(d)"
+native = "sum(d)"
+table = "decs"
+smoke = true
+
+[[pair]]
+name = "avg_int"
+kind = "agg"
+spark = "avg(i)"
+native = "avg(i)"
+table = "ints"
+
+[[pair]]
+name = "avg_double"
+kind = "agg"
+spark = "avg(x)"
+native = "avg(x)"
+table = "doubles"
+
+[[pair]]
+name = "avg_decimal"
+kind = "agg"
+spark = "avg(d)"
+native = "avg(d)"
+table = "decs"
+
+[[pair]]
+name = "count"
+kind = "agg"
+spark = "count(i)"
+native = "count(i)"
+table = "ints"
+
+[[pair]]
+name = "count_distinct"
+kind = "agg"
+spark = "count(DISTINCT j)"
+native = "count(DISTINCT j)"
+table = "ints"
+
+[[pair]]
+name = "min_max"
+kind = "agg"
+spark = "min(i) + max(i)"
+native = "min(i) + max(i)"
+table = "ints"
+
+[[pair]]
+name = "group_sum_int"
+kind = "group"
+spark = "sum(i)"
+native = "sum(i)"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "group_avg_double"
+kind = "group"
+spark = "avg(b)"
+native = "avg(b)"
+table = "ints"
+
+[[pair]]
+name = "group_count"
+kind = "group"
+spark = "count(*)"
+native = "count(*)"
+table = "ints"
+
+[[pair]]
+name = "group_sum_high_cardinality"
+kind = "query"
+spark = "SELECT b % 100000 AS g, sum(i) FROM ints GROUP BY b % 100000"
+native = "SELECT b % 100000 AS g, sum(i) FROM ints GROUP BY b % 100000"
+table = "ints"
+
+# ---- strings ----
+[[pair]]
+name = "upper"
+spark = "upper(s)"
+native = "upper(s)"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "lower_unicode"
+spark = "lower(u)"
+native = "lower(u)"
+table = "strs"
+
+[[pair]]
+name = "length"
+spark = "length(u)"
+native = "length(u)"
+table = "strs"
+
+[[pair]]
+name = "substr"
+spark = "substr(l, 2, 10)"
+native = "substr(l, 2, 10)"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "concat"
+spark = "concat(s, s2)"
+native = "s || s2"
+table = "strs"
+
+[[pair]]
+name = "concat_ws"
+spark = "concat_ws(',', s, s2)"
+native = "concat_ws(',', s, s2)"
+table = "strs"
+
+[[pair]]
+name = "trim"
+spark = "trim(s)"
+native = "trim(s)"
+table = "strs"
+
+[[pair]]
+name = "lpad"
+spark = "lpad(s, 12, '*')"
+native = "lpad(s, 12, '*')"
+table = "strs"
+
+[[pair]]
+name = "replace"
+spark = "replace(l, 'a', 'b')"
+native = "replace(l, 'a', 'b')"
+table = "strs"
+
+[[pair]]
+name = "instr"
+spark = "instr(l, 'xyz')"
+native = "instr(l, 'xyz')"
+table = "strs"
+
+[[pair]]
+name = "split_regex"
+spark = "split(csv, '[,;]')"
+native = "regexp_split_to_array(csv, '[,;]')"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "split_comma"
+spark = "split(csv, ',')"
+native = "string_split(csv, ',')"
+table = "strs"
+
+[[pair]]
+name = "regexp_extract"
+spark = "regexp_extract(l, '([a-z]+)([0-9]+)', 1)"
+native = "regexp_extract(l, '([a-z]+)([0-9]+)', 1)"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "regexp_replace"
+spark = "regexp_replace(s, '[aeiou]', '_')"
+native = "regexp_replace(s, '[aeiou]', '_', 'g')"
+table = "strs"
+
+[[pair]]
+name = "rlike"
+spark = "s RLIKE 'a.c'"
+native = "regexp_matches(s, 'a.c')"
+table = "strs"
+
+[[pair]]
+name = "like"
+spark = "l LIKE '%abc%'"
+native = "l LIKE '%abc%'"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "initcap"
+spark = "initcap(s)"
+native = ""
+table = "strs"
+
+[[pair]]
+name = "reverse"
+spark = "reverse(s)"
+native = "reverse(s)"
+table = "strs"
+
+[[pair]]
+name = "repeat"
+spark = "repeat(s, 3)"
+native = "repeat(s, 3)"
+table = "strs"
+
+[[pair]]
+name = "md5"
+spark = "md5(s)"
+native = "md5(s)"
+table = "strs"
+
+[[pair]]
+name = "sha2_256"
+spark = "sha2(s, 256)"
+native = "sha256(s)"
+table = "strs"
+
+[[pair]]
+name = "hash_murmur3"
+spark = "hash(s)"
+native = ""
+table = "strs"
+
+[[pair]]
+name = "xxhash64"
+spark = "xxhash64(s)"
+native = ""
+table = "strs"
+
+[[pair]]
+name = "format_string"
+spark = "format_string('%s-%d', s, j)"
+native = "printf('%s-%d', s, j)"
+table = "strs"
+
+[[pair]]
+name = "ascii"
+spark = "ascii(s)"
+native = "ascii(s)"
+table = "strs"
+
+[[pair]]
+name = "get_json_object"
+spark = "get_json_object(js, '$.a')"
+native = "json_extract_string(js, '$.a')"
+table = "strs"
+smoke = true
+
+[[pair]]
+name = "from_json"
+spark = "from_json(js, 'a INT, b STRING')"
+native = ""
+table = "strs"
+
+[[pair]]
+name = "to_json"
+spark = "to_json(named_struct('a', j, 'b', s))"
+native = "to_json({'a': j, 'b': s})"
+table = "strs"
+
+# ---- dates ----
+[[pair]]
+name = "year"
+spark = "year(dt)"
+native = "year(dt)"
+table = "dates"
+
+[[pair]]
+name = "date_add"
+spark = "date_add(dt, 5)"
+native = "dt + 5"
+table = "dates"
+
+[[pair]]
+name = "datediff"
+spark = "datediff(dt, DATE '2020-01-01')"
+native = "datediff('day', DATE '2020-01-01', dt)"
+table = "dates"
+
+[[pair]]
+name = "date_format"
+spark = "date_format(ts, 'yyyy-MM-dd HH:mm')"
+native = "strftime(ts, '%Y-%m-%d %H:%M')"
+table = "dates"
+smoke = true
+
+[[pair]]
+name = "to_date_string"
+spark = "to_date(sd)"
+native = "TRY_CAST(sd AS DATE)"
+table = "strs"
+
+[[pair]]
+name = "to_timestamp_pattern"
+spark = "to_timestamp(sts, 'yyyy-MM-dd HH:mm:ss')"
+native = "try_strptime(sts, '%Y-%m-%d %H:%M:%S')"
+table = "strs"
+
+[[pair]]
+name = "unix_timestamp"
+spark = "unix_timestamp(ts)"
+native = "epoch(ts)"
+table = "dates"
+
+[[pair]]
+name = "trunc_month"
+spark = "trunc(dt, 'MM')"
+native = "date_trunc('month', dt)"
+table = "dates"
+
+[[pair]]
+name = "date_trunc_hour"
+spark = "date_trunc('HOUR', ts)"
+native = "date_trunc('hour', ts)"
+table = "dates"
+
+[[pair]]
+name = "add_months"
+spark = "add_months(dt, 1)"
+native = "dt + INTERVAL 1 MONTH"
+table = "dates"
+
+[[pair]]
+name = "months_between"
+spark = "months_between(ts, TIMESTAMP '2020-01-01 00:00:00')"
+native = ""
+table = "dates"
+
+# ---- arrays and maps ----
+[[pair]]
+name = "size"
+spark = "size(a)"
+native = "len(a)"
+table = "arrs"
+
+[[pair]]
+name = "array_contains"
+spark = "array_contains(a, 5)"
+native = "list_contains(a, 5)"
+table = "arrs"
+
+[[pair]]
+name = "array_sort"
+spark = "array_sort(a)"
+native = "list_sort(a)"
+table = "arrs"
+smoke = true
+
+[[pair]]
+name = "array_sort_comparator"
+spark = "array_sort(a, (l, r) -> CASE WHEN l < r THEN 1 WHEN l > r THEN -1 ELSE 0 END)"
+native = "list_reverse_sort(a)"
+table = "arrs"
+n = 100000
+
+[[pair]]
+name = "array_distinct"
+spark = "array_distinct(a)"
+native = "list_distinct(a)"
+table = "arrs"
+
+[[pair]]
+name = "transform"
+spark = "transform(a, x -> x + 1)"
+native = "list_transform(a, lambda x: x + 1)"
+table = "arrs"
+smoke = true
+
+[[pair]]
+name = "filter"
+spark = "filter(a, x -> x > 5)"
+native = "list_filter(a, lambda x: x > 5)"
+table = "arrs"
+
+[[pair]]
+name = "aggregate_sum"
+spark = "aggregate(a, 0, (acc, x) -> acc + x)"
+native = "list_sum(a)"
+table = "arrs"
+
+[[pair]]
+name = "slice"
+spark = "slice(a, 2, 3)"
+native = "a[2:4]"
+table = "arrs"
+
+[[pair]]
+name = "array_concat"
+spark = "concat(a, a)"
+native = "list_concat(a, a)"
+table = "arrs"
+
+[[pair]]
+name = "explode"
+kind = "query"
+spark = "SELECT explode(a) FROM arrs"
+native = "SELECT unnest(a) FROM arrs"
+table = "arrs"
+smoke = true
+
+[[pair]]
+name = "lateral_view_explode"
+kind = "query"
+spark = "SELECT x FROM arrs LATERAL VIEW explode(a) t AS x"
+native = "SELECT unnest(a) AS x FROM arrs"
+table = "arrs"
+
+[[pair]]
+name = "map_keys"
+spark = "map_keys(m)"
+native = "map_keys(m)"
+table = "maps"
+
+[[pair]]
+name = "map_size"
+spark = "size(m)"
+native = "cardinality(m)"
+table = "maps"
+
+# ---- math ----
+[[pair]]
+name = "abs"
+spark = "abs(x)"
+native = "abs(x)"
+table = "doubles"
+
+[[pair]]
+name = "round"
+spark = "round(x, 2)"
+native = "round(x, 2)"
+table = "doubles"
+smoke = true
+
+[[pair]]
+name = "sqrt"
+spark = "sqrt(abs(x))"
+native = "sqrt(abs(x))"
+table = "doubles"
+
+[[pair]]
+name = "ln"
+spark = "ln(abs(x) + 1)"
+native = "ln(abs(x) + 1)"
+table = "doubles"
+
+[[pair]]
+name = "pow"
+spark = "pow(x, 2)"
+native = "pow(x, 2)"
+table = "doubles"
+
+[[pair]]
+name = "floor"
+spark = "floor(x)"
+native = "floor(x)"
+table = "doubles"
+
+[[pair]]
+name = "greatest"
+spark = "greatest(i, j)"
+native = "greatest(i, j)"
+table = "ints"
+
+[[pair]]
+name = "hex"
+spark = "hex(i)"
+native = "hex(i)"
+table = "ints"
+
+# ---- windows ----
+[[pair]]
+name = "row_number"
+kind = "query"
+spark = "SELECT row_number() OVER (PARTITION BY j ORDER BY i) FROM ints"
+native = "SELECT row_number() OVER (PARTITION BY j ORDER BY i NULLS FIRST) FROM ints"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "window_sum"
+kind = "query"
+spark = "SELECT sum(i) OVER (PARTITION BY j ORDER BY i ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) FROM ints"
+native = "SELECT sum(i) OVER (PARTITION BY j ORDER BY i NULLS FIRST ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) FROM ints"
+table = "ints"
+
+# ---- filters (pushdown and statistics) ----
+[[pair]]
+name = "filter_int_eq"
+kind = "query"
+spark = "SELECT * FROM ints WHERE i = 4242"
+native = "SELECT * FROM ints WHERE i = 4242"
+table = "ints"
+smoke = true
+
+[[pair]]
+name = "filter_date_range"
+kind = "query"
+spark = "SELECT * FROM dates WHERE dt BETWEEN DATE '2021-01-01' AND DATE '2021-01-31'"
+native = "SELECT * FROM dates WHERE dt BETWEEN DATE '2021-01-01' AND DATE '2021-01-31'"
+table = "dates"
+smoke = true

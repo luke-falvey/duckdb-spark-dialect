@@ -325,6 +325,22 @@ bool OpAt(const Tokens &ts, idx_t i, const char *op) {
 	return i < ts.size() && IsOp(ts[i], op);
 }
 
+//! Is the '-' at position i a unary minus (no operand before it)?
+bool UnaryMinusAt(const Tokens &ts, idx_t i) {
+	if (i == 0) {
+		return true;
+	}
+	auto &prev = ts[i - 1];
+	if (prev.type == TokenType::OPERATOR || prev.type == TokenType::TERMINATOR) {
+		return prev.text != ")" && prev.text != "]";
+	}
+	if (prev.type == TokenType::KEYWORD) {
+		auto upper = StringUtil::Upper(prev.text);
+		return upper != "NULL" && upper != "TRUE" && upper != "FALSE" && upper != "END";
+	}
+	return false; // a number, string or identifier: binary minus
+}
+
 //! Tokens for a snippet of DuckDB SQL, all placed at the given offset.
 Tokens Lex(const string &snippet, idx_t offset) {
 	// split on spaces; quoted strings in snippets never contain spaces we care about
@@ -587,8 +603,13 @@ void RewriteLiterals(Tokens &ts) {
 				continue;
 			}
 			auto stripped = number.substr(MinValue(number.find_first_not_of('0'), number.size() - 1));
-			if (stripped.size() < 19 || (stripped.size() == 19 && stripped <= "9223372036854775807") ||
-			    stripped.size() > 38) {
+			if (stripped.size() > 38) {
+				// Spark has no integer type wider than DECIMAL(38, 0); DuckDB would make it a BIGNUM
+				throw ParserException("[DECIMAL_PRECISION_EXCEEDS_MAX_PRECISION] Decimal precision %llu exceeds max "
+				                      "precision 38.",
+				                      (unsigned long long)stripped.size());
+			}
+			if (stripped.size() < 19 || (stripped.size() == 19 && stripped <= "9223372036854775807")) {
 				continue;
 			}
 			type = "DECIMAL(" + to_string(stripped.size()) + ",0)";
@@ -596,6 +617,29 @@ void RewriteLiterals(Tokens &ts) {
 		}
 		auto offset = t.offset;
 		bool as_string = upper == "BD" || StringUtil::StartsWith(type, "DECIMAL");
+		// -128Y, -32768S and -9223372036854775808L: Spark's grammar reads the minus as part of the literal, and
+		// the positive magnitude alone would overflow the type
+		bool minimum = (upper == "Y" && number == "128") || (upper == "S" && number == "32768") ||
+		               (upper == "L" && number == "9223372036854775808");
+		if (minimum && i > 0 && IsOp(ts[i - 1], "-") && UnaryMinusAt(ts, i - 1)) {
+			number = "-" + number;
+			as_string = true; // a number token cannot carry the sign
+			Erase(ts, i - 1, i);
+			i--;
+		}
+		if (upper == "L" || upper == "S" || upper == "Y") {
+			// Spark rejects integral literals outside the type's range at parse time
+			auto digits = number[0] == '-' ? number.substr(1) : number;
+			auto stripped = digits.substr(MinValue(digits.find_first_not_of('0'), digits.size() - 1));
+			string max = upper == "L" ? (number[0] == '-' ? "9223372036854775808" : "9223372036854775807")
+			                          : upper == "S" ? (number[0] == '-' ? "32768" : "32767")
+			                                         : (number[0] == '-' ? "128" : "127");
+			bool integral = !digits.empty() && digits.find_first_not_of("0123456789") == string::npos;
+			if (integral && (stripped.size() > max.size() || (stripped.size() == max.size() && stripped > max))) {
+				throw ParserException("Numeric literal %s%s does not fit in range for type %s", number, suffix,
+				                      StringUtil::Lower(type));
+			}
+		}
 		Tokens replacement = Lex("CAST (", offset);
 		replacement.emplace_back(as_string ? DuckStringLiteral(number) : number, offset,
 		                         as_string ? TokenType::STRING_LITERAL : TokenType::NUMBER_LITERAL);
@@ -786,6 +830,26 @@ void RewriteQueryClauses(Tokens &ts) {
 				Replace(ts, i, i + 2, replacement);
 				continue;
 			}
+		}
+		// FROM range(...) / JOIN range(...): Spark's range has a column named id
+		if ((WordAt(ts, i, "FROM") || WordAt(ts, i, "JOIN")) && WordAt(ts, i + 1, "range") && OpAt(ts, i + 2, "(")) {
+			auto offset = ts[i + 1].offset;
+			auto close = SkipParens(ts, i + 2);
+			idx_t args = 0, depth = 0;
+			for (idx_t k = i + 3; k + 1 < close; k++) {
+				if (OpAt(ts, k, "(")) {
+					depth++;
+				} else if (OpAt(ts, k, ")")) {
+					depth--;
+				} else if (depth == 0 && OpAt(ts, k, ",")) {
+					args++;
+				}
+			}
+			args = close > i + 4 ? args + 1 : 0;
+			if (args >= 1 && args <= 4) {
+				Replace(ts, i + 1, i + 2, Lex("system . spark . spark_range_" + to_string(args), offset));
+			}
+			continue;
 		}
 		// FROM sql_keywords()
 		if (WordAt(ts, i, "FROM") && WordAt(ts, i + 1, "sql_keywords") && OpAt(ts, i + 2, "(")) {
@@ -1173,6 +1237,9 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			i += 2;
 		}
 		idx_t name_end = i + 1;
+		if (name_end > ts.size()) {
+			return false; // no table name (truncated statement): let the parser report it
+		}
 		if (WordAt(ts, name_end, "PARTITION") && OpAt(ts, name_end + 1, "(")) {
 			Erase(ts, name_end, SkipParens(ts, name_end + 1));
 		}
@@ -1216,6 +1283,9 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			i += 2;
 		}
 		idx_t name_end = i + 1;
+		if (name_end > ts.size()) {
+			return false; // no table name (truncated statement): let the parser report it
+		}
 		Tokens name(ts.begin() + NumericCast<int64_t>(name_start), ts.begin() + NumericCast<int64_t>(name_end));
 		idx_t k = name_end;
 		if (WordAt(ts, k, "OPTIONS")) {
@@ -1264,6 +1334,16 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		return true;
 	}
 	// ---- SET / RESET ----
+	// SET / RESET current_dialect always go to DuckDB: they are how a connection leaves the Spark dialects.
+	// Selecting a Spark dialect also set dialect_compatibility_mode = 'spark', which DuckDB's RESET current_dialect
+	// leaves in place (it changes DuckDB SQL, e.g. list comprehension indexes become 0-based), so reset it first;
+	// SET current_dialect = 'x' then applies x's own mode, if it has one.
+	if ((WordAt(ts, 0, "RESET") || WordAt(ts, 0, "SET")) && WordAt(ts, 1, "current_dialect")) {
+		Tokens prefix = Lex("RESET dialect_compatibility_mode", offset);
+		prefix.emplace_back(";", offset, TokenType::TERMINATOR);
+		ts.insert(ts.begin(), prefix.begin(), prefix.end());
+		return false;
+	}
 	if (WordAt(ts, 0, "RESET")) {
 		ts = EmptyResult(offset);
 		return true;
@@ -1315,6 +1395,9 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			i += 2;
 		}
 		idx_t name_end = i + 1;
+		if (name_end > ts.size()) {
+			return false; // no table name (truncated statement): let the parser report it
+		}
 		Tokens head(ts.begin(), ts.begin() + NumericCast<int64_t>(name_end));
 		if (WordAt(ts, name_end, "ADD") && (WordAt(ts, name_end + 1, "COLUMNS") || WordAt(ts, name_end + 1, "COLUMN")) &&
 		    OpAt(ts, name_end + 2, "(")) {
@@ -1435,6 +1518,7 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		auto offset = ts[call].offset;
 		auto call_end = SkipParens(ts, call + 1);
 		auto args = CallArguments(ts, call + 1, call_end);
+		Tokens call_tokens(ts.begin() + NumericCast<int64_t>(call), ts.begin() + NumericCast<int64_t>(call_end));
 		// the FROM / WHERE of this block: the nearest FROM before GROUP BY at the same depth
 		idx_t from = DConstants::INVALID_INDEX, where = DConstants::INVALID_INDEX;
 		depth = 0;
@@ -1565,6 +1649,15 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(subquery, level2);
 		}
 		subquery.emplace_back(")", offset, TokenType::OPERATOR);
+		// Spark drops rows whose window is NULL (a NULL / unparsable time, an invalid gap duration)
+		Tokens filtered = Lex("( SELECT * FROM", offset);
+		Append(filtered, subquery);
+		Append(filtered, Lex("AS __spark_unfiltered WHERE", offset));
+		filtered.emplace_back(column, offset, TokenType::IDENTIFIER);
+		Append(filtered, Lex(". start IS NOT NULL AND", offset));
+		filtered.emplace_back(column, offset, TokenType::IDENTIFIER);
+		Append(filtered, Lex(". \"end\" IS NOT NULL )", offset));
+		subquery = filtered;
 		Append(subquery, Lex("AS __spark_windowed", offset));
 		// GROUP BY ..., "window" ; FROM (subquery) ; WHERE moved into the subquery
 		Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});
@@ -1572,6 +1665,35 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Erase(ts, where, g);
 		}
 		Replace(ts, from + 1, source_end, subquery);
+		// the same window(...) call in this block's select list is the grouping column too
+		auto same_call = [&](idx_t at) {
+			if (at + call_tokens.size() > from) {
+				return false;
+			}
+			for (idx_t m = 0; m < call_tokens.size(); m++) {
+				if (!StringUtil::CIEquals(ts[at + m].text, call_tokens[m].text)) {
+					return false;
+				}
+			}
+			return true;
+		};
+		int64_t level = 0;
+		for (idx_t k = from; k > 0; k--) {
+			idx_t i = k - 1;
+			if (IsOp(ts[i], ")")) {
+				level++;
+			} else if (IsOp(ts[i], "(")) {
+				if (level == 0) {
+					break;
+				}
+				level--;
+			} else if (level == 0 && WordAt(ts, i, "SELECT")) {
+				break;
+			}
+			if (level == 0 && same_call(i)) {
+				Replace(ts, i, i + call_tokens.size(), {MatcherToken(column, offset, TokenType::IDENTIFIER)});
+			}
+		}
 		return true;
 	}
 	return false;
@@ -1653,7 +1775,10 @@ void RewritePivotAggregates(Tokens &ts) {
 void RenameWindowCalls(Tokens &ts) {
 	for (idx_t i = 0; i + 1 < ts.size(); i++) {
 		if (IsWord(ts[i], "window") && OpAt(ts, i + 1, "(") && !(i > 0 && OpAt(ts, i - 1, "."))) {
-			ts[i] = MatcherToken("__spark_window", ts[i].offset, TokenType::IDENTIFIER);
+			// qualified: a window() the grouping rewrite did not handle (e.g. in a subquery) still resolves
+			auto replacement = Lex("system . spark . __spark_window", ts[i].offset);
+			Replace(ts, i, i + 1, replacement);
+			i += replacement.size() - 1;
 		}
 	}
 }

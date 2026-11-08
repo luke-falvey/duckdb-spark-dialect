@@ -16,6 +16,9 @@
 
 #include <cmath>
 #include <regex>
+#include "re2/re2.h"
+
+#include "utf8proc.hpp"
 
 namespace duckdb {
 
@@ -24,22 +27,68 @@ namespace {
 //===----------------------------------------------------------------------===//
 // Strings
 //===----------------------------------------------------------------------===//
+//! Unicode code points of a UTF-8 string (invalid bytes are kept as single code points)
+vector<int32_t> CodePoints(const string &s) {
+	vector<int32_t> out;
+	auto data = reinterpret_cast<const utf8proc_uint8_t *>(s.data());
+	utf8proc_ssize_t pos = 0, len = utf8proc_ssize_t(s.size());
+	while (pos < len) {
+		utf8proc_int32_t cp;
+		auto n = utf8proc_iterate(data + pos, len - pos, &cp);
+		if (n <= 0) {
+			cp = data[pos];
+			n = 1;
+		}
+		out.push_back(cp);
+		pos += n;
+	}
+	return out;
+}
+
+void AppendCodePoint(string &out, int32_t cp) {
+	utf8proc_uint8_t buf[4];
+	auto n = utf8proc_encode_char(cp, buf);
+	out.append(reinterpret_cast<const char *>(buf), size_t(n));
+}
+
+//! Spark's initcap: lower-case everything, then title-case the first letter after each space (Unicode-aware)
 string InitCap(const string &s) {
-	string out = s;
+	string out;
 	bool start = true;
-	for (auto &c : out) {
-		if (c == ' ') {
+	for (auto cp : CodePoints(s)) {
+		if (cp == ' ') {
+			out += ' ';
 			start = true;
 			continue;
 		}
-		if (start) {
-			c = char(toupper((unsigned char)c));
-		} else {
-			c = char(tolower((unsigned char)c));
-		}
+		AppendCodePoint(out, start ? utf8proc_totitle(utf8proc_tolower(cp)) : utf8proc_tolower(cp));
 		start = false;
 	}
 	return out;
+}
+
+//! levenshtein over code points, like Spark (DuckDB's counts bytes)
+int64_t Levenshtein(const string &a_str, const string &b_str) {
+	auto a = CodePoints(a_str), b = CodePoints(b_str);
+	vector<int64_t> prev(b.size() + 1), cur(b.size() + 1);
+	for (idx_t j = 0; j <= b.size(); j++) {
+		prev[j] = int64_t(j);
+	}
+	for (idx_t i = 1; i <= a.size(); i++) {
+		cur[0] = int64_t(i);
+		for (idx_t j = 1; j <= b.size(); j++) {
+			auto cost = a[i - 1] == b[j - 1] ? 0 : 1;
+			cur[j] = MinValue(MinValue(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost);
+		}
+		std::swap(prev, cur);
+	}
+	return prev[b.size()];
+}
+
+void LevenshteinKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<string_t, string_t, int32_t>(
+	    args.data[0], args.data[1], result, args.size(),
+	    [](string_t a, string_t b) { return int32_t(Levenshtein(a.GetString(), b.GetString())); });
 }
 
 string Soundex(const string &s) {
@@ -157,6 +206,77 @@ void MaskKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	}
 }
 
+//! A compiled pattern, cached per thread for the last pattern seen (split's pattern is almost always constant).
+//! RE2 (bundled with DuckDB: linear time, no stack recursion) where it accepts the pattern; std::regex for the
+//! Java syntax RE2 lacks (backreferences, lookaround).
+struct CachedRegex {
+	string pattern;
+	unique_ptr<duckdb_re2::RE2> re2;
+	unique_ptr<std::regex> fallback;
+};
+
+CachedRegex &CompileRegex(const string &pattern) {
+	static thread_local CachedRegex cached;
+	if (cached.pattern != pattern || (!cached.re2 && !cached.fallback)) {
+		cached.pattern = pattern;
+		duckdb_re2::RE2::Options options;
+		options.set_log_errors(false);
+		cached.re2 = make_uniq<duckdb_re2::RE2>(pattern, options);
+		cached.fallback.reset();
+		if (!cached.re2->ok()) {
+			cached.re2.reset();
+			cached.fallback = make_uniq<std::regex>(pattern);
+		}
+	}
+	return cached;
+}
+
+//! Calls on_match(position, length) for successive matches, like java.util.regex.Matcher.find(): after an empty
+//! match the search resumes one code point later. Stops when on_match returns false.
+template <class ON_MATCH>
+void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_match) {
+	// a pattern without regex metacharacters (split(s, ','), the common case) is a plain substring search
+	if (!pattern.empty() && pattern.find_first_of("\\^$.|?*+()[]{}") == string::npos) {
+		size_t pos = 0;
+		while ((pos = str.find(pattern, pos)) != string::npos) {
+			if (!on_match(idx_t(pos), idx_t(pattern.size()))) {
+				return;
+			}
+			pos += pattern.size();
+		}
+		return;
+	}
+	auto &regex = CompileRegex(pattern);
+	if (regex.re2) {
+		duckdb_re2::StringPiece input(str);
+		duckdb_re2::StringPiece match;
+		size_t pos = 0;
+		while (pos <= str.size()) {
+			if (!regex.re2->Match(input, pos, str.size(), duckdb_re2::RE2::UNANCHORED, &match, 1)) {
+				return;
+			}
+			auto start = size_t(match.data() - str.data());
+			if (!on_match(idx_t(start), idx_t(match.size()))) {
+				return;
+			}
+			if (match.empty()) {
+				pos = start + 1;
+				while (pos < str.size() && (static_cast<unsigned char>(str[pos]) & 0xC0) == 0x80) {
+					pos++;
+				}
+			} else {
+				pos = start + match.size();
+			}
+		}
+		return;
+	}
+	for (auto it = std::sregex_iterator(str.begin(), str.end(), *regex.fallback); it != std::sregex_iterator(); ++it) {
+		if (!on_match(idx_t(it->position()), idx_t(it->length()))) {
+			return;
+		}
+	}
+}
+
 //! split(str, regex, limit) with java.lang.String.split semantics (limit <= 0: no limit, trailing empty kept)
 void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto count = args.size();
@@ -180,33 +300,34 @@ void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
 		auto &parts = rows[i];
 		if (pattern.empty()) {
-			// split into characters; Spark keeps a trailing empty string only with limit
-			for (idx_t k = 0; k < str.size(); k++) {
+			// split into characters (code points, not bytes); Spark keeps a trailing empty string only with limit
+			for (idx_t k = 0; k < str.size();) {
 				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
 					parts.push_back(str.substr(k));
 					break;
 				}
-				parts.push_back(str.substr(k, 1));
+				idx_t next = k + 1;
+				while (next < str.size() && (static_cast<unsigned char>(str[next]) & 0xC0) == 0x80) {
+					next++;
+				}
+				parts.push_back(str.substr(k, next - k));
+				k = next;
 			}
 			if (str.empty()) {
 				parts.push_back("");
 			}
 		} else {
-			std::regex re(pattern);
-			auto begin = std::sregex_iterator(str.begin(), str.end(), re);
 			idx_t last = 0;
-			for (auto it = begin; it != std::sregex_iterator(); ++it) {
+			FindRegexMatches(pattern, str, [&](idx_t pos, idx_t len) {
 				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
-					break;
+					return false;
 				}
-				auto pos = idx_t(it->position());
-				auto len = idx_t(it->length());
-				if (len == 0 && pos == 0) {
-					continue;
+				if (!(len == 0 && pos == 0)) {
+					parts.push_back(str.substr(last, pos - last));
+					last = pos + len;
 				}
-				parts.push_back(str.substr(last, pos - last));
-				last = pos + len;
-			}
+				return true;
+			});
 			parts.push_back(str.substr(last));
 		}
 		total += parts.size();
@@ -242,6 +363,10 @@ string Conv(const string &input, int from_base, int to_base, bool &valid) {
 	string s = input;
 	while (!s.empty() && s[0] == ' ') {
 		s = s.substr(1);
+	}
+	if (s.empty()) {
+		valid = false; // Spark: NULL for an empty / blank number
+		return "";
 	}
 	bool negative = !s.empty() && s[0] == '-';
 	if (negative) {
@@ -359,6 +484,16 @@ double Expm1(double d) {
 double Log1p(double d) {
 	return std::log1p(d);
 }
+//! Spark's formulas (not std::asinh / std::acosh): the results differ for large magnitudes
+double SparkAsinh(double x) {
+	if (x == -std::numeric_limits<double>::infinity()) {
+		return x;
+	}
+	return std::log(x + std::sqrt(x * x + 1.0));
+}
+double SparkAcosh(double x) {
+	return std::log(x + std::sqrt(x * x - 1.0));
+}
 double Rint(double d) {
 	return std::nearbyint(d);
 }
@@ -469,7 +604,10 @@ struct Sha256 {
 		}
 		string out;
 		for (int i = 0; i < (is224 ? 7 : 8); i++) {
-			out += StringUtil::Format("%08x", h[i]);
+			static const char *HEX = "0123456789abcdef";
+			for (int shift = 28; shift >= 0; shift -= 4) {
+				out += HEX[(h[i] >> shift) & 0xF];
+			}
 		}
 		return out;
 	}
@@ -567,7 +705,11 @@ struct Sha512 {
 		}
 		string out;
 		for (int i = 0; i < (is384 ? 6 : 8); i++) {
-			out += StringUtil::Format("%016llx", (unsigned long long)h[i]);
+			// by hand: StringUtil::Format sign-extends values with the top bit set
+			static const char *HEX = "0123456789abcdef";
+			for (int shift = 60; shift >= 0; shift -= 4) {
+				out += HEX[(h[i] >> shift) & 0xF];
+			}
 		}
 		return out;
 	}
@@ -878,6 +1020,122 @@ void DoubleToDecimalStringKernel(DataChunk &args, ExpressionState &, Vector &res
 void RegisterSparkStringKernels(ExtensionLoader &loader);
 void CheckLikePatternKernel(DataChunk &args, ExpressionState &state, Vector &result);
 
+//! substring_index(s, delim, count) with Spark's (UTF8String.subStringIndex) search rules
+string SubstringIndex(const string &str, const string &delim, int64_t count) {
+	if (delim.empty() || count == 0) {
+		return "";
+	}
+	if (count > 0) {
+		int64_t idx = -1;
+		for (int64_t n = 0; n < count; n++) {
+			auto found = str.find(delim, size_t(idx + 1));
+			if (found == string::npos) {
+				return str;
+			}
+			idx = int64_t(found);
+		}
+		return str.substr(0, size_t(idx));
+	}
+	int64_t idx = int64_t(str.size()) - int64_t(delim.size()) + 1;
+	for (int64_t n = 0; n < -count; n++) {
+		if (idx - 1 < 0) {
+			return str;
+		}
+		auto found = str.rfind(delim, size_t(idx - 1));
+		if (found == string::npos) {
+			return str;
+		}
+		idx = int64_t(found);
+	}
+	return str.substr(size_t(idx) + delim.size());
+}
+
+void SubstringIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	TernaryExecutor::Execute<string_t, string_t, int64_t, string_t>(
+	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, string_t d, int64_t c) {
+		    return StringVector::AddString(result, SubstringIndex(s.GetString(), d.GetString(), c));
+	    });
+}
+
+//! array_join(strings, sep[, null_replacement]): NULL elements are skipped (or replaced); the separator need not
+//! be constant (DuckDB's array_to_string requires that)
+template <bool NULL_IF_EMPTY>
+void ArrayJoinKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	auto count = args.size();
+	bool has_replacement = args.ColumnCount() > 2;
+	UnifiedVectorFormat lists, seps, reps;
+	args.data[0].ToUnifiedFormat(lists);
+	args.data[1].ToUnifiedFormat(seps);
+	if (has_replacement) {
+		args.data[2].ToUnifiedFormat(reps);
+	}
+	auto &child = ListVector::GetChild(args.data[0]);
+	UnifiedVectorFormat elems;
+	child.ToUnifiedFormat(ListVector::GetListSize(args.data[0]), elems);
+	auto list_data = UnifiedVectorFormat::GetData<list_entry_t>(lists);
+	auto sep_data = UnifiedVectorFormat::GetData<string_t>(seps);
+	auto elem_data = UnifiedVectorFormat::GetData<string_t>(elems);
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	auto out = FlatVector::GetDataMutable<string_t>(result);
+	auto &validity = FlatVector::ValidityMutable(result);
+	for (idx_t i = 0; i < count; i++) {
+		auto li = lists.sel->get_index(i);
+		auto si = seps.sel->get_index(i);
+		idx_t ri = has_replacement ? reps.sel->get_index(i) : 0;
+		if (!lists.validity.RowIsValid(li) || !seps.validity.RowIsValid(si) ||
+		    (has_replacement && !reps.validity.RowIsValid(ri))) {
+			validity.SetInvalid(i);
+			continue;
+		}
+		auto sep = sep_data[si].GetString();
+		string joined;
+		bool first = true;
+		auto entry = list_data[li];
+		for (idx_t k = entry.offset; k < entry.offset + entry.length; k++) {
+			auto ei = elems.sel->get_index(k);
+			string value;
+			if (elems.validity.RowIsValid(ei)) {
+				value = elem_data[ei].GetString();
+			} else if (has_replacement) {
+				value = UnifiedVectorFormat::GetData<string_t>(reps)[ri].GetString();
+			} else {
+				continue;
+			}
+			if (!first) {
+				joined += sep;
+			}
+			joined += value;
+			first = false;
+		}
+		if (NULL_IF_EMPTY && first) {
+			validity.SetInvalid(i); // concat_ws skips an array without values, like a NULL argument
+			continue;
+		}
+		out[i] = StringVector::AddString(result, joined);
+	}
+}
+
+//! url_encode with java.net.URLEncoder rules: [A-Za-z0-9.*_-] unchanged, ' ' -> '+', everything else %XX
+void UrlEncodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t s) {
+		static const char *HEX = "0123456789ABCDEF";
+		string out;
+		for (auto c : s.GetString()) {
+			auto u = static_cast<unsigned char>(c);
+			if (isalnum(u) || c == '.' || c == '*' || c == '_' || c == '-') {
+				out += c;
+			} else if (c == ' ') {
+				out += '+';
+			} else {
+				out += '%';
+				out += HEX[u >> 4];
+				out += HEX[u & 15];
+			}
+		}
+		return StringVector::AddString(result, out);
+	});
+}
+
 void RegisterSparkLibrary(ExtensionLoader &loader) {
 	auto reg = [&](ScalarFunction fn) {
 		RegisterFallible(loader, std::move(fn));
@@ -906,10 +1164,35 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("expm1"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Expm1>));
 	reg(ScalarFunction(Identifier("log1p_impl"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Log1p>));
 	reg(ScalarFunction(Identifier("rint"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Rint>));
+	reg(ScalarFunction(Identifier("asinh"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<SparkAsinh>));
+	reg(ScalarFunction(Identifier("acosh"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<SparkAcosh>));
+	reg(ScalarFunction(Identifier("substring_index_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::BIGINT},
+	                   LogicalType::VARCHAR, SubstringIndexKernel));
+	{
+		ScalarFunction join(Identifier("array_join_impl"), {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR},
+		                    LogicalType::VARCHAR, ArrayJoinKernel<false>);
+		join.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+		reg(join);
+		ScalarFunction join3(Identifier("array_join_impl"),
+		                     {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR, LogicalType::VARCHAR},
+		                     LogicalType::VARCHAR, ArrayJoinKernel<false>);
+		join3.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+		reg(join3);
+		ScalarFunction ws(Identifier("concat_ws_array"), {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR},
+		                  LogicalType::VARCHAR, ArrayJoinKernel<true>);
+		ws.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+		reg(ws);
+	}
+	reg(ScalarFunction(Identifier("url_encode"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, UrlEncodeKernel));
+	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
+	                   LogicalType::INTEGER, LevenshteinKernel));
 	reg(ScalarFunction(Identifier("hypot"), {LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE,
 	                   HypotKernel));
 	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::VARCHAR}, LogicalType::BIGINT, Crc32Kernel));
+	reg(ScalarFunction(Identifier("crc32_impl"), {LogicalType::BLOB}, LogicalType::BIGINT, Crc32Kernel));
 	reg(ScalarFunction(Identifier("sha2_impl"), {LogicalType::VARCHAR, LogicalType::INTEGER}, LogicalType::VARCHAR,
+	                   Sha2Kernel));
+	reg(ScalarFunction(Identifier("sha2_impl"), {LogicalType::BLOB, LogicalType::INTEGER}, LogicalType::VARCHAR,
 	                   Sha2Kernel));
 	reg(ScalarFunction(Identifier("parse_url_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                   ParseUrlKernel));
@@ -922,7 +1205,7 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("double_to_decimal_string"), {LogicalType::DOUBLE}, LogicalType::VARCHAR,
 	                   DoubleToDecimalStringKernel));
 	for (auto name : {"initcap", "soundex", "luhn_check", "shiftleft", "shiftright", "shiftrightunsigned", "expm1",
-	                  "rint", "hypot"}) {
+	                  "rint", "hypot", "asinh", "acosh", "url_encode"}) {
 		AddSparkOverride(name);
 	}
 }
@@ -1199,21 +1482,6 @@ vector<string> Units(const string &s, bool binary) {
 	return units;
 }
 
-//! UTF8String.substringSQL
-string SparkSubstr(const string &s, int64_t pos, int64_t length, bool binary) {
-	auto units = Units(s, binary);
-	int64_t n = int64_t(units.size());
-	int64_t start = pos > 0 ? pos - 1 : (pos < 0 ? n + pos : 0);
-	int64_t end = length == NumericLimits<int64_t>::Maximum() ? n : start + length;
-	start = MaxValue<int64_t>(start, 0);
-	end = MinValue<int64_t>(end, n);
-	string out;
-	for (int64_t i = start; i < end; i++) {
-		out += units[i];
-	}
-	return out;
-}
-
 string SparkPad(const string &s, int64_t length, const string &pad, bool left, bool binary) {
 	auto units = Units(s, binary);
 	if (length <= 0) {
@@ -1237,11 +1505,50 @@ string SparkPad(const string &s, int64_t length, const string &pad, bool left, b
 	return left ? fill + s : s + fill;
 }
 
+//! Byte offset of code point `index` (UTF-8 lead bytes are those that are not 10xxxxxx)
+idx_t CodePointOffset(const char *data, idx_t size, int64_t index) {
+	idx_t offset = 0;
+	int64_t seen = 0;
+	for (; offset < size; offset++) {
+		if ((static_cast<unsigned char>(data[offset]) & 0xC0) != 0x80) {
+			if (seen == index) {
+				return offset;
+			}
+			seen++;
+		}
+	}
+	return size;
+}
+
+//! UTF8String.substringSQL without copying characters: the result is a byte range of the input
 template <bool BINARY>
 void SubstrKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	TernaryExecutor::Execute<string_t, int64_t, int64_t, string_t>(
 	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, int64_t pos, int64_t len) {
-		    return StringVector::AddStringOrBlob(result, SparkSubstr(s.GetString(), pos, len, BINARY));
+		    auto data = s.GetData();
+		    auto size = s.GetSize();
+		    bool bytes = BINARY;
+		    int64_t n = int64_t(size);
+		    if (!BINARY) {
+			    // code points; ASCII strings (the common case) have one byte per code point
+			    int64_t continuation = 0;
+			    for (idx_t i = 0; i < size; i++) {
+				    continuation += (static_cast<unsigned char>(data[i]) & 0xC0) == 0x80;
+			    }
+			    n = int64_t(size) - continuation;
+			    bytes = continuation == 0;
+		    }
+		    // 128-bit arithmetic: positions and lengths can be anywhere in the BIGINT range
+		    hugeint_t hstart = pos > 0 ? hugeint_t(pos) - hugeint_t(1) : (pos < 0 ? hugeint_t(n) + hugeint_t(pos) : hugeint_t(0));
+		    hugeint_t hend = len == NumericLimits<int64_t>::Maximum() ? hugeint_t(n) : hstart + hugeint_t(len);
+		    int64_t start = hstart < hugeint_t(0) ? 0 : (hstart > hugeint_t(n) ? n : Hugeint::Cast<int64_t>(hstart));
+		    int64_t end = hend < hugeint_t(0) ? 0 : (hend > hugeint_t(n) ? n : Hugeint::Cast<int64_t>(hend));
+		    if (end <= start) {
+			    return StringVector::AddStringOrBlob(result, string_t(data, 0));
+		    }
+		    idx_t from = bytes ? idx_t(start) : CodePointOffset(data, size, start);
+		    idx_t to = bytes ? idx_t(end) : CodePointOffset(data, size, end);
+		    return StringVector::AddStringOrBlob(result, string_t(data + from, UnsafeNumericCast<uint32_t>(to - from)));
 	    });
 }
 

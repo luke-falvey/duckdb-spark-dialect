@@ -68,5 +68,8 @@ bool IsSparkOverride(const string &lower_name);
 void AddSparkOverride(const string &lower_name);
 //! Spark 3.5 built-in function names (spark_function_names.hpp)
 bool IsSparkFunction(const string &lower_name);
+//! Bind an ad-hoc kernel (a ScalarFunction that is not in the catalog) so that plans using it can be copied
+unique_ptr<Expression> BindSparkKernel(ClientContext &context, ScalarFunction function,
+                                       vector<unique_ptr<Expression>> args);
 
 } // namespace duckdb

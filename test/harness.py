@@ -83,6 +83,7 @@ def load_cases(paths):
 
 
 FLOAT_REL = 1e-9
+FLOAT_ABS = 1e-12
 
 
 def normalize(value):
@@ -163,7 +164,9 @@ def values_equal(a, b):
         fa, fb = float(a[1]), float(b[1])
         if fa == fb:
             return True
-        return abs(fa - fb) <= FLOAT_REL * max(abs(fa), abs(fb))
+        # relative tolerance, plus an absolute one for results that should be zero but carry rounding noise
+        # from a different summation order (e.g. covar_pop of values that cancel: 0.0 vs 1.1e-16)
+        return abs(fa - fb) <= FLOAT_REL * max(abs(fa), abs(fb)) or abs(fa - fb) <= FLOAT_ABS
     if a[0] != b[0]:
         return False
     if a[0] in ("list", "struct"):

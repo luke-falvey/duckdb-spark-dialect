@@ -524,7 +524,7 @@ ExprP BindFromCsv(FunctionBindExpressionInput &input) {
 	                         CsvFieldsKernel);
 	vector<ExprP> fn_args;
 	fn_args.push_back(BoundCastExpression::AddCastToType(input.context, std::move(input.children[0]), LogicalType::VARCHAR));
-	auto fields = binder.BindScalarFunction(fields_fn, std::move(fn_args));
+	auto fields = BindSparkKernel(input.context, fields_fn, std::move(fn_args));
 	vector<ExprP> values;
 	auto &children = StructType::GetChildTypes(type);
 	for (idx_t i = 0; i < children.size(); i++) {

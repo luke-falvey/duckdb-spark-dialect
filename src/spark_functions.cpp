@@ -13,6 +13,7 @@
 #include "duckdb/common/vector_operations/unary_executor.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
+#include "duckdb/common/operator/multiply.hpp"
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/function/function_binder.hpp"
@@ -30,6 +31,7 @@
 #include <mutex>
 
 #include "spark_function_names.hpp"
+#include "utf8proc.hpp"
 
 namespace duckdb {
 
@@ -262,8 +264,7 @@ struct Builder {
 		return Call(op, std::move(a), std::move(b), true);
 	}
 	ExprP Kernel(const ScalarFunction &function, vector<ExprP> args) {
-		FunctionBinder binder(context);
-		return binder.BindScalarFunction(function, std::move(args));
+		return BindSparkKernel(context, function, std::move(args));
 	}
 	ExprP Kernel(const ScalarFunction &function, ExprP a) {
 		vector<ExprP> args;
@@ -327,6 +328,100 @@ ExprP Arg(FunctionBindExpressionInput &input, idx_t i) {
 
 void NotExecutable(DataChunk &, ExpressionState &, Vector &) {
 	throw InternalException("spark dispatch function was not rewritten at bind time");
+}
+
+//===----------------------------------------------------------------------===//
+// Kernels created at bind time
+//===----------------------------------------------------------------------===//
+// The dispatchers bind ad-hoc ScalarFunctions (a kernel for the argument types at hand) that are not in the
+// catalog. Some optimizers (grouping sets with DISTINCT aggregates, CTE inlining) copy a plan by serializing it,
+// and deserializing a function looks it up in the catalog by name. So every kernel is bound as
+// system.spark.spark_kernel, which is in the catalog, with a key in its bind data; deserialization restores
+// the kernel from a process-wide registry of the kernels bound so far.
+struct SparkKernelData : public FunctionData {
+	explicit SparkKernelData(string key_p) : key(std::move(key_p)) {
+	}
+	string key;
+	unique_ptr<FunctionData> Copy() const override {
+		return make_uniq<SparkKernelData>(key);
+	}
+	bool Equals(const FunctionData &other) const override {
+		return key == other.Cast<SparkKernelData>().key;
+	}
+};
+
+struct SparkKernelEntry {
+	scalar_function_t function;
+	FunctionNullHandling null_handling;
+	FunctionErrors errors;
+};
+
+std::mutex &SparkKernelLock() {
+	static std::mutex lock;
+	return lock;
+}
+
+unordered_map<string, SparkKernelEntry> &SparkKernels() {
+	static unordered_map<string, SparkKernelEntry> kernels;
+	return kernels;
+}
+
+void SerializeSparkKernel(Serializer &serializer, const optional_ptr<FunctionData> bind_data,
+                          const BoundScalarFunction &) {
+	serializer.WriteProperty(100, "kernel", bind_data->Cast<SparkKernelData>().key);
+}
+
+unique_ptr<FunctionData> DeserializeSparkKernel(Deserializer &deserializer, BoundScalarFunction &function) {
+	auto key = deserializer.ReadProperty<string>(100, "kernel");
+	SparkKernelEntry entry;
+	{
+		std::lock_guard<std::mutex> guard(SparkKernelLock());
+		auto it = SparkKernels().find(key);
+		if (it == SparkKernels().end()) {
+			throw SerializationException("Spark dialect kernel %s is not available in this process", key);
+		}
+		entry = it->second;
+	}
+	function.SetFunctionCallback(entry.function);
+	function.SetNullHandling(entry.null_handling);
+	function.SetErrorMode(entry.errors);
+	return make_uniq<SparkKernelData>(key);
+}
+
+ScalarFunction SparkKernelCatalogEntry() {
+	ScalarFunction fun(Identifier("spark_kernel"), {}, LogicalType::ANY, NotExecutable, nullptr, nullptr, nullptr,
+	                   LogicalType::ANY);
+	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+	fun.SetSerializeCallback(SerializeSparkKernel);
+	fun.SetDeserializeCallback(DeserializeSparkKernel);
+	return fun;
+}
+
+unique_ptr<Expression> BindSparkKernelImpl(ClientContext &context, ScalarFunction function,
+                                           vector<unique_ptr<Expression>> args) {
+	using raw_fn_t = void (*)(DataChunk &, ExpressionState &, Vector &);
+	auto callback = function.GetFunctionCallback();
+	auto raw = callback.target<raw_fn_t>();
+	string key = function.GetName() + "(";
+	for (auto &param : function.GetSignature().GetParameters()) {
+		key += param.GetType().ToString() + ",";
+	}
+	key += ")->" + function.GetReturnType().ToString() + "@" +
+	       to_string(raw ? reinterpret_cast<uintptr_t>(*raw) : uintptr_t(0));
+	{
+		std::lock_guard<std::mutex> guard(SparkKernelLock());
+		SparkKernels()[key] = SparkKernelEntry {callback, function.GetNullHandling(), function.GetErrorMode()};
+	}
+	function.SetQualifiedName(
+	    QualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA), Identifier("spark_kernel")));
+	function.SetSerializeCallback(SerializeSparkKernel);
+	function.SetDeserializeCallback(DeserializeSparkKernel);
+	FunctionBinder binder(context);
+	auto expr = binder.BindScalarFunction(function, std::move(args));
+	if (expr->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
+		expr->Cast<BoundFunctionExpression>().BindInfoMutable() = make_uniq<SparkKernelData>(key);
+	}
+	return expr;
 }
 
 ScalarFunction Dispatcher(const string &name, function_bind_expression_t bind_expression, idx_t min_args = 0) {
@@ -463,6 +558,50 @@ void IntRemainderKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//! NULL where the value is zero (decimal divisors), so callers need not repeat the operand in a CASE:
+//! copying an operand makes nested expressions grow exponentially.
+template <class T>
+void ZeroToNullKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<T, T>(args.data[0], result, args.size(), [](T a) -> optional<T> {
+		if (a == T(0)) {
+			return optional<T>();
+		}
+		return a;
+	});
+}
+
+//! Spark's 0-based array index as DuckDB's 1-based index; NULL for negative indexes (out of range in Spark)
+void SparkIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<int64_t, int64_t>(args.data[0], result, args.size(), [](int64_t i) -> optional<int64_t> {
+		if (i < 0 || i == NumericLimits<int64_t>::Maximum()) {
+			return optional<int64_t>();
+		}
+		return i + 1;
+	});
+}
+
+ExprP ZeroToNull(Builder &b, ExprP value) {
+	auto type = value->GetReturnType();
+	scalar_function_t fn;
+	switch (type.InternalType()) {
+	case PhysicalType::INT16:
+		fn = ZeroToNullKernel<int16_t>;
+		break;
+	case PhysicalType::INT32:
+		fn = ZeroToNullKernel<int32_t>;
+		break;
+	case PhysicalType::INT64:
+		fn = ZeroToNullKernel<int64_t>;
+		break;
+	case PhysicalType::INT128:
+		fn = ZeroToNullKernel<hugeint_t>;
+		break;
+	default:
+		throw InternalException("ZeroToNull: unsupported type %s", type.ToString());
+	}
+	return b.Kernel(ScalarFunction(Identifier("spark_zero_to_null"), {type}, type, fn), std::move(value));
+}
+
 void IntDivKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<int64_t, int64_t, int64_t>(args.data[0], args.data[1], result, args.size(),
 	                                                   [](int64_t a, int64_t b) -> optional<int64_t> {
@@ -494,6 +633,16 @@ void DoubleDivTruncKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		                                                 }
 		                                                 return int64_t(std::trunc(a / b));
 	                                                 });
+}
+
+//! Java's Math.signum: NaN and signed zeros are returned unchanged
+void SignumKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<double, double>(args.data[0], result, args.size(), [](double d) {
+		if (d == 0 || std::isnan(d)) {
+			return d;
+		}
+		return d > 0 ? 1.0 : -1.0;
+	});
 }
 
 void DoubleRemainderKernel(DataChunk &args, ExpressionState &, Vector &result) {
@@ -790,6 +939,45 @@ void StringToDateKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//! Spark's string -> timestamp: DuckDB's parser first, then Spark's lenient forms that DuckDB rejects:
+//! 'yyyy', 'yyyy-[m]m', 'yyyy-[m]m-[d]d' with an optional ' ' / 'T' and time part
+bool ParseSparkTimestamp(const string &trimmed, timestamp_t &out) {
+	if (trimmed.empty()) {
+		return false;
+	}
+	if (Timestamp::TryConvertTimestamp(trimmed.c_str(), trimmed.size(), out, true) == TimestampCastResult::SUCCESS) {
+		return true;
+	}
+	auto sep = trimmed.find_first_of(" T");
+	auto date_part = sep == string::npos ? trimmed : trimmed.substr(0, sep);
+	date_t date;
+	if (!ParseSparkDate(string_t(date_part.c_str(), UnsafeNumericCast<uint32_t>(date_part.size())), date)) {
+		return false;
+	}
+	dtime_t time(0);
+	if (sep != string::npos && sep + 1 < trimmed.size()) {
+		auto time_part = trimmed.substr(sep + 1);
+		idx_t pos = 0;
+		if (!Time::TryConvertTime(time_part.c_str(), time_part.size(), pos, time, false) || pos != time_part.size()) {
+			return false;
+		}
+	}
+	return Timestamp::TryFromDatetime(date, time, out);
+}
+
+void StringToTimestampKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, timestamp_t>(args.data[0], result, args.size(),
+	                                              [](string_t s) -> optional<timestamp_t> {
+		                                              timestamp_t ts;
+		                                              auto str = s.GetString();
+		                                              StringUtil::Trim(str);
+		                                              if (!ParseSparkTimestamp(str, ts)) {
+			                                              return optional<timestamp_t>();
+		                                              }
+		                                              return ts;
+	                                              });
+}
+
 void StringToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t s) {
 		return StringVector::AddStringOrBlob(result, s);
@@ -861,6 +1049,25 @@ string SparkScalarString(const Value &value) {
 
 namespace {
 
+//! Bytes as UTF-8 text, each malformed sequence replaced by U+FFFD (like Java's new String(bytes, UTF_8))
+string Utf8Lossy(const string &bytes) {
+	string out;
+	auto data = reinterpret_cast<const utf8proc_uint8_t *>(bytes.data());
+	utf8proc_ssize_t pos = 0, len = utf8proc_ssize_t(bytes.size());
+	while (pos < len) {
+		utf8proc_int32_t cp;
+		auto n = utf8proc_iterate(data + pos, len - pos, &cp);
+		if (n <= 0) {
+			out += "\xEF\xBF\xBD";
+			pos++;
+			continue;
+		}
+		out.append(bytes, size_t(pos), size_t(n));
+		pos += n;
+	}
+	return out;
+}
+
 string SparkValueToString(const Value &value, bool nested) {
 	if (value.IsNull()) {
 		return "null";
@@ -873,10 +1080,8 @@ string SparkValueToString(const Value &value, bool nested) {
 		return JavaFloatingToString(value.GetValue<float>());
 	case LogicalTypeId::BOOLEAN:
 		return value.GetValue<bool>() ? "true" : "false";
-	case LogicalTypeId::BLOB: {
-		auto &str = StringValue::Get(value);
-		return str;
-	}
+	case LogicalTypeId::BLOB:
+		return Utf8Lossy(StringValue::Get(value));
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::ARRAY: {
 		auto &children = ListValue::GetChildren(value);
@@ -1080,7 +1285,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	}
 	if (target.id() == LogicalTypeId::TIMESTAMP) {
 		if (IsString(source)) {
-			return b.Cast(b.Call("trim", std::move(e)), target, true);
+			return b.Kernel(ScalarFunction(Identifier("spark_string_to_timestamp"), {LogicalType::VARCHAR},
+			                               LogicalType::TIMESTAMP, StringToTimestampKernel),
+			                std::move(e));
 		}
 		if (IsNumeric(source)) {
 			auto tz = b.Call("to_timestamp", b.Cast(std::move(e), LogicalType::DOUBLE));
@@ -1159,6 +1366,9 @@ LogicalType DecimalOperandType(const Expression &expr, const LogicalType &type) 
 	return AsDecimalType(type);
 }
 
+ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target);
+ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int s2, const LogicalType &target);
+
 template <class OP, class CHECKED_OP, bool CHECKED>
 ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 	CheckArgs(input, duck_op, 2, 2);
@@ -1218,15 +1428,181 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 				auto wide_left = LogicalType::DECIMAL(uint8_t(MinValue(38, MaxValue(p1, 38 - p2))), uint8_t(s1));
 				value = b.Op("*", b.Cast(std::move(left), wide_left), b.Cast(std::move(right), rd));
 			} else {
-				value = b.Op("*", b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+				return SparkWideDecimalMultiply(b, std::move(left), s1, std::move(right), s2, result_type);
 			}
 		} else {
 			auto common = LogicalType::DECIMAL(38, uint8_t(MaxValue(s1, s2)));
 			value = b.Op(duck_op, b.Cast(std::move(left), common), b.Cast(std::move(right), common));
 		}
-		return b.Cast(std::move(value), result_type, true);
+		return SparkDecimalResult(b, std::move(value), result_type);
 	}
 	return b.Op(duck_op, std::move(left), std::move(right));
+}
+
+//! Decimal result of Spark arithmetic: lower the scale with HALF_UP rounding and NULL on overflow. DuckDB's
+//! TRY_CAST does the same but is ~500x slower for 38-digit decimals when the scale goes down.
+template <class IN, class OUT>
+void DecimalRescaleKernel(DataChunk &args, ExpressionState &, Vector &result, hugeint_t divisor, hugeint_t limit) {
+	bool small_divisor = divisor < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t divisor64 = small_divisor ? Hugeint::Cast<int64_t>(divisor) : 0;
+	bool small_limit = limit < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t limit64 = small_limit ? Hugeint::Cast<int64_t>(limit) : 0;
+	UnaryExecutor::Execute<IN, OUT>(args.data[0], result, args.size(), [&](IN in) -> optional<OUT> {
+		hugeint_t value(in);
+		// fast path: the value fits in 63 bits (the common case) - 64-bit division instead of 128-bit
+		if (small_divisor && value < hugeint_t(NumericLimits<int64_t>::Maximum()) &&
+		    value > hugeint_t(NumericLimits<int64_t>::Minimum())) {
+			int64_t v = Hugeint::Cast<int64_t>(value);
+			int64_t q = divisor64 > 1 ? v / divisor64 : v;
+			if (divisor64 > 1) {
+				int64_t r = v % divisor64;
+				if ((r < 0 ? -r : r) * 2 >= divisor64) {
+					q += v < 0 ? -1 : 1;
+				}
+			}
+			if (small_limit && (q >= limit64 || q <= -limit64)) {
+				return optional<OUT>();
+			}
+			return OUT(q);
+		}
+		if (divisor > hugeint_t(1)) {
+			hugeint_t quotient = value / divisor;
+			hugeint_t remainder = value - quotient * divisor;
+			if (remainder < hugeint_t(0)) {
+				remainder = -remainder;
+			}
+			if (remainder * hugeint_t(2) >= divisor) {
+				quotient += value < hugeint_t(0) ? hugeint_t(-1) : hugeint_t(1);
+			}
+			value = quotient;
+		}
+		if (value >= limit || value <= -limit) {
+			return optional<OUT>();
+		}
+		return Hugeint::Cast<OUT>(value);
+	});
+}
+
+template <class IN>
+scalar_function_t DecimalRescaleFor(PhysicalType out, hugeint_t divisor, hugeint_t limit) {
+	switch (out) {
+	case PhysicalType::INT16:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, int16_t>(a, st, r, divisor, limit); };
+	case PhysicalType::INT32:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, int32_t>(a, st, r, divisor, limit); };
+	case PhysicalType::INT64:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, int64_t>(a, st, r, divisor, limit); };
+	default:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalRescaleKernel<IN, hugeint_t>(a, st, r, divisor, limit); };
+	}
+}
+
+ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target) {
+	auto source = value->GetReturnType();
+	if (source == target) {
+		return value;
+	}
+	if (source.id() != LogicalTypeId::DECIMAL || target.id() != LogicalTypeId::DECIMAL ||
+	    DecimalType::GetScale(target) > DecimalType::GetScale(source)) {
+		return b.Cast(std::move(value), target, true);
+	}
+	auto divisor = Hugeint::POWERS_OF_TEN[DecimalType::GetScale(source) - DecimalType::GetScale(target)];
+	auto limit = Hugeint::POWERS_OF_TEN[DecimalType::GetWidth(target)];
+	scalar_function_t fn;
+	switch (source.InternalType()) {
+	case PhysicalType::INT16:
+		fn = DecimalRescaleFor<int16_t>(target.InternalType(), divisor, limit);
+		break;
+	case PhysicalType::INT32:
+		fn = DecimalRescaleFor<int32_t>(target.InternalType(), divisor, limit);
+		break;
+	case PhysicalType::INT64:
+		fn = DecimalRescaleFor<int64_t>(target.InternalType(), divisor, limit);
+		break;
+	default:
+		fn = DecimalRescaleFor<hugeint_t>(target.InternalType(), divisor, limit);
+		break;
+	}
+	return b.Kernel(ScalarFunction(Identifier("spark_decimal_result"), {source}, target, fn), std::move(value));
+}
+
+//! Decimal multiplication whose operand precisions add up to more than 38: the exact 128-bit product (NULL when
+//! it overflows), then rounded HALF_UP to Spark's result scale (NULL when it does not fit). Both inputs are
+//! DECIMAL(38, s).
+template <class OUT>
+void DecimalMultiplyKernel(DataChunk &args, ExpressionState &, Vector &result, hugeint_t divisor, hugeint_t limit) {
+	bool small_divisor = divisor < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t divisor64 = small_divisor ? Hugeint::Cast<int64_t>(divisor) : 0;
+	bool small_limit = limit < hugeint_t(NumericLimits<int64_t>::Maximum());
+	int64_t limit64 = small_limit ? Hugeint::Cast<int64_t>(limit) : 0;
+	const hugeint_t int64_max(NumericLimits<int64_t>::Maximum());
+	const hugeint_t int64_min(NumericLimits<int64_t>::Minimum());
+	BinaryExecutor::Execute<hugeint_t, hugeint_t, OUT>(
+	    args.data[0], args.data[1], result, args.size(), [&](hugeint_t a, hugeint_t b) -> optional<OUT> {
+		    // fast path: both operands and the product fit in 64 bits (the common case)
+		    if (small_divisor && a < int64_max && a > int64_min && b < int64_max && b > int64_min) {
+			    int64_t product;
+			    if (TryMultiplyOperator::Operation<int64_t, int64_t, int64_t>(Hugeint::Cast<int64_t>(a),
+			                                                                   Hugeint::Cast<int64_t>(b), product) &&
+			        product != NumericLimits<int64_t>::Minimum()) {
+				    int64_t q = product;
+				    if (divisor64 > 1) {
+					    q = product / divisor64;
+					    int64_t r = product % divisor64;
+					    if ((r < 0 ? -r : r) >= divisor64 - (r < 0 ? -r : r)) {
+						    q += product < 0 ? -1 : 1;
+					    }
+				    }
+				    if (small_limit && (q >= limit64 || q <= -limit64)) {
+					    return optional<OUT>();
+				    }
+				    return OUT(q);
+			    }
+		    }
+		    hugeint_t value;
+		    if (!Hugeint::TryMultiply(a, b, value)) {
+			    return optional<OUT>();
+		    }
+		    if (divisor > hugeint_t(1)) {
+			    hugeint_t quotient = value / divisor;
+			    hugeint_t remainder = value - quotient * divisor;
+			    if (remainder < hugeint_t(0)) {
+				    remainder = -remainder;
+			    }
+			    if (remainder * hugeint_t(2) >= divisor) {
+				    quotient += value < hugeint_t(0) ? hugeint_t(-1) : hugeint_t(1);
+			    }
+			    value = quotient;
+		    }
+		    if (value >= limit || value <= -limit) {
+			    return optional<OUT>();
+		    }
+		    return Hugeint::Cast<OUT>(value);
+	    });
+}
+
+ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int s2, const LogicalType &target) {
+	auto divisor = Hugeint::POWERS_OF_TEN[s1 + s2 - DecimalType::GetScale(target)];
+	auto limit = Hugeint::POWERS_OF_TEN[DecimalType::GetWidth(target)];
+	scalar_function_t fn;
+	switch (target.InternalType()) {
+	case PhysicalType::INT16:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<int16_t>(a, st, r, divisor, limit); };
+		break;
+	case PhysicalType::INT32:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<int32_t>(a, st, r, divisor, limit); };
+		break;
+	case PhysicalType::INT64:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<int64_t>(a, st, r, divisor, limit); };
+		break;
+	default:
+		fn = [=](DataChunk &a, ExpressionState &st, Vector &r) { DecimalMultiplyKernel<hugeint_t>(a, st, r, divisor, limit); };
+		break;
+	}
+	auto lt = LogicalType::DECIMAL(38, uint8_t(s1));
+	auto rt = LogicalType::DECIMAL(38, uint8_t(s2));
+	return b.Kernel(ScalarFunction(Identifier("spark_decimal_multiply"), {lt, rt}, target, fn),
+	                b.Cast(std::move(left), lt), b.Cast(std::move(right), rt));
 }
 
 ExprP BindAdd(FunctionBindExpressionInput &input) {
@@ -1356,11 +1732,13 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 		                               LogicalType::DOUBLE, DoubleRemainderKernel),
 		                b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
 	}
+	// integers mixed with decimals; anything else (intervals, ...) is a type error as in Spark
+	if (!(IsDecimal(lt) || IsIntegral(lt)) || !(IsDecimal(rt) || IsIntegral(rt))) {
+		throw BinderException("[DATATYPE_MISMATCH] %% requires numeric operands, got %s and %s", SparkTypeName(lt),
+		                      SparkTypeName(rt));
+	}
 	// decimals: NULL when dividing by zero
-	auto zero_check = b.Compare(ExpressionType::COMPARE_EQUAL, right->Copy(), b.Constant(Value::INTEGER(0)));
-	auto result = b.Op("%", std::move(left), std::move(right));
-	auto type = result->GetReturnType();
-	return b.Case(std::move(zero_check), b.NullOf(type), std::move(result));
+	return b.Op("%", std::move(left), ZeroToNull(b, std::move(right)));
 }
 
 ExprP BindNegative(FunctionBindExpressionInput &input) {
@@ -1374,6 +1752,57 @@ ExprP BindNegative(FunctionBindExpressionInput &input) {
 	vector<ExprP> args;
 	args.push_back(std::move(child));
 	return b.Call("-", std::move(args), true);
+}
+
+//! Comparisons with Spark's implicit casts (TypeCoercion.findCommonTypeForBinaryComparison, non-ANSI):
+//! a string compared with a decimal compares as DOUBLE; a string compared with another atomic type is cast to
+//! that type (NULL when it does not parse). Everything else is DuckDB's native comparison, so filters on
+//! columns still push down.
+ExprP BindComparisonAs(FunctionBindExpressionInput &input, ExpressionType type) {
+	CheckArgs(input, "comparison", 2, 2);
+	Builder b(input.context);
+	auto l = Arg(input, 0);
+	auto r = Arg(input, 1);
+	auto lt = Normalize(l->GetReturnType());
+	auto rt = Normalize(r->GetReturnType());
+	bool ls = IsString(lt), rs = IsString(rt);
+	if (ls != rs && !IsNull(lt) && !IsNull(rt)) {
+		auto &other = ls ? rt : lt;
+		auto id = other.id();
+		bool atomic = IsNumeric(other) || id == LogicalTypeId::BOOLEAN || id == LogicalTypeId::DATE ||
+		              id == LogicalTypeId::TIMESTAMP || id == LogicalTypeId::TIMESTAMP_TZ || id == LogicalTypeId::BLOB;
+		if (IsDecimal(other)) {
+			l = SparkCast(b, std::move(l), LogicalType::DOUBLE);
+			r = SparkCast(b, std::move(r), LogicalType::DOUBLE);
+		} else if (atomic) {
+			auto target = other;
+			if (ls) {
+				l = SparkCast(b, std::move(l), target);
+			} else {
+				r = SparkCast(b, std::move(r), target);
+			}
+		}
+	}
+	return b.Compare(type, std::move(l), std::move(r));
+}
+
+template <ExpressionType TYPE>
+ExprP BindComparison(FunctionBindExpressionInput &input) {
+	return BindComparisonAs(input, TYPE);
+}
+
+//! The comparator of array_sort(arr, (l, r) -> ...) must return INT, like in Spark
+ExprP BindComparatorResult(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "array_sort", 1, 1);
+	Builder b(input.context);
+	auto result = Arg(input, 0);
+	auto type = result->GetReturnType();
+	if (type.id() != LogicalTypeId::INTEGER) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_RETURN_TYPE] The array_sort comparator must return INT, "
+		                      "but returns %s",
+		                      SparkTypeName(type));
+	}
+	return result;
 }
 
 ExprP BindPositive(FunctionBindExpressionInput &input) {
@@ -1437,6 +1866,8 @@ ExprP BindBitNot(FunctionBindExpressionInput &input) {
 	return b.Call("~", std::move(args), true);
 }
 
+LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const LogicalType &b_p);
+
 //! `a || b` and concat(): NULL if any input is NULL; arrays concatenate
 ExprP BindConcat(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
@@ -1453,31 +1884,31 @@ ExprP BindConcat(FunctionBindExpressionInput &input) {
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
 	}
-	ExprP null_check;
-	for (auto &arg : args) {
-		auto check = b.IsNull(arg->Copy());
-		null_check = null_check ? b.Or(std::move(null_check), std::move(check)) : std::move(check);
-	}
-	ExprP result;
 	if (all_lists) {
-		result = std::move(args[0]);
-		for (idx_t i = 1; i < args.size(); i++) {
-			result = b.Call("list_concat", std::move(result), std::move(args[i]));
-		}
-	} else if (all_blobs) {
-		result = std::move(args[0]);
-		for (idx_t i = 1; i < args.size(); i++) {
-			result = b.Op("||", std::move(result), std::move(args[i]));
-		}
-	} else {
-		vector<ExprP> strings;
+		// Spark coerces the element types to a common type, e.g. array<int> and array<string> -> array<string>
+		LogicalType element = LogicalType::SQLNULL;
 		for (auto &arg : args) {
-			strings.push_back(ToSparkString(b, std::move(arg)));
+			auto type = arg->GetReturnType();
+			if (type.id() == LogicalTypeId::LIST) {
+				element = SparkWiderType(input.context, element, ListType::GetChildType(type));
+			}
 		}
-		result = b.Call("concat", std::move(strings));
+		if (!IsNull(element)) {
+			for (auto &arg : args) {
+				auto type = arg->GetReturnType();
+				if (type.id() != LogicalTypeId::LIST || ListType::GetChildType(type) != element) {
+					arg = b.Cast(std::move(arg), LogicalType::LIST(element));
+				}
+			}
+		}
 	}
-	auto type = result->GetReturnType();
-	return b.Case(std::move(null_check), b.NullOf(type), std::move(result));
+	// `||` returns NULL if either side is NULL, for strings, lists and blobs alike (unlike DuckDB's concat())
+	ExprP result = all_lists || all_blobs ? std::move(args[0]) : ToSparkString(b, std::move(args[0]));
+	for (idx_t i = 1; i < args.size(); i++) {
+		auto next = all_lists || all_blobs ? std::move(args[i]) : ToSparkString(b, std::move(args[i]));
+		result = b.Op("||", std::move(result), std::move(next));
+	}
+	return result;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1492,11 +1923,10 @@ ExprP BindSubscript(FunctionBindExpressionInput &input) {
 	if (type.id() == LogicalTypeId::LIST || type.id() == LogicalTypeId::ARRAY) {
 		// 0-based; out of range (including negative) is NULL
 		auto idx = b.Cast(std::move(index), LogicalType::BIGINT);
-		auto negative = b.Compare(ExpressionType::COMPARE_LESSTHAN, idx->Copy(), b.Constant(Value::BIGINT(0)));
-		auto one_based = b.Op("+", std::move(idx), b.Constant(Value::BIGINT(1)));
-		auto element = b.Call("list_extract", std::move(base), std::move(one_based));
-		auto element_type = element->GetReturnType();
-		return b.Case(std::move(negative), b.NullOf(element_type), std::move(element));
+		auto one_based = b.Kernel(ScalarFunction(Identifier("spark_index"), {LogicalType::BIGINT}, LogicalType::BIGINT,
+		                                         SparkIndexKernel),
+		                          std::move(idx));
+		return b.Call("list_extract", std::move(base), std::move(one_based));
 	}
 	if (type.id() == LogicalTypeId::MAP) {
 		return b.Call("map_extract_value", std::move(base), std::move(index));
@@ -1687,9 +2117,7 @@ template <bool POS, bool OUTER>
 unique_ptr<FunctionData> ExplodeBind(BindScalarFunctionInput &input) {
 	auto &arguments = input.GetArguments();
 	auto type = arguments[0]->GetReturnType();
-	if (type.id() == LogicalTypeId::SQLNULL) {
-		type = LogicalType::LIST(LogicalType::SQLNULL);
-	}
+	// an untyped NULL is rejected like in Spark (explode(CAST(NULL AS ARRAY<INT>)) is fine)
 	if (type.id() != LogicalTypeId::LIST && type.id() != LogicalTypeId::MAP) {
 		throw BinderException("explode: input must be an array or a map, not %s", SparkTypeName(type));
 	}
@@ -1874,11 +2302,9 @@ ExprP BindConcatWsArg(FunctionBindExpressionInput &input) {
 	auto sep = Arg(input, 1);
 	auto type = Normalize(e->GetReturnType());
 	if (type.id() == LogicalTypeId::LIST) {
-		auto no_values = b.Compare(ExpressionType::COMPARE_EQUAL, b.Call("list_count", e->Copy()),
-		                           b.Constant(Value::BIGINT(0)));
+		// the array's non-NULL elements joined by the separator; NULL (skipped) when there are none
 		auto strings = b.Cast(std::move(e), LogicalType::LIST(LogicalType::VARCHAR));
-		auto joined = b.Call("array_to_string", std::move(strings), std::move(sep));
-		return b.Case(std::move(no_values), b.NullOf(LogicalType::VARCHAR), std::move(joined));
+		return b.Spark("concat_ws_array", std::move(strings), b.Cast(std::move(sep), LogicalType::VARCHAR));
 	}
 	return ToSparkString(b, std::move(e));
 }
@@ -2070,7 +2496,42 @@ ExprP BindSign(FunctionBindExpressionInput &input) {
 	if (Normalize(e->GetReturnType()).id() == LogicalTypeId::INTERVAL) {
 		return b.Spark("interval_sign", std::move(e));
 	}
-	return b.Cast(b.Call("sign", b.Cast(std::move(e), LogicalType::DOUBLE)), LogicalType::DOUBLE);
+	return b.Kernel(ScalarFunction(Identifier("spark_signum"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, SignumKernel),
+	                b.Cast(std::move(e), LogicalType::DOUBLE));
+}
+
+//! floor / ceil with one argument: BIGINT for integral and floating input (Java's (long) of Math.floor, so NaN
+//! is 0 and huge values saturate), DECIMAL(p - s + 1, 0) for decimals
+template <bool CEIL>
+ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
+	CheckArgs(input, CEIL ? "ceil" : "floor", 1, 1);
+	Builder b(input.context);
+	auto e = NumericOperand(b, Arg(input, 0));
+	auto type = Normalize(e->GetReturnType());
+	if (IsIntegral(type)) {
+		return b.Cast(std::move(e), LogicalType::BIGINT);
+	}
+	if (IsDecimal(type)) {
+		return b.Call(CEIL ? "ceil" : "floor", std::move(e));
+	}
+	auto rounded = b.Call(CEIL ? "ceil" : "floor", b.Cast(std::move(e), LogicalType::DOUBLE));
+	return b.Kernel(DoubleToIntegralFunction(LogicalType::BIGINT), b.Cast(std::move(rounded), LogicalType::DOUBLE));
+}
+
+//! try_cast: like cast, but numeric conversions that overflow are NULL (Spark's ANSI cast semantics)
+ExprP BindTryCastValue(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "try_cast", 2, 2);
+	Builder b(input.context);
+	auto target = input.children[1]->GetReturnType();
+	auto e = Arg(input, 0);
+	auto source = Normalize(e->GetReturnType());
+	if (IsIntegral(target) && IsNumeric(source) && source != target) {
+		if (!IsIntegral(source)) {
+			e = b.Call("trunc", b.Cast(std::move(e), IsDecimal(source) ? source : LogicalType::DOUBLE));
+		}
+		return b.Cast(std::move(e), target, true);
+	}
+	return SparkCast(b, std::move(e), target);
 }
 
 //! intervals as numbers (months or microseconds), everything else unchanged
@@ -2194,6 +2655,14 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"mod", BindRemainder},
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
+	    {"comparator_result", BindComparatorResult},
+	    {"cmp_eq", BindComparison<ExpressionType::COMPARE_EQUAL>},
+	    {"cmp_ne", BindComparison<ExpressionType::COMPARE_NOTEQUAL>},
+	    {"cmp_lt", BindComparison<ExpressionType::COMPARE_LESSTHAN>},
+	    {"cmp_gt", BindComparison<ExpressionType::COMPARE_GREATERTHAN>},
+	    {"cmp_le", BindComparison<ExpressionType::COMPARE_LESSTHANOREQUALTO>},
+	    {"cmp_ge", BindComparison<ExpressionType::COMPARE_GREATERTHANOREQUALTO>},
+	    {"cmp_nsafe", BindComparison<ExpressionType::COMPARE_NOT_DISTINCT_FROM>},
 	    {"op_bit_and", BindBitAnd},
 	    {"op_bit_or", BindBitOr},
 	    {"op_bit_xor", BindBitXor},
@@ -2241,13 +2710,16 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"subscript", BindSubscript},
 	    {"get_field", BindGetField},
 	    {"cast_value", BindCastValue},
-	    {"try_cast_value", BindCastValue},
+	    {"try_cast_value", BindTryCastValue},
+	    {"floor_value", BindFloorCeil<false>},
+	    {"ceil_value", BindFloorCeil<true>},
 	    {"typeof", BindTypeOf},
 	    {"array", BindArray},
 	    {"map_from_arrays", BindMapFromArrays},
 	    {"inline_rows", BindInlineRows},
 	    {"inline_outer_rows", BindInlineOuterRows},
 	};
+	loader.RegisterFunction(SparkKernelCatalogEntry());
 	for (auto &entry : dispatchers) {
 		RegisterFallible(loader, Dispatcher(entry.first, entry.second));
 		AddSparkOverride(entry.first);
@@ -2256,6 +2728,11 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	RegisterFallible(loader, ExplodeRowsFunction<false, true>("explode_outer_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, false>("posexplode_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, true>("posexplode_outer_rows"));
+}
+
+unique_ptr<Expression> BindSparkKernel(ClientContext &context, ScalarFunction function,
+                                       vector<unique_ptr<Expression>> args) {
+	return BindSparkKernelImpl(context, std::move(function), std::move(args));
 }
 
 } // namespace duckdb

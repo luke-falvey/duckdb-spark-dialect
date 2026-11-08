@@ -37,8 +37,17 @@ const SparkMacro SPARK_MACROS[] = {
     {"ifnull", "(a, b) AS coalesce(a, b)"},
     {"nvl2", "(a, b, c) AS CASE WHEN a IS NOT NULL THEN b ELSE c END"},
     {"isnull", "(a) AS a IS NULL"},
+    // 0 (not NULL) when no row is true
+    {"count_if", "(x) AS count(CASE WHEN x THEN 1 END)"},
+    {"isnan", "(a) AS coalesce(isnan(" S "as_double(a)), false)"},
+    {"flatten", "(a) AS CASE WHEN list_bool_or(list_transform(a, lambda x: x IS NULL)) THEN NULL ELSE flatten(a) END"},
+    // Spark's max_by / min_by keep a NULL value of the maximum row (DuckDB's arg_max skips NULL values)
+    {"max_by", "(x, y) AS arg_max_null(x, y)"},
+    {"min_by", "(x, y) AS arg_min_null(x, y)"},
+    // Catalyst's Divide yields NULL when the variance product is zero, where DuckDB's corr gives NaN
+    {"corr", "(x, y) AS CASE WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
     {"isnotnull", "(a) AS a IS NOT NULL"},
-    {"equal_null", "(a, b) AS a IS NOT DISTINCT FROM b"},
+    {"equal_null", "(a, b) AS " S "cmp_nsafe(a, b)"},
     {"nanvl", "(a, b) AS CASE WHEN isnan(" S "as_double(a)) THEN " S "as_double(b) ELSE " S "as_double(a) END"},
     {"assert_true", "(c) AS CASE WHEN c THEN NULL ELSE error('''' || CAST(c AS VARCHAR) || ''' is not true!') END, "
                     "(c, m) AS CASE WHEN c THEN NULL ELSE error(m) END"},
@@ -53,7 +62,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"contains", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE contains(" S "as_string(a), " S "as_string(b)) END"},
     {"startswith", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE starts_with(" S "as_string(a), " S "as_string(b)) END"},
     {"endswith", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE ends_with(" S "as_string(a), " S "as_string(b)) END"},
-    {"encode", "(s, c) AS encode(" S "as_string(s))"},
+    {"encode", "(s, c) AS CASE WHEN c IS NULL THEN NULL ELSE encode(" S "as_string(s)) END"},
     {"decode", "(b, c) AS decode(" S "as_binary(b))"},
     {"elt", "(n, l) AS CASE WHEN n >= 1 THEN list_extract(l, n) END"},
     {"find_in_set", "(s, l) AS CASE WHEN s IS NULL OR l IS NULL THEN NULL WHEN contains(s, ',') THEN 0 ELSE coalesce(CAST(list_position(string_split(l, ','), s) AS INTEGER), 0) END"},
@@ -61,11 +70,11 @@ const SparkMacro SPARK_MACROS[] = {
     {"instr", "(s, sub) AS CAST(instr(" S "as_string(s), " S "as_string(sub)) AS INTEGER)"},
     {"left", "(s, n) AS " S "substr_impl(" S "as_text_or_binary(s), 1, CASE WHEN n <= 0 THEN 0 ELSE CAST(n AS BIGINT) END)"},
     {"right", "(s, n) AS CASE WHEN n <= 0 THEN '' ELSE right(" S "as_string(s), CAST(n AS BIGINT)) END"},
-    {"levenshtein", "(a, b) AS CAST(levenshtein(a, b) AS INTEGER), "
-                    "(a, b, t) AS CASE WHEN levenshtein(a, b) > t THEN -1 ELSE CAST(levenshtein(a, b) AS INTEGER) END"},
+    {"levenshtein", "(a, b) AS " S "levenshtein_impl(a, b), "
+                    "(a, b, t) AS CASE WHEN " S "levenshtein_impl(a, b) > t THEN -1 ELSE " S "levenshtein_impl(a, b) END"},
     {"locate", "(sub, s) AS CAST(instr(s, sub) AS INTEGER), "
                "(sub, s, p) AS CASE WHEN sub IS NULL OR s IS NULL THEN NULL WHEN p IS NULL OR p < 1 THEN 0 "
-               "WHEN instr(substr(s, p), sub) = 0 THEN 0 ELSE CAST(instr(substr(s, p), sub) + p - 1 AS INTEGER) END"},
+               "WHEN sub = '' THEN 1 WHEN instr(substr(s, p), sub) = 0 THEN 0 ELSE CAST(instr(substr(s, p), sub) + p - 1 AS INTEGER) END"},
     {"position", "(sub, s) AS " S "locate(sub, s), (sub, s, p) AS " S "locate(sub, s, p)"},
     {"lpad", "(s, n) AS " S "lpad_impl(" S "as_text_or_binary(s), CAST(n AS BIGINT), " S "default_pad(s)), "
              "(s, n, p) AS " S "lpad_impl(" S "as_text_or_binary(s), CAST(n AS BIGINT), p)"},
@@ -79,7 +88,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"regexp_replace", "(s, p, r) AS regexp_replace(" S "as_string(s), p, regexp_replace(r, '\\$(\\d)', '\\\\\\1', 'g'), 'g'), "
                        "(s, p, r, pos) AS substring(" S "as_string(s), 1, CAST(pos AS BIGINT) - 1) || regexp_replace(substring(" S "as_string(s), CAST(pos AS BIGINT)), p, regexp_replace(r, '\\$(\\d)', '\\\\\\1', 'g'), 'g')"},
     {"regexp_count", "(s, p) AS CAST(len(regexp_extract_all(s, p)) AS INTEGER)"},
-    {"regexp_substr", "(s, p) AS CASE WHEN regexp_matches(s, p) THEN regexp_extract(s, p) END"},
+    {"regexp_substr", "(s, p) AS CASE WHEN regexp_matches(s, p) THEN nullif(regexp_extract(s, p), '') END"},
     {"regexp_instr", "(s, p) AS CASE WHEN s IS NULL OR p IS NULL THEN NULL WHEN regexp_matches(s, p) THEN CAST(length(regexp_replace(s, '(?s)(' || p || ').*', '')) + 1 AS INTEGER) ELSE 0 END, "
                      "(s, p, i) AS CASE WHEN s IS NULL OR p IS NULL THEN NULL WHEN regexp_matches(s, p) THEN CAST(length(regexp_replace(s, '(?s)(' || p || ').*', '')) + 1 AS INTEGER) ELSE 0 END"},
     {"regexp_extract", "(s, p) AS regexp_extract(s, p, 1), (s, p, i) AS regexp_extract(s, p, CAST(i AS INTEGER))"},
@@ -89,21 +98,21 @@ const SparkMacro SPARK_MACROS[] = {
     {"split", "(s, p) AS " S "split_impl(s, p, -1), (s, p, l) AS " S "split_impl(s, p, CAST(l AS INTEGER))"},
     {"substr", "(s, p) AS " S "substr_impl(" S "as_text_or_binary(s), CAST(p AS BIGINT), 9223372036854775807), "
                "(s, p, l) AS " S "substr_impl(" S "as_text_or_binary(s), CAST(p AS BIGINT), CAST(l AS BIGINT))"},
-    {"substring_index",
-     "(s, d, c) AS CASE WHEN s IS NULL OR d IS NULL OR c IS NULL THEN NULL WHEN c = 0 OR length(d) = 0 THEN '' "
-     "WHEN c > 0 THEN array_to_string(list_slice(string_split(s, d), 1, CAST(c AS BIGINT)), d) "
-     "ELSE array_to_string(list_slice(string_split(s, d), greatest(len(string_split(s, d)) + CAST(c AS BIGINT) + 1, 1), len(string_split(s, d))), d) END"},
+    {"substring_index", "(s, d, c) AS " S "substring_index_impl(" S "as_string(s), " S "as_string(d), CAST(c AS BIGINT))"},
     {"to_binary", "(s) AS unhex(s), (s, f) AS CASE lower(f) WHEN 'hex' THEN unhex(s) WHEN 'base64' THEN from_base64(s) WHEN 'utf-8' THEN encode(s) WHEN 'utf8' THEN encode(s) END"},
     {"try_to_binary", "(s) AS TRY(unhex(s)), (s, f) AS TRY(" S "to_binary(s, f))"},
-    {"unbase64", "(s) AS from_base64(s)"},
+    // Java's MIME decoder skips characters outside the base64 alphabet (whitespace, line breaks)
+    {"unbase64", "(s) AS from_base64(regexp_replace(" S "as_string(s), '[^A-Za-z0-9+/=]', '', 'g'))"},
     {"base64", "(b) AS to_base64(" S "as_binary(b))"},
     {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE upper(hex(CAST(x AS BIGINT))) END"},
     {"unhex", "(s) AS TRY(unhex(s))"},
     {"parse_url", "(u, p) AS " S "parse_url_impl(u, p), (u, p, k) AS " S "parse_url_impl(u, p, k)"},
-    {"crc32", "(b) AS " S "crc32_impl(decode(" S "as_binary(b)))"},
+    {"crc32", "(b) AS " S "crc32_impl(" S "as_binary(b))"},
     {"sha", "(b) AS sha1(" S "as_binary(b))"},
     {"sha1", "(b) AS sha1(" S "as_binary(b))"},
-    {"sha2", "(b, n) AS " S "sha2_impl(decode(" S "as_binary(b)), CAST(n AS INTEGER))"},
+    // SHA-256 (also bit length 0) is DuckDB's; the other lengths use the dialect's implementation. Both hash the
+    // bytes (binary input need not be valid UTF-8)
+    {"sha2", "(b, n) AS CASE WHEN CAST(n AS INTEGER) IN (0, 256) THEN sha256(" S "as_binary(b)) ELSE " S "sha2_impl(" S "as_binary(b), CAST(n AS INTEGER)) END"},
     {"md5", "(b) AS md5(" S "as_binary(b))"},
     {"string", "(x) AS " S "as_string(x)"},
 
@@ -120,9 +129,9 @@ const SparkMacro SPARK_MACROS[] = {
     {"cot", "(x) AS 1 / tan(" S "as_double(x))"},
     {"bround", "(x) AS round_even(x, 0), (x, d) AS round_even(x, CAST(d AS INTEGER))"},
     {"round", "(x) AS round(x, 0), (x, d) AS round(x, CAST(d AS INTEGER))"},
-    {"ceil", "(x) AS ceil(x), (x, d) AS ceil(x * pow(10, d)) / pow(10, d)"},
-    {"ceiling", "(x) AS ceil(x), (x, d) AS ceil(x * pow(10, d)) / pow(10, d)"},
-    {"floor", "(x) AS floor(x), (x, d) AS floor(x * pow(10, d)) / pow(10, d)"},
+    {"ceil", "(x) AS " S "ceil_value(x), (x, d) AS ceil(x * pow(10, d)) / pow(10, d)"},
+    {"ceiling", "(x) AS " S "ceil_value(x), (x, d) AS ceil(x * pow(10, d)) / pow(10, d)"},
+    {"floor", "(x) AS " S "floor_value(x), (x, d) AS floor(x * pow(10, d)) / pow(10, d)"},
     {"conv", "(n, f, t) AS " S "conv_impl(" S "as_string(n), CAST(f AS INTEGER), CAST(t AS INTEGER))"},
     {"pmod", "(a, b) AS CASE WHEN " S "remainder(a, b) < 0 THEN " S "remainder(" S "add(" S "remainder(a, b), b), b) ELSE " S "remainder(a, b) END"},
     {"width_bucket",
@@ -135,7 +144,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"randn", "() AS sqrt(-2 * ln(random())) * cos(2 * pi() * random()), (s) AS sqrt(-2 * ln(random())) * cos(2 * pi() * random())"},
     {"try_divide", "(a, b) AS " S "divide(a, b)"},
     {"factorial", "(n) AS CASE WHEN n < 0 OR n > 20 THEN NULL ELSE CAST(factorial(CAST(n AS INTEGER)) AS BIGINT) END"},
-    {"bin", "(n) AS CASE WHEN n IS NULL THEN NULL WHEN CAST(n AS BIGINT) >= 0 THEN bin(CAST(n AS BIGINT)) ELSE bin(CAST(n AS BIGINT) + 18446744073709551616::HUGEINT) END"},
+    {"bin", "(n) AS CASE WHEN n IS NULL THEN NULL WHEN " S "as_long(n) >= 0 THEN bin(" S "as_long(n)) ELSE bin(" S "as_long(n) + 18446744073709551616::HUGEINT) END"},
     {"bit_count", "(n) AS CAST(bit_count(CAST(n AS BIGINT)) AS INTEGER)"},
     {"bit_get", "(n, p) AS CAST((CAST(n AS BIGINT) >> CAST(p AS INTEGER)) & 1 AS TINYINT)"},
     {"getbit", "(n, p) AS " S "bit_get(n, p)"},
@@ -250,11 +259,12 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_prepend", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_prepend(v, a) END"},
     {"array_compact", "(a) AS list_filter(a, lambda x: x IS NOT NULL)"},
     {"array_distinct", "(a) AS list_filter(a, lambda x, i: list_position(a, x) = i + 1)"},
-    {"array_union", "(a, b) AS " S "array_distinct(list_concat(a, b))"},
-    {"array_intersect", "(a, b) AS list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NOT NULL)"},
-    {"array_except", "(a, b) AS list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NULL)"},
-    {"array_join", "(a, d) AS array_to_string(list_filter(a, lambda x: x IS NOT NULL), d), "
-                   "(a, d, r) AS array_to_string(list_transform(a, lambda x: coalesce(CAST(x AS VARCHAR), r)), d)"},
+    // NULL if either array is NULL (DuckDB's list functions treat a NULL list as empty)
+    {"array_union", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE " S "array_distinct(list_concat(a, b)) END"},
+    {"array_intersect", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NOT NULL) END"},
+    {"array_except", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NULL) END"},
+    {"array_join", "(a, d) AS " S "array_join_impl(list_transform(a, lambda x: " S "as_string(x)), d), "
+                   "(a, d, r) AS " S "array_join_impl(list_transform(a, lambda x: " S "as_string(x)), d, r)"},
     {"array_max", "(a) AS list_max(a)"},
     {"array_min", "(a) AS list_min(a)"},
     {"array_position", "(a, v) AS CASE WHEN a IS NULL OR v IS NULL THEN NULL ELSE coalesce(CAST(list_position(a, v) AS BIGINT), 0) END"},
@@ -292,7 +302,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_agg", "(x) AS coalesce(list(x) FILTER (WHERE x IS NOT NULL), [])"},
 
     // ---- json ----
-    {"get_json_object", "(j, p) AS json_extract_string(TRY(CAST(j AS JSON)), p)"},
+    {"get_json_object", "(j, p) AS CASE WHEN NOT starts_with(p, '$') THEN NULL ELSE json_extract_string(TRY(CAST(j AS JSON)), p) END"},
     {"json_array_length", "(j) AS CASE WHEN json_type(TRY(CAST(j AS JSON))) = 'ARRAY' THEN CAST(json_array_length(TRY(CAST(j AS JSON))) AS INTEGER) END"},
     {"json_object_keys", "(j) AS CASE WHEN json_type(TRY(CAST(j AS JSON))) = 'OBJECT' THEN json_keys(TRY(CAST(j AS JSON))) END"},
 
@@ -368,8 +378,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"bitmap_construct_agg", "(p) AS " S "bitmap_from_positions(list(p))"},
     {"bitmap_or_agg", "(b) AS " S "bitmap_or_list(list(b))"},
     {"bitmap_count", "(b) AS " S "bitmap_count_impl(b)"},
-    {"hll_sketch_agg", "(x) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) AS BIGINT)) FILTER (WHERE x IS NOT NULL)), "
-                       "(x, k) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) AS BIGINT)) FILTER (WHERE x IS NOT NULL))"},
+    {"hll_sketch_agg", "(x) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) >> 1 AS BIGINT)) FILTER (WHERE x IS NOT NULL)), "
+                       "(x, k) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) >> 1 AS BIGINT)) FILTER (WHERE x IS NOT NULL))"},
     {"hll_union_agg", "(s) AS " S "hll_union_list(list(s)), (s, b) AS " S "hll_union_list(list(s))"},
     {"hll_union", "(a, b) AS " S "hll_union_list([a, b]), (a, b, c) AS " S "hll_union_list([a, b])"},
     {"hll_sketch_estimate", "(s) AS " S "hll_estimate(s)"},
