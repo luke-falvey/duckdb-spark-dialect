@@ -100,3 +100,14 @@ format is parsed once per chunk), the arguments are read through `UnifiedVectorF
 728.8 -> 67.1 ms (0.092x, [0.088, 0.095], faster; native `printf` is about 140 ms, so the ratio to native is now
 about 0.5x). Checks: full suite both dialects, crash replay, `--known`, `args_sweep --functions format_string,printf`
 (0 findings), differential smoke (0 failing).
+
+### Phase C: item 5, `date_format` (branch perf/opt-decimal-sum)
+
+**Profile** (`date_format(ts, 'yyyy-MM-dd HH:mm')`): 24% `memcpy`, 15% `std::string::_M_append`, 14% `Pad` (which built
+a `std::string` per number, padded by prepending), 11% `AddString`.
+**Change**: `AppendPadded` writes digits straight into the output (two-digit fast path), the fractional-seconds field
+uses `snprintf`, the output string is reused per thread. A/B (9 runs): `date_format` 150.0 -> 80.1 ms (0.534,
+[0.521, 0.563], faster; native `strftime` about 43 ms, ratio 3.5x -> 1.9x), `to_timestamp_pattern` 112.1 -> 102.5 ms
+(0.914, faster). A two-digit shortcut gave no further gain. Checks: suites, replay, `args_sweep` over the datetime
+functions: 4 failing findings, the same 4 with the previous build (`from_unixtime(9223372036854775807L)` raises where
+Spark wraps: backlog item 12).

@@ -90,6 +90,32 @@ string Pad(int64_t value, idx_t width) {
 	return negative ? "-" + digits : digits;
 }
 
+//! Appends `value` in decimal, left-padded with zeros to `width` digits (after a minus sign), without allocating.
+inline void AppendPadded(string &out, int64_t value, idx_t width) {
+	if (width == 2 && value >= 0 && value < 100) {
+		const char two[2] = {char('0' + value / 10), char('0' + value % 10)};
+		out.append(two, 2);
+		return;
+	}
+	char buffer[24];
+	char *end = buffer + sizeof(buffer);
+	char *p = end;
+	bool negative = value < 0;
+	uint64_t v = negative ? uint64_t(-(value + 1)) + 1 : uint64_t(value);
+	do {
+		*--p = char('0' + v % 10);
+		v /= 10;
+	} while (v);
+	auto digits = idx_t(end - p);
+	if (negative) {
+		out += '-';
+	}
+	for (idx_t k = digits; k < width; k++) {
+		out += '0';
+	}
+	out.append(p, digits);
+}
+
 bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string &out) {
 	date_t date;
 	dtime_t time;
@@ -107,15 +133,15 @@ bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string 
 		case 'y':
 		case 'u':
 			if (t.count == 2) {
-				out += Pad(((year % 100) + 100) % 100, 2);
+				AppendPadded(out, ((year % 100) + 100) % 100, 2);
 			} else {
-				out += Pad(year, t.count);
+				AppendPadded(out, year, t.count);
 			}
 			break;
 		case 'M':
 		case 'L':
 			if (t.count <= 2) {
-				out += Pad(month, t.count);
+				AppendPadded(out, month, t.count);
 			} else if (t.count == 3) {
 				out += string(MONTH_NAMES[month - 1]).substr(0, 3);
 			} else if (t.count == 4) {
@@ -125,16 +151,16 @@ bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string 
 			}
 			break;
 		case 'd':
-			out += Pad(day, t.count);
+			AppendPadded(out, day, t.count);
 			break;
 		case 'D':
-			out += Pad(Date::ExtractDayOfTheYear(date), t.count);
+			AppendPadded(out, Date::ExtractDayOfTheYear(date), t.count);
 			break;
 		case 'Q':
 		case 'q': {
 			auto quarter = (month - 1) / 3 + 1;
 			if (t.count <= 2) {
-				out += Pad(quarter, t.count);
+				AppendPadded(out, quarter, t.count);
 			} else if (t.count == 3) {
 				out += "Q" + to_string(quarter);
 			} else {
@@ -153,26 +179,27 @@ bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string 
 			out += hour < 12 ? "AM" : "PM";
 			break;
 		case 'H':
-			out += Pad(hour, t.count);
+			AppendPadded(out, hour, t.count);
 			break;
 		case 'k':
-			out += Pad(hour == 0 ? 24 : hour, t.count);
+			AppendPadded(out, hour == 0 ? 24 : hour, t.count);
 			break;
 		case 'h':
-			out += Pad(hour % 12 == 0 ? 12 : hour % 12, t.count);
+			AppendPadded(out, hour % 12 == 0 ? 12 : hour % 12, t.count);
 			break;
 		case 'K':
-			out += Pad(hour % 12, t.count);
+			AppendPadded(out, hour % 12, t.count);
 			break;
 		case 'm':
-			out += Pad(minute, t.count);
+			AppendPadded(out, minute, t.count);
 			break;
 		case 's':
-			out += Pad(second, t.count);
+			AppendPadded(out, second, t.count);
 			break;
 		case 'S': {
-			auto frac = Pad(micros, 6) + "000";
-			out += frac.substr(0, MinValue<idx_t>(t.count, 9));
+			char frac[16];
+			snprintf(frac, sizeof(frac), "%06d000", micros);
+			out.append(frac, MinValue<idx_t>(t.count, 9));
 			for (idx_t k = 9; k < t.count; k++) {
 				out += '0';
 			}
@@ -441,7 +468,8 @@ void FormatDatetimeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		    if (ts == timestamp_t::infinity() || ts == timestamp_t::ninfinity()) {
 			    return optional<string_t>();
 		    }
-		    string out;
+		    static thread_local string out;
+		    out.clear();
 		    if (!FormatTimestamp(ts, CachedPattern(fmt), out)) {
 			    throw InvalidInputException("Unsupported datetime pattern: %s", fmt.GetString());
 		    }
