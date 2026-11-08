@@ -2221,11 +2221,9 @@ ExprP BindConcatWsArg(FunctionBindExpressionInput &input) {
 	auto sep = Arg(input, 1);
 	auto type = Normalize(e->GetReturnType());
 	if (type.id() == LogicalTypeId::LIST) {
-		auto no_values = b.Compare(ExpressionType::COMPARE_EQUAL, b.Call("list_count", e->Copy()),
-		                           b.Constant(Value::BIGINT(0)));
+		// the array's non-NULL elements joined by the separator; NULL (skipped) when there are none
 		auto strings = b.Cast(std::move(e), LogicalType::LIST(LogicalType::VARCHAR));
-		auto joined = b.Call("array_to_string", std::move(strings), std::move(sep));
-		return b.Case(std::move(no_values), b.NullOf(LogicalType::VARCHAR), std::move(joined));
+		return b.Spark("concat_ws_array", std::move(strings), b.Cast(std::move(sep), LogicalType::VARCHAR));
 	}
 	return ToSparkString(b, std::move(e));
 }

@@ -1041,6 +1041,7 @@ void SubstringIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
 
 //! array_join(strings, sep[, null_replacement]): NULL elements are skipped (or replaced); the separator need not
 //! be constant (DuckDB's array_to_string requires that)
+template <bool NULL_IF_EMPTY>
 void ArrayJoinKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto count = args.size();
 	bool has_replacement = args.ColumnCount() > 2;
@@ -1087,6 +1088,10 @@ void ArrayJoinKernel(DataChunk &args, ExpressionState &, Vector &result) {
 			}
 			joined += value;
 			first = false;
+		}
+		if (NULL_IF_EMPTY && first) {
+			validity.SetInvalid(i); // concat_ws skips an array without values, like a NULL argument
+			continue;
 		}
 		out[i] = StringVector::AddString(result, joined);
 	}
@@ -1147,14 +1152,18 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	                   LogicalType::VARCHAR, SubstringIndexKernel));
 	{
 		ScalarFunction join(Identifier("array_join_impl"), {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR},
-		                    LogicalType::VARCHAR, ArrayJoinKernel);
+		                    LogicalType::VARCHAR, ArrayJoinKernel<false>);
 		join.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(join);
 		ScalarFunction join3(Identifier("array_join_impl"),
 		                     {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR, LogicalType::VARCHAR},
-		                     LogicalType::VARCHAR, ArrayJoinKernel);
+		                     LogicalType::VARCHAR, ArrayJoinKernel<false>);
 		join3.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(join3);
+		ScalarFunction ws(Identifier("concat_ws_array"), {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR},
+		                  LogicalType::VARCHAR, ArrayJoinKernel<true>);
+		ws.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+		reg(ws);
 	}
 	reg(ScalarFunction(Identifier("url_encode"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, UrlEncodeKernel));
 	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},

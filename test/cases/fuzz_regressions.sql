@@ -105,3 +105,12 @@ SELECT o, sum(x) OVER (ORDER BY o), sum(x) OVER (), typeof(sum(x) OVER ()), avg(
 SELECT 0.000000000000000000005BD + 1.000000000000000000005BD, -1.5BD * 0.333BD, 12345678901234567890.123456789BD * 1.1BD, 2.5BD * 0.1BD, -0.05BD * 0.1BD, CAST(1.005 AS DECIMAL(4,3)) + CAST(1 AS DECIMAL(38,37));
 
 SELECT d + e, d - e, d * e, typeof(d + e), typeof(d * e) FROM VALUES (CAST(1.25 AS DECIMAL(18,2)), CAST(-2.0000000005 AS DECIMAL(38,10))), (CAST(-0.05 AS DECIMAL(18,2)), CAST(0.0000000005 AS DECIMAL(38,10))), (CAST(9999999999999999.99 AS DECIMAL(18,2)), CAST(1 AS DECIMAL(38,10))) AS t(d, e);
+
+-- ===== concat_ws with arrays; window() grouping in a subquery and in the select list (found by the benchmarks) =====
+SELECT concat_ws(',', array('a', NULL, 'b')), concat_ws(',', 'x', array(), 'y'), concat_ws(',', array(NULL)), concat_ws('-', array('a'), 'b', CAST(NULL AS STRING), array('c', 'd'));
+
+SELECT length(concat_ws(',', collect_list(CAST(id AS STRING)))) FROM range(10);
+
+SELECT count(*) FROM (SELECT window(ts, '1 hour'), count(*) FROM (SELECT timestamp_seconds(id * 600) AS ts FROM range(20)) GROUP BY window(ts, '1 hour'));
+
+SELECT window(ts, '1 hour').start AS s, count(*) FROM (SELECT timestamp_seconds(id * 600) AS ts FROM range(20)) GROUP BY window(ts, '1 hour') ORDER BY s;

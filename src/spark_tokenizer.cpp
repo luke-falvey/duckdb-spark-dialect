@@ -1518,6 +1518,7 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		auto offset = ts[call].offset;
 		auto call_end = SkipParens(ts, call + 1);
 		auto args = CallArguments(ts, call + 1, call_end);
+		Tokens call_tokens(ts.begin() + NumericCast<int64_t>(call), ts.begin() + NumericCast<int64_t>(call_end));
 		// the FROM / WHERE of this block: the nearest FROM before GROUP BY at the same depth
 		idx_t from = DConstants::INVALID_INDEX, where = DConstants::INVALID_INDEX;
 		depth = 0;
@@ -1664,6 +1665,35 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Erase(ts, where, g);
 		}
 		Replace(ts, from + 1, source_end, subquery);
+		// the same window(...) call in this block's select list is the grouping column too
+		auto same_call = [&](idx_t at) {
+			if (at + call_tokens.size() > from) {
+				return false;
+			}
+			for (idx_t m = 0; m < call_tokens.size(); m++) {
+				if (!StringUtil::CIEquals(ts[at + m].text, call_tokens[m].text)) {
+					return false;
+				}
+			}
+			return true;
+		};
+		int64_t level = 0;
+		for (idx_t k = from; k > 0; k--) {
+			idx_t i = k - 1;
+			if (IsOp(ts[i], ")")) {
+				level++;
+			} else if (IsOp(ts[i], "(")) {
+				if (level == 0) {
+					break;
+				}
+				level--;
+			} else if (level == 0 && WordAt(ts, i, "SELECT")) {
+				break;
+			}
+			if (level == 0 && same_call(i)) {
+				Replace(ts, i, i + call_tokens.size(), {MatcherToken(column, offset, TokenType::IDENTIFIER)});
+			}
+		}
 		return true;
 	}
 	return false;
@@ -1745,7 +1775,10 @@ void RewritePivotAggregates(Tokens &ts) {
 void RenameWindowCalls(Tokens &ts) {
 	for (idx_t i = 0; i + 1 < ts.size(); i++) {
 		if (IsWord(ts[i], "window") && OpAt(ts, i + 1, "(") && !(i > 0 && OpAt(ts, i - 1, "."))) {
-			ts[i] = MatcherToken("__spark_window", ts[i].offset, TokenType::IDENTIFIER);
+			// qualified: a window() the grouping rewrite did not handle (e.g. in a subquery) still resolves
+			auto replacement = Lex("system . spark . __spark_window", ts[i].offset);
+			Replace(ts, i, i + 1, replacement);
+			i += replacement.size() - 1;
 		}
 	}
 }
