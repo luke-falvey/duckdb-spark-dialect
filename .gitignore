@@ -1,0 +1,6 @@
+build/
+test/results/
+test/golden/_warehouse/
+test/golden/_duck_warehouse/
+__pycache__/
+spark-warehouse/
