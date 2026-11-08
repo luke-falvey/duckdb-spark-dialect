@@ -261,7 +261,7 @@ bool SparkTokenizer::TokenizeInput(TokenizerBehavior &behavior) const {
 			        (unsigned long long)token.offset, (unsigned long long)token.length, token.text.c_str());
 		}
 	}
-	SparkRewriteTokens(behavior.tokens);
+	SparkRewriteTokens(behavior.tokens, strict);
 	if (getenv("SPARK_DIALECT_DEBUG_TOKENS")) {
 		string joined;
 		for (auto &token : behavior.tokens) {
@@ -1429,7 +1429,7 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		auto column = string("\"") + kind + "\"";
 		Tokens subquery = Lex("( SELECT * ,", offset);
 		if (kind == "window") {
-			Tokens fn = Lex(args.size() <= 2 ? "system . spark . __spark_window (" : "unnest ( system . spark . sliding_windows (", offset);
+			Tokens fn = Lex(args.size() <= 2 ? "system . spark . __spark_window (" : "__spark_unnest ( system . spark . sliding_windows (", offset);
 			for (idx_t a = 0; a < args.size(); a++) {
 				if (a > 0) {
 					fn.emplace_back(",", offset, TokenType::OPERATOR);
@@ -1514,7 +1514,7 @@ bool RewriteGroupingWindow(Tokens &ts) {
 				partition.emplace_back(",", offset, TokenType::OPERATOR);
 			}
 			partition.emplace_back("__spark_session", offset, TokenType::IDENTIFIER);
-			Append(subquery, Lex("struct_pack ( start := min (", offset));
+			Append(subquery, Lex("__spark_struct_pack ( start := min (", offset));
 			Append(subquery, event);
 			subquery.emplace_back(")", offset, TokenType::OPERATOR);
 			Append(subquery, over(""));
@@ -1621,7 +1621,7 @@ void RenameWindowCalls(Tokens &ts) {
 	}
 }
 
-void SparkRewriteTokens(Tokens &tokens) {
+void SparkRewriteTokens(Tokens &tokens, bool strict) {
 	Tokens result;
 	result.reserve(tokens.size());
 	idx_t start = 0;

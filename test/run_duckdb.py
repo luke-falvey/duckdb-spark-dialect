@@ -1,6 +1,6 @@
 """Run every case in DuckDB (spark dialect) and compare with the Spark 3.5 golden results.
 
-usage: python test/run_duckdb.py [-v] [-k substring] [case files...]
+usage: python test/run_duckdb.py [-v] [-k substring] [--dialect spark|spark_strict] [case files...]
 
 Outcome per case:
   PASS      same rows (or both engines raise an error, or nondeterministic and both succeed)
@@ -37,19 +37,19 @@ def is_command(sql):
     return bool(words) and words[0].upper() in COMMANDS
 
 
-def connect():
+def connect(dialect="spark"):
     # the extension is built from the v2.0.0 sources in a checkout without tags (version "v2.0.0-dev1")
     con = duckdb.connect(config={"allow_unsigned_extensions": "true", "allow_extensions_metadata_mismatch": "true"})
     con.execute(f"LOAD '{EXTENSION}'")
     con.execute("SET TimeZone = 'UTC'")
-    con.execute("SET current_dialect = 'spark'")
+    con.execute(f"SET current_dialect = '{dialect}'")
     return con
 
 
-def run_file(path, verbose, keyword):
+def run_file(path, verbose, keyword, dialect="spark"):
     golden_path = ROOT / "golden" / (path.name + ".pkl")
     golden = pickle.loads(golden_path.read_bytes())
-    con = connect()
+    con = connect(dialect)
     results = []
     for case in load_cases([path]):
         expected = golden.get(case.index)
@@ -85,7 +85,13 @@ def run_file(path, verbose, keyword):
             # an internal error is never acceptable, even where Spark also fails
             outcome = ("FAIL", f"duckdb internal error: {duck_error}")
         elif not expected["ok"]:
-            outcome = ("PASS", "both error") if duck_error else ("LENIENT", f"spark error: {expected['error'][:120]}")
+            if duck_error:
+                outcome = ("PASS", "both error")
+            elif dialect == "spark_strict":
+                # the strict dialect must reject everything Spark rejects
+                outcome = ("FAIL", f"LENIENT in strict mode; spark error: {expected['error'][:120]}")
+            else:
+                outcome = ("LENIENT", f"spark error: {expected['error'][:120]}")
         elif duck_error:
             outcome = ("FAIL", f"duckdb error: {duck_error}")
         elif case.has("nondeterministic"):
@@ -108,6 +114,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-k", "--keyword")
+    parser.add_argument("--dialect", choices=["spark", "spark_strict"], default="spark")
     parser.add_argument("files", nargs="*")
     args = parser.parse_args()
     files = [Path(f) for f in args.files] or sorted((ROOT / "cases").glob("*.sql"))
@@ -117,7 +124,7 @@ def main():
     failures = []
     summary_lines = []
     for path in files:
-        results = run_file(path, args.verbose, args.keyword)
+        results = run_file(path, args.verbose, args.keyword, args.dialect)
         counts = Counter(r[1] for r in results)
         total.update(counts)
         line = f"{path.name:28} " + "  ".join(f"{k}={counts[k]}" for k in ("PASS", "LENIENT", "FAIL", "SKIP"))
@@ -132,9 +139,10 @@ def main():
     summary_lines.append(f"{'TOTAL':28} " + "  ".join(f"{k}={total[k]}" for k in ("PASS", "LENIENT", "FAIL", "SKIP")))
     out = ROOT / "results"
     out.mkdir(exist_ok=True)
-    (out / "failures.txt").write_text("\n".join(failures))
+    suffix = "" if args.dialect == "spark" else "_" + args.dialect
+    (out / f"failures{suffix}.txt").write_text("\n".join(failures))
     if not args.files and not args.keyword:
-        (out / "summary.txt").write_text("\n".join(summary_lines) + "\n")
+        (out / f"summary{suffix}.txt").write_text("\n".join(summary_lines) + "\n")
     if by_function:
         (out / "functions.json").write_text(json.dumps(by_function, indent=1, sort_keys=True))
         bad = sorted(f for f, c in by_function.items() if c["FAIL"])
