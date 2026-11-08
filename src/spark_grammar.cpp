@@ -1160,6 +1160,16 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 		if (name == "first" || name == "last") {
 			window.SetFunctionName(name + "_value");
 		}
+		if ((name == "sum" || name == "avg" || name == "mean") && window_args.size() == 1) {
+			// like the plain aggregates: Spark's result type, and BIGINT sums wrap on overflow
+			if (name == "mean") {
+				window.SetFunctionName("avg");
+			}
+			auto sample_expr = expr->Copy();
+			auto &sample = sample_expr->Cast<WindowExpression>();
+			sample.SetFunctionName("any_value");
+			return SparkCall(name == "sum" ? "sum_typed" : "avg_typed", std::move(expr), std::move(sample_expr));
+		}
 		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("window_" + name) && IsSparkFunction(name)) {
 			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
 			                        Identifier("window_" + name));
@@ -1204,7 +1214,8 @@ void CheckFoldableArguments(const ParsedExpression &expr) {
 	    {"from_json", {1}},      {"from_csv", {1}},        {"xpath", {1}},          {"xpath_boolean", {1}},
 	    {"xpath_double", {1}},   {"xpath_float", {1}},     {"xpath_int", {1}},      {"xpath_long", {1}},
 	    {"xpath_number", {1}},   {"xpath_short", {1}},     {"xpath_string", {1}},   {"approx_percentile", {1, 2}},
-	    {"percentile_approx", {1, 2}}, {"percentile", {1}}, {"histogram_numeric", {1}}, {"hll_sketch_agg", {1}}};
+	    {"percentile_approx", {1, 2}}, {"percentile", {1}}, {"histogram_numeric", {1}}, {"hll_sketch_agg", {1}},
+	    {"sort_array", {1}}};
 	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
 		return;
 	}

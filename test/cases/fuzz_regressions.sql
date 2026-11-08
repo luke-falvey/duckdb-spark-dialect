@@ -97,3 +97,6 @@ SELECT to_char(2, '999'), to_char(1.5, '999.99'), to_char(12454, '99G999'), to_c
 SELECT split('oneAtwoBthreeC', '[ABC]'), split('oneAtwoBthreeC', '[ABC]', 2), split('a,b,,c,', ','), split('abc', ''), split('日本語', ''), split('aXbXc', '(?=X)'), split('a1b22c', '\\d+'), split('', ','), split('a.b', '.'), split('aaa', 'a*');
 
 SELECT substr('abcdef', 2, 3), substr('abcdef', -3), substr('abc', -5, 3), substr('日本語テキスト', 2, 3), substr('日本語', -1), substr('abc', 0, 1), substr('abc', 4), substr('abc', 2, -1), substr(X'010203', 2);
+
+-- ===== window sum / avg: Spark's result types, BIGINT sums wrap =====
+SELECT o, sum(x) OVER (ORDER BY o), sum(x) OVER (), typeof(sum(x) OVER ()), avg(d) OVER (), typeof(avg(d) OVER ()), sum(d) OVER (ORDER BY o), mean(x) OVER () FROM VALUES (9223372036854775807L, 1, 1.5BD), (1L, 2, 2.25BD) AS t(x, o, d) ORDER BY o;

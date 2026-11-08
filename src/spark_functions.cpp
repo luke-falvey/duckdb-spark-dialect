@@ -1947,9 +1947,7 @@ template <bool POS, bool OUTER>
 unique_ptr<FunctionData> ExplodeBind(BindScalarFunctionInput &input) {
 	auto &arguments = input.GetArguments();
 	auto type = arguments[0]->GetReturnType();
-	if (type.id() == LogicalTypeId::SQLNULL) {
-		type = LogicalType::LIST(LogicalType::SQLNULL);
-	}
+	// an untyped NULL is rejected like in Spark (explode(CAST(NULL AS ARRAY<INT>)) is fine)
 	if (type.id() != LogicalTypeId::LIST && type.id() != LogicalTypeId::MAP) {
 		throw BinderException("explode: input must be an array or a map, not %s", SparkTypeName(type));
 	}

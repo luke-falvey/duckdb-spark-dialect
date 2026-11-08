@@ -68,3 +68,9 @@ SELECT map_zip_with ( nanvl 'Spark SQL ' );
 SELECT map_zip_with(map(1, 2)), zip_with(array(1)), transform(array(1)), filter(array(1)), map_filter(map(1, 2));
 
 SELECT transform_keys(map(1, 2)), transform_values(map(1, 2)), if(true, 1), elt(1), substring('a');
+
+-- ===== explode(NULL): the untyped NULL reached the kernel as INT (INTERNAL) =====
+
+select * from explode(null);
+
+SELECT explode(NULL), posexplode_outer(NULL);

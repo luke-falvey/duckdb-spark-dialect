@@ -421,6 +421,20 @@ bool ParseTimestamp(const string &input, const vector<PatternToken> &tokens, tim
 	return true;
 }
 
+//! The parsed pattern, cached per thread for the last pattern seen (the pattern is almost always constant)
+const vector<PatternToken> &CachedPattern(const string_t &fmt) {
+	static thread_local string pattern;
+	static thread_local vector<PatternToken> tokens;
+	static thread_local bool valid = false;
+	if (!valid || pattern.size() != fmt.GetSize() || memcmp(pattern.data(), fmt.GetData(), fmt.GetSize()) != 0) {
+		pattern = fmt.GetString();
+		valid = false;
+		tokens = ParsePattern(pattern);
+		valid = true;
+	}
+	return tokens;
+}
+
 void FormatDatetimeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<timestamp_t, string_t, string_t>(
 	    args.data[0], args.data[1], result, args.size(), [&](timestamp_t ts, string_t fmt) -> optional<string_t> {
@@ -428,7 +442,7 @@ void FormatDatetimeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 			    return optional<string_t>();
 		    }
 		    string out;
-		    if (!FormatTimestamp(ts, ParsePattern(fmt.GetString()), out)) {
+		    if (!FormatTimestamp(ts, CachedPattern(fmt), out)) {
 			    throw InvalidInputException("Unsupported datetime pattern: %s", fmt.GetString());
 		    }
 		    return StringVector::AddString(result, out);
@@ -439,7 +453,7 @@ void ParseDatetimeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<string_t, string_t, timestamp_t>(
 	    args.data[0], args.data[1], result, args.size(), [&](string_t input, string_t fmt) -> optional<timestamp_t> {
 		    timestamp_t ts;
-		    if (!ParseTimestamp(input.GetString(), ParsePattern(fmt.GetString()), ts)) {
+		    if (!ParseTimestamp(input.GetString(), CachedPattern(fmt), ts)) {
 			    return optional<timestamp_t>();
 		    }
 		    return ts;
