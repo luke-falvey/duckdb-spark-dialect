@@ -82,8 +82,10 @@ only need to succeed (Spark returns no rows, DuckDB a row count; the data is che
 queries), and cases Spark marks as random (`rand()`, `uuid()`, random-IV `aes_encrypt`, …) only
 need to succeed.
 
-**Current result: all 1233 differential cases are identical to Spark under both dialects (0 failing,
-0 lenient).** Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
+**Current result: all 1308 differential cases are identical to Spark under both dialects (0 failing,
+0 lenient)**: the original 1233, plus 53 reproducers of bugs found by the fuzzers
+(`test/cases/fuzz_regressions.sql`) and the 22 TPC-H queries of the benchmark over generated data
+(`test/cases/tpch_small.sql`). Another 73 cases in `test/cases/non_spark.sql` are SQL that Spark 3.5 rejects: `spark_strict`
 rejects every one (the lenient `spark` dialect accepts 56 of them, reported as `LENIENT`, which is not a failure),
 and `test/cases/strict_valid.sql` holds 65 tricky *valid* queries that must keep working in both. Run
 `python test/run_duckdb.py --dialect spark_strict`, which fails on any `LENIENT` result. CI runs both dialects. The 1233 cases cover all 106

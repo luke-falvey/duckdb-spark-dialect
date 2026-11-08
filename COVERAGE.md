@@ -10,13 +10,15 @@ Every expected result comes from Apache Spark 3.5.9 (`test/make_golden.py`).
 ```
 ddl_dml.sql                  PASS=65  LENIENT=0  FAIL=0  SKIP=0
 functions_examples.sql       PASS=868  LENIENT=0  FAIL=0  SKIP=0
+fuzz_regressions.sql         PASS=53  LENIENT=0  FAIL=0  SKIP=0
 literals_types.sql           PASS=45  LENIENT=0  FAIL=0  SKIP=0
 non_spark.sql                PASS=17  LENIENT=56  FAIL=0  SKIP=0
 operators.sql                PASS=106  LENIENT=0  FAIL=0  SKIP=0
 queries.sql                  PASS=131  LENIENT=0  FAIL=0  SKIP=0
 regressions.sql              PASS=18  LENIENT=0  FAIL=0  SKIP=0
 strict_valid.sql             PASS=65  LENIENT=0  FAIL=0  SKIP=0
-TOTAL                        PASS=1315  LENIENT=56  FAIL=0  SKIP=0
+tpch_small.sql               PASS=22  LENIENT=0  FAIL=0  SKIP=0
+TOTAL                        PASS=1390  LENIENT=56  FAIL=0  SKIP=0
 ```
 
 `SET current_dialect = 'spark_strict'` (a LENIENT result counts as a failure):
@@ -24,13 +26,15 @@ TOTAL                        PASS=1315  LENIENT=56  FAIL=0  SKIP=0
 ```
 ddl_dml.sql                  PASS=65  LENIENT=0  FAIL=0  SKIP=0
 functions_examples.sql       PASS=868  LENIENT=0  FAIL=0  SKIP=0
+fuzz_regressions.sql         PASS=53  LENIENT=0  FAIL=0  SKIP=0
 literals_types.sql           PASS=45  LENIENT=0  FAIL=0  SKIP=0
 non_spark.sql                PASS=73  LENIENT=0  FAIL=0  SKIP=0
 operators.sql                PASS=106  LENIENT=0  FAIL=0  SKIP=0
 queries.sql                  PASS=131  LENIENT=0  FAIL=0  SKIP=0
 regressions.sql              PASS=18  LENIENT=0  FAIL=0  SKIP=0
 strict_valid.sql             PASS=65  LENIENT=0  FAIL=0  SKIP=0
-TOTAL                        PASS=1371  LENIENT=0  FAIL=0  SKIP=0
+tpch_small.sql               PASS=22  LENIENT=0  FAIL=0  SKIP=0
+TOTAL                        PASS=1446  LENIENT=0  FAIL=0  SKIP=0
 ```
 
 ## Built-in functions (438 in Spark 3.5)
