@@ -12,20 +12,14 @@ import json
 import os
 import pickle
 import sys
-import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-os.environ["TZ"] = "UTC"
-time.tzset()
+from engines import DuckRunner, extension_path, scratch_dir, use_utc  # noqa: E402
+from harness import ROOT, load_cases, results_equal  # noqa: E402
 
-import duckdb  # noqa: E402
-
-from harness import ROOT, load_cases, normalize_typed, results_equal  # noqa: E402
-
-PROJECT = ROOT.parent
-EXTENSION = Path(os.environ.get(
-    "SPARK_EXTENSION", PROJECT / "build" / "spark_dialect.duckdb_extension"))
+EXTENSION = extension_path()
+CASE_TIMEOUT = 60.0
 
 
 COMMANDS = ("INSERT", "CREATE", "DROP", "ALTER", "TRUNCATE", "USE", "CACHE", "UNCACHE", "REFRESH", "DELETE",
@@ -37,19 +31,10 @@ def is_command(sql):
     return bool(words) and words[0].upper() in COMMANDS
 
 
-def connect(dialect="spark"):
-    # the extension is built from the v2.0.0 sources in a checkout without tags (version "v2.0.0-dev1")
-    con = duckdb.connect(config={"allow_unsigned_extensions": "true", "allow_extensions_metadata_mismatch": "true"})
-    con.execute(f"LOAD '{EXTENSION}'")
-    con.execute("SET TimeZone = 'UTC'")
-    con.execute(f"SET current_dialect = '{dialect}'")
-    return con
-
-
 def run_file(path, verbose, keyword, dialect="spark"):
     golden_path = ROOT / "golden" / (path.name + ".pkl")
     golden = pickle.loads(golden_path.read_bytes())
-    con = connect(dialect)
+    duck = DuckRunner(dialect=dialect, timeout=CASE_TIMEOUT, extension=EXTENSION)
     results = []
     for case in load_cases([path]):
         expected = golden.get(case.index)
@@ -60,23 +45,14 @@ def run_file(path, verbose, keyword, dialect="spark"):
         if case.has("skip"):
             results.append((case, "SKIP", case.directives["skip"]))
             continue
-        try:
-            try:
-                rel = con.sql(case.sql)
-                rows = rel.fetchall() if rel is not None else []
-                types = rel.types if rel is not None else []
-            except duckdb.InvalidInputException as e:
-                if "Expected exactly one SQL statement" not in str(e):
-                    raise
-                # rewrites such as INSERT OVERWRITE produce several statements
-                rows = con.execute(case.sql).fetchall()
-                types = []
-            actual = [[normalize_typed(v, types[i] if i < len(types) else None) for i, v in enumerate(row)]
-                      for row in rows]
-            duck_error = None
-        except Exception as e:  # noqa: BLE001
-            actual = None
-            duck_error = str(e).split("\n")[0][:300]
+        r = duck.run(case.sql)
+        actual = r.rows if r.ok else None
+        duck_error = None if r.ok else r.error
+        if r.status in ("crash", "timeout"):
+            # counted like an internal error: never acceptable
+            duck_error = f"INTERNAL ({r.status}) {r.error}"
+        elif r.ok and (case.has("setup") or is_command(case.sql)):
+            duck.replay.append(case.sql)  # restored if the worker has to restart
         if case.has("setup"):
             if duck_error:
                 results.append((case, "FAIL", f"setup failed: {duck_error}"))
@@ -106,7 +82,7 @@ def run_file(path, verbose, keyword, dialect="spark"):
         results.append((case, *outcome))
         if verbose and outcome[0] != "PASS":
             print(f"{outcome[0]} {case.id}: {case.sql[:200]}\n      {outcome[1]}")
-    con.close()
+    duck.close()
     return results
 
 
@@ -117,7 +93,10 @@ def main():
     parser.add_argument("--dialect", choices=["spark", "spark_strict"], default="spark")
     parser.add_argument("files", nargs="*")
     args = parser.parse_args()
-    files = [Path(f) for f in args.files] or sorted((ROOT / "cases").glob("*.sql"))
+    files = [Path(f).resolve() for f in args.files] or sorted((ROOT / "cases").glob("*.sql"))
+    use_utc()
+    # statements that write files (COPY, EXPORT DATABASE, ...) must not write into the repository
+    os.chdir(scratch_dir("duck-cases-"))
 
     total = Counter()
     by_function = defaultdict(Counter)

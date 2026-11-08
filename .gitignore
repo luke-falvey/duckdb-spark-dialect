@@ -4,3 +4,7 @@ test/golden/_warehouse/
 test/golden/_duck_warehouse/
 __pycache__/
 spark-warehouse/
+dir/
+out.csv
+test/fuzz/out/
+bench/out/
