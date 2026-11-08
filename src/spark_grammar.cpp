@@ -30,6 +30,9 @@
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/parser/result_modifier.hpp"
 
+#include <functional>
+#include <exception>
+
 namespace duckdb {
 
 namespace {
@@ -60,9 +63,54 @@ idx_t ThreadStackSize() {
 #endif
 }
 
+//! Runs `fn` on a thread with a large stack and waits for it; exceptions are rethrown here. Returns false (without
+//! running `fn`) on platforms where the stack size of a thread cannot be chosen.
+bool RunOnLargeStack(const std::function<void()> &fn) {
+#if defined(__linux__) || defined(__APPLE__)
+	struct Job {
+		const std::function<void()> *fn;
+		std::exception_ptr error;
+	} job {&fn, nullptr};
+	pthread_attr_t attr;
+	if (pthread_attr_init(&attr) != 0) {
+		return false;
+	}
+	// the stack is mapped lazily: only what a statement really uses is committed
+	if (pthread_attr_setstacksize(&attr, size_t(512) * 1024 * 1024) != 0) {
+		pthread_attr_destroy(&attr);
+		return false;
+	}
+	pthread_t thread;
+	auto entry = [](void *arg) -> void * {
+		auto &j = *static_cast<Job *>(arg);
+		try {
+			(*j.fn)();
+		} catch (...) {
+			j.error = std::current_exception();
+		}
+		return nullptr;
+	};
+	if (pthread_create(&thread, &attr, entry, &job) != 0) {
+		pthread_attr_destroy(&attr);
+		return false;
+	}
+	pthread_attr_destroy(&attr);
+	pthread_join(thread, nullptr);
+	if (job.error) {
+		std::rethrow_exception(job.error);
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
+const char *const NESTED_TOO_DEEPLY = "Expression is nested too deeply for the Spark dialect";
+
 struct HookDepthGuard {
 	struct State {
 		idx_t depth = 0;
+		bool large_stack = false;
 		uintptr_t base = 0;
 		idx_t budget = 0;
 	};
@@ -85,7 +133,7 @@ struct HookDepthGuard {
 		auto used = state.base > here ? state.base - here : here - state.base;
 		if (used > state.budget) {
 			state.depth--;
-			throw ParserException("Expression is nested too deeply for the Spark dialect");
+			throw ParserException(NESTED_TOO_DEEPLY);
 		}
 	}
 	~HookDepthGuard() {
@@ -95,8 +143,39 @@ struct HookDepthGuard {
 
 template <expr_fn_t FN>
 arena_ptr<TransformResultValue> FinalizeExpr(PEGTransformer &t, ParseResult &pr) {
-	HookDepthGuard guard;
-	return t.MakeResult<ExprPtr>(FN(t, pr));
+	auto &state = HookDepthGuard::Get();
+	if (state.depth > 0 || state.large_stack) {
+		HookDepthGuard guard;
+		return t.MakeResult<ExprPtr>(FN(t, pr));
+	}
+	// the outermost hook: ordinary statements are transformed right here; one that is nested too deeply for this
+	// thread's stack is transformed again on a thread with a large stack (DuckDB's own depth limit then applies)
+	try {
+		HookDepthGuard guard;
+		return t.MakeResult<ExprPtr>(FN(t, pr));
+	} catch (ParserException &e) {
+		if (string(e.what()).find(NESTED_TOO_DEEPLY) == string::npos) {
+			throw;
+		}
+	}
+	arena_ptr<TransformResultValue> result;
+	bool ran = RunOnLargeStack([&]() {
+		auto &inner = HookDepthGuard::Get();
+		inner.large_stack = true;
+		inner.budget = 0;
+		try {
+			HookDepthGuard guard;
+			result = t.MakeResult<ExprPtr>(FN(t, pr));
+		} catch (...) {
+			inner.large_stack = false;
+			throw;
+		}
+		inner.large_stack = false;
+	});
+	if (!ran) {
+		throw ParserException(NESTED_TOO_DEEPLY);
+	}
+	return result;
 }
 
 template <expr_fn_t FN>

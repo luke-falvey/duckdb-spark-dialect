@@ -131,8 +131,9 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 - Unnamed `STRUCT(...)` values match named struct columns by position in `INSERT ... VALUES`
   and in `CAST`, not in other implicit casts.
 - `array_sort` with a comparator sorts by rank (O(n²)); it expects a consistent comparator.
-- Expressions nested more deeply than a third of the thread's stack allows (about 160 levels on an 8 MB stack)
-  fail with "Expression is nested too deeply" instead of DuckDB's limit of 1000 levels.
+- Expressions nested deeper than about 160 levels are transformed on a helper thread with a 512 MB stack (Linux and
+  macOS), so DuckDB's limit of 1000 levels applies; on other platforms the deeper statement fails with
+  "Expression is nested too deeply".
 - More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml`.
 - Statements are rewritten at the token level in places (see the table above), so error messages
   for invalid Spark SQL can point at rewritten text.
