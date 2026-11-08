@@ -1575,6 +1575,8 @@ ExprP BindBitNot(FunctionBindExpressionInput &input) {
 	return b.Call("~", std::move(args), true);
 }
 
+LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const LogicalType &b_p);
+
 //! `a || b` and concat(): NULL if any input is NULL; arrays concatenate
 ExprP BindConcat(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
@@ -1590,6 +1592,24 @@ ExprP BindConcat(FunctionBindExpressionInput &input) {
 	vector<ExprP> args;
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
+	}
+	if (all_lists) {
+		// Spark coerces the element types to a common type, e.g. array<int> and array<string> -> array<string>
+		LogicalType element = LogicalType::SQLNULL;
+		for (auto &arg : args) {
+			auto type = arg->GetReturnType();
+			if (type.id() == LogicalTypeId::LIST) {
+				element = SparkWiderType(input.context, element, ListType::GetChildType(type));
+			}
+		}
+		if (!IsNull(element)) {
+			for (auto &arg : args) {
+				auto type = arg->GetReturnType();
+				if (type.id() != LogicalTypeId::LIST || ListType::GetChildType(type) != element) {
+					arg = b.Cast(std::move(arg), LogicalType::LIST(element));
+				}
+			}
+		}
 	}
 	// `||` returns NULL if either side is NULL, for strings, lists and blobs alike (unlike DuckDB's concat())
 	ExprP result = all_lists || all_blobs ? std::move(args[0]) : ToSparkString(b, std::move(args[0]));

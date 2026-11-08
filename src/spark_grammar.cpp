@@ -501,6 +501,28 @@ ExprPtr TransformExistsFunction(PEGTransformer &t, ParseResult &pr) {
 	return SparkCall("exists", std::move(args));
 }
 
+//! NULL if any of the (copied) inputs is NULL, else result: Spark's higher-order and zip functions return NULL
+//! for a NULL array or map, where DuckDB's list functions treat it as empty
+ExprPtr NullIfAnyNull(const vector<ExprPtr> &inputs, ExprPtr result) {
+	ExprPtr any_null;
+	for (auto &input : inputs) {
+		ExprPtr check = make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NULL, input->Copy());
+		any_null = any_null ? make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_OR, std::move(any_null),
+		                                                       std::move(check))
+		                    : std::move(check);
+	}
+	if (!any_null) {
+		return result;
+	}
+	auto guarded = make_uniq<CaseExpression>();
+	CaseCheck check;
+	check.when_expr = std::move(any_null);
+	check.then_expr = ConstantExpression::Null();
+	guarded->CaseChecksMutable().push_back(std::move(check));
+	guarded->ElseMutable() = std::move(result);
+	return std::move(guarded);
+}
+
 ExprPtr RewriteFunction(ExprPtr expr);
 
 //! The single (unqualified) name token under a parse result, or empty when the name is qualified or absent
@@ -1014,8 +1036,11 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		replacements.push_back(DuckCall("struct_extract_at", ColRef("__spark_pair"), ConstantExpression::Integer(1)));
 		replacements.push_back(DuckCall("struct_extract_at", ColRef("__spark_pair"), ConstantExpression::Integer(2)));
 		auto body = InlineLambda(args, 2, "zip_with", std::move(replacements));
-		return DuckCall("list_transform", DuckCall("list_zip", std::move(args[0]), std::move(args[1])),
-		                MakeLambda({"__spark_pair"}, std::move(body)));
+		vector<ExprPtr> inputs;
+		inputs.push_back(args[0]->Copy());
+		inputs.push_back(args[1]->Copy());
+		return NullIfAnyNull(inputs, DuckCall("list_transform", DuckCall("list_zip", std::move(args[0]), std::move(args[1])),
+		                                      MakeLambda({"__spark_pair"}, std::move(body))));
 	}
 	if (name == "map_filter") {
 		auto args = TakeArguments(func);
@@ -1055,10 +1080,13 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		vector<pair<string, ExprPtr>> fields;
 		fields.emplace_back("key", ColRef("__spark_key"));
 		fields.emplace_back("value", std::move(body));
+		vector<ExprPtr> inputs;
+		inputs.push_back(args[0]->Copy());
+		inputs.push_back(args[1]->Copy());
 		auto keys = SparkCall("array_distinct", DuckCall("list_concat", DuckCall("map_keys", std::move(args[0])),
 		                                                    DuckCall("map_keys", std::move(args[1]))));
-		return DuckCall("map_from_entries", DuckCall("list_transform", std::move(keys),
-		                                             MakeLambda({"__spark_key"}, StructPack(std::move(fields)))));
+		return NullIfAnyNull(inputs, DuckCall("map_from_entries", DuckCall("list_transform", std::move(keys),
+		                                                                   MakeLambda({"__spark_key"}, StructPack(std::move(fields))))));
 	}
 	if (name == "arrays_zip") {
 		auto args = TakeArguments(func);
@@ -1076,8 +1104,8 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 			return SparkCall("array", vector<ExprPtr>());
 		}
 		auto longest = lengths.size() == 1 ? std::move(lengths[0]) : DuckCall("greatest", std::move(lengths));
-		return DuckCall("list_transform", DuckCall("range", std::move(longest)),
-		                MakeLambda({"__spark_idx"}, StructPack(std::move(fields))));
+		return NullIfAnyNull(args, DuckCall("list_transform", DuckCall("range", std::move(longest)),
+		                                    MakeLambda({"__spark_idx"}, StructPack(std::move(fields)))));
 	}
 	// helpers such as add / cast_value / concat_ws_impl are only reachable through qualified internal calls
 	if (IsSparkOverride(name) && IsSparkFunction(name)) {
@@ -1124,6 +1152,54 @@ ExprPtr TransformFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	return FinalizeFunctionHookResult(Expr(t, list.GetChild(0)));
 }
 
+//! Does a parsed expression reference no columns, subqueries or lambda parameters (Spark: "foldable")?
+bool IsFoldable(const ParsedExpression &expr) {
+	switch (expr.GetExpressionClass()) {
+	case ExpressionClass::COLUMN_REF:
+	case ExpressionClass::SUBQUERY:
+	case ExpressionClass::LAMBDA_REF:
+	case ExpressionClass::WINDOW:
+	case ExpressionClass::STAR:
+		return false;
+	default:
+		break;
+	}
+	bool foldable = true;
+	ParsedExpressionIterator::EnumerateChildren(expr, [&](const ParsedExpression &child) {
+		foldable = foldable && IsFoldable(child);
+	});
+	return foldable;
+}
+
+//! spark_strict: arguments that Spark requires to be constant ([DATATYPE_MISMATCH.NON_FOLDABLE_INPUT] and
+//! "needs to be a ... literal" errors at analysis time), by 0-based position
+void CheckFoldableArguments(const ParsedExpression &expr) {
+	static const unordered_map<string, vector<idx_t>> FOLDABLE = {
+	    {"round", {1}},          {"bround", {1}},          {"ceil", {1}},           {"ceiling", {1}},
+	    {"floor", {1}},          {"date_part", {0}},       {"datepart", {0}},       {"mask", {1, 2, 3, 4}},
+	    {"schema_of_csv", {0}},  {"schema_of_json", {0}},  {"to_binary", {1}},      {"try_to_binary", {1}},
+	    {"to_char", {1}},        {"to_varchar", {1}},      {"to_number", {1}},      {"try_to_number", {1}},
+	    {"from_json", {1}},      {"from_csv", {1}},        {"xpath", {1}},          {"xpath_boolean", {1}},
+	    {"xpath_double", {1}},   {"xpath_float", {1}},     {"xpath_int", {1}},      {"xpath_long", {1}},
+	    {"xpath_number", {1}},   {"xpath_short", {1}},     {"xpath_string", {1}},   {"approx_percentile", {1, 2}},
+	    {"percentile_approx", {1, 2}}, {"percentile", {1}}, {"histogram_numeric", {1}}, {"hll_sketch_agg", {1}}};
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return;
+	}
+	auto &func = expr.Cast<FunctionExpression>();
+	auto entry = FOLDABLE.find(StringUtil::Lower(func.FunctionName().GetIdentifierName()));
+	if (entry == FOLDABLE.end()) {
+		return;
+	}
+	auto &args = func.GetArguments();
+	for (auto pos : entry->second) {
+		if (pos < args.size() && !IsFoldable(args[pos].GetExpression())) {
+			throw BinderException("[DATATYPE_MISMATCH.NON_FOLDABLE_INPUT] argument %llu of %s must be a constant",
+			                      (unsigned long long)(pos + 1), entry->first);
+		}
+	}
+}
+
 //! FunctionExpression in spark_strict: the name the user wrote must be a Spark function (checked before DuckDB's
 //! own rewrites such as count() -> count_star)
 ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
@@ -1135,7 +1211,9 @@ ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	if (tokens.size() == 1) {
 		CheckSparkFunctionName(tokens[0]);
 	}
-	return FinalizeFunctionHookResult(Expr(t, list.GetChild(0)));
+	auto expr = Expr(t, list.GetChild(0));
+	CheckFoldableArguments(*expr);
+	return FinalizeFunctionHookResult(std::move(expr));
 }
 
 //! CAST(x AS T) has Spark (non-ANSI) semantics: invalid input becomes NULL, numbers truncate/wrap

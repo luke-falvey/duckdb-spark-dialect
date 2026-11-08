@@ -1600,6 +1600,15 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(subquery, level2);
 		}
 		subquery.emplace_back(")", offset, TokenType::OPERATOR);
+		// Spark drops rows whose window is NULL (a NULL / unparsable time, an invalid gap duration)
+		Tokens filtered = Lex("( SELECT * FROM", offset);
+		Append(filtered, subquery);
+		Append(filtered, Lex("AS __spark_unfiltered WHERE", offset));
+		filtered.emplace_back(column, offset, TokenType::IDENTIFIER);
+		Append(filtered, Lex(". start IS NOT NULL AND", offset));
+		filtered.emplace_back(column, offset, TokenType::IDENTIFIER);
+		Append(filtered, Lex(". \"end\" IS NOT NULL )", offset));
+		subquery = filtered;
 		Append(subquery, Lex("AS __spark_windowed", offset));
 		// GROUP BY ..., "window" ; FROM (subquery) ; WHERE moved into the subquery
 		Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});

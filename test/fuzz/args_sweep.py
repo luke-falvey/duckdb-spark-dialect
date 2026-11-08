@@ -33,6 +33,8 @@ NONDETERMINISTIC = {
     "input_file_block_start", "input_file_block_length", "version", "current_user", "user", "session_user",
     "current_timezone", "reflect", "java_method", "try_reflect", "uniform", "randstr", "aes_encrypt",
     "current_catalog", "current_database", "current_schema", "assert_true", "raise_error",
+    # results that depend on hash order or ties: Spark documents them as nondeterministic
+    "collect_set", "mode",
 }
 # arguments that are sizes: huge values are legitimately slow / huge in both engines
 SIZE_FUNCTIONS = {"repeat", "space", "array_repeat", "sequence", "lpad", "rpad", "range", "explode",
@@ -278,7 +280,7 @@ def main():
                    "spark": {"ok": s.ok, "rows": repr(s.rows)[:500], "error": s.error, "phase": s.phase},
                    "duck": {"status": duck.status, "rows": repr(duck.rows)[:500], "error": duck.error}}
             rec["signature"] = f"{kind}|{fn}|{diff or triage.mask_message(duck.error or s.error)[:60]}"
-            k = compare.is_known(rec["signature"], known)
+            k = compare.is_known(rec["signature"], known, rec["sql"])
             rec["known"] = bool(k)
             counts[("known:" if k else "") + kind] += 1
             findings.append(rec)

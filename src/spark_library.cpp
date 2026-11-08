@@ -940,6 +940,117 @@ void DoubleToDecimalStringKernel(DataChunk &args, ExpressionState &, Vector &res
 void RegisterSparkStringKernels(ExtensionLoader &loader);
 void CheckLikePatternKernel(DataChunk &args, ExpressionState &state, Vector &result);
 
+//! substring_index(s, delim, count) with Spark's (UTF8String.subStringIndex) search rules
+string SubstringIndex(const string &str, const string &delim, int64_t count) {
+	if (delim.empty() || count == 0) {
+		return "";
+	}
+	if (count > 0) {
+		int64_t idx = -1;
+		for (int64_t n = 0; n < count; n++) {
+			auto found = str.find(delim, size_t(idx + 1));
+			if (found == string::npos) {
+				return str;
+			}
+			idx = int64_t(found);
+		}
+		return str.substr(0, size_t(idx));
+	}
+	int64_t idx = int64_t(str.size()) - int64_t(delim.size()) + 1;
+	for (int64_t n = 0; n < -count; n++) {
+		if (idx - 1 < 0) {
+			return str;
+		}
+		auto found = str.rfind(delim, size_t(idx - 1));
+		if (found == string::npos) {
+			return str;
+		}
+		idx = int64_t(found);
+	}
+	return str.substr(size_t(idx) + delim.size());
+}
+
+void SubstringIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	TernaryExecutor::Execute<string_t, string_t, int64_t, string_t>(
+	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, string_t d, int64_t c) {
+		    return StringVector::AddString(result, SubstringIndex(s.GetString(), d.GetString(), c));
+	    });
+}
+
+//! array_join(strings, sep[, null_replacement]): NULL elements are skipped (or replaced); the separator need not
+//! be constant (DuckDB's array_to_string requires that)
+void ArrayJoinKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	auto count = args.size();
+	bool has_replacement = args.ColumnCount() > 2;
+	UnifiedVectorFormat lists, seps, reps;
+	args.data[0].ToUnifiedFormat(lists);
+	args.data[1].ToUnifiedFormat(seps);
+	if (has_replacement) {
+		args.data[2].ToUnifiedFormat(reps);
+	}
+	auto &child = ListVector::GetChild(args.data[0]);
+	UnifiedVectorFormat elems;
+	child.ToUnifiedFormat(ListVector::GetListSize(args.data[0]), elems);
+	auto list_data = UnifiedVectorFormat::GetData<list_entry_t>(lists);
+	auto sep_data = UnifiedVectorFormat::GetData<string_t>(seps);
+	auto elem_data = UnifiedVectorFormat::GetData<string_t>(elems);
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	auto out = FlatVector::GetDataMutable<string_t>(result);
+	auto &validity = FlatVector::ValidityMutable(result);
+	for (idx_t i = 0; i < count; i++) {
+		auto li = lists.sel->get_index(i);
+		auto si = seps.sel->get_index(i);
+		idx_t ri = has_replacement ? reps.sel->get_index(i) : 0;
+		if (!lists.validity.RowIsValid(li) || !seps.validity.RowIsValid(si) ||
+		    (has_replacement && !reps.validity.RowIsValid(ri))) {
+			validity.SetInvalid(i);
+			continue;
+		}
+		auto sep = sep_data[si].GetString();
+		string joined;
+		bool first = true;
+		auto entry = list_data[li];
+		for (idx_t k = entry.offset; k < entry.offset + entry.length; k++) {
+			auto ei = elems.sel->get_index(k);
+			string value;
+			if (elems.validity.RowIsValid(ei)) {
+				value = elem_data[ei].GetString();
+			} else if (has_replacement) {
+				value = UnifiedVectorFormat::GetData<string_t>(reps)[ri].GetString();
+			} else {
+				continue;
+			}
+			if (!first) {
+				joined += sep;
+			}
+			joined += value;
+			first = false;
+		}
+		out[i] = StringVector::AddString(result, joined);
+	}
+}
+
+//! url_encode with java.net.URLEncoder rules: [A-Za-z0-9.*_-] unchanged, ' ' -> '+', everything else %XX
+void UrlEncodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t s) {
+		static const char *HEX = "0123456789ABCDEF";
+		string out;
+		for (auto c : s.GetString()) {
+			auto u = static_cast<unsigned char>(c);
+			if (isalnum(u) || c == '.' || c == '*' || c == '_' || c == '-') {
+				out += c;
+			} else if (c == ' ') {
+				out += '+';
+			} else {
+				out += '%';
+				out += HEX[u >> 4];
+				out += HEX[u & 15];
+			}
+		}
+		return StringVector::AddString(result, out);
+	});
+}
+
 void RegisterSparkLibrary(ExtensionLoader &loader) {
 	auto reg = [&](ScalarFunction fn) {
 		RegisterFallible(loader, std::move(fn));
@@ -970,6 +1081,20 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("rint"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<Rint>));
 	reg(ScalarFunction(Identifier("asinh"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<SparkAsinh>));
 	reg(ScalarFunction(Identifier("acosh"), {LogicalType::DOUBLE}, LogicalType::DOUBLE, DoubleUnaryKernel<SparkAcosh>));
+	reg(ScalarFunction(Identifier("substring_index_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::BIGINT},
+	                   LogicalType::VARCHAR, SubstringIndexKernel));
+	{
+		ScalarFunction join(Identifier("array_join_impl"), {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR},
+		                    LogicalType::VARCHAR, ArrayJoinKernel);
+		join.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+		reg(join);
+		ScalarFunction join3(Identifier("array_join_impl"),
+		                     {LogicalType::LIST(LogicalType::VARCHAR), LogicalType::VARCHAR, LogicalType::VARCHAR},
+		                     LogicalType::VARCHAR, ArrayJoinKernel);
+		join3.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+		reg(join3);
+	}
+	reg(ScalarFunction(Identifier("url_encode"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, UrlEncodeKernel));
 	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                   LogicalType::INTEGER, LevenshteinKernel));
 	reg(ScalarFunction(Identifier("hypot"), {LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE,
@@ -988,7 +1113,7 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	reg(ScalarFunction(Identifier("double_to_decimal_string"), {LogicalType::DOUBLE}, LogicalType::VARCHAR,
 	                   DoubleToDecimalStringKernel));
 	for (auto name : {"initcap", "soundex", "luhn_check", "shiftleft", "shiftright", "shiftrightunsigned", "expm1",
-	                  "rint", "hypot", "asinh", "acosh"}) {
+	                  "rint", "hypot", "asinh", "acosh", "url_encode"}) {
 		AddSparkOverride(name);
 	}
 }

@@ -110,8 +110,14 @@ def load_known():
     return tomllib.loads(KNOWN_FILE.read_text()).get("difference", [])
 
 
-def is_known(signature, known):
+def is_known(signature, known, sql=None):
+    """The known difference that covers a finding: its `signature` glob matches, and its optional `sql`
+    regular expression is found in the query."""
+    import re
     for k in known:
-        if fnmatch.fnmatchcase(signature, k["signature"]):
-            return k
+        if not fnmatch.fnmatchcase(signature, k["signature"]):
+            continue
+        if k.get("sql") and not (sql and re.search(k["sql"], sql)):
+            continue
+        return k
     return None

@@ -42,3 +42,25 @@ SELECT max_by(x, y), min_by(x, y) FROM VALUES ('a', 10), (NULL, 50), ('c', 20), 
 SELECT corr(c1, c2) FROM VALUES (3, 2), (3, 3), (NULL, 4) AS t(c1, c2);
 
 SELECT corr(c1, c2) FROM VALUES (1, 2), (2, 3), (4, 9) AS t(c1, c2);
+
+SELECT unbase64(' '), unbase64('U3Bh cmsg\nU1FM'), url_encode('  a b*~é'), regexp_substr('abc', ''), bin(-1.5), bin(13);
+
+SELECT substring_index('www.apache.org', '.', 2), substring_index('www.apache.org', '.', -2), substring_index('aaa', 'aa', 1), substring_index('a.b', '', 1), substring_index('a.b.c', x, 1) FROM VALUES ('.'), ('b'), (NULL) AS t(x);
+
+SELECT array_join(array('hello', NULL, 'world'), x), array_join(array('a', NULL), ',', 'N'), array_join(array(1.5D, CAST('NaN' AS DOUBLE)), ' ') FROM VALUES ('-'), (' '), (NULL) AS t(x);
+
+SELECT equal_null(1, '%_'), equal_null(1, '1'), equal_null(NULL, NULL), levenshtein('kitten', 'sitting', 2);
+
+SELECT hll_sketch_estimate(hll_sketch_agg(col)) FROM VALUES (1), (2), (3), (NULL), (2), (9223372036854775807L) AS t(col);
+
+SELECT concat(array(1, 2), array('b', NULL), array(6)), concat(array(1), array(2.5D));
+
+SELECT arrays_zip(CAST(NULL AS ARRAY<INT>), array(1)), arrays_zip(array(1), array(2, 3)), zip_with(CAST(NULL AS ARRAY<INT>), array(1), (x, y) -> x), map_zip_with(CAST(NULL AS MAP<INT,INT>), map(1, 2), (k, a, b) -> a);
+
+SELECT covar_pop(c1, c2), covar_samp(c1, c2), regr_slope(c1, c2) FROM VALUES (3, 1), (2, 2), (3, 3) AS tab(c1, c2);
+
+SELECT a, session_window.start, session_window.end, count(*) AS cnt FROM VALUES ('A1', '2021-01-01 00:00:00'), ('A1', 'not a date'), ('A1', '2021-01-01 00:10:00'), ('A2', NULL) AS tab(a, b) GROUP BY a, session_window(b, '5 minutes') ORDER BY a, start;
+
+SELECT a, count(*) FROM VALUES ('A1', '2021-01-01 00:00:00') AS tab(a, b) GROUP BY a, session_window(b, '%_');
+
+SELECT a, window.start, count(*) FROM VALUES ('A1', '2021-01-01 00:00:00'), ('A1', NULL), ('A2', 'x') AS tab(a, b) GROUP BY a, window(b, '5 minutes');

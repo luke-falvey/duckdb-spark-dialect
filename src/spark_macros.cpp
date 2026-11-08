@@ -45,7 +45,7 @@ const SparkMacro SPARK_MACROS[] = {
     // Catalyst's Divide yields NULL when the variance product is zero, where DuckDB's corr gives NaN
     {"corr", "(x, y) AS CASE WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
     {"isnotnull", "(a) AS a IS NOT NULL"},
-    {"equal_null", "(a, b) AS a IS NOT DISTINCT FROM b"},
+    {"equal_null", "(a, b) AS " S "cmp_nsafe(a, b)"},
     {"nanvl", "(a, b) AS CASE WHEN isnan(" S "as_double(a)) THEN " S "as_double(b) ELSE " S "as_double(a) END"},
     {"assert_true", "(c) AS CASE WHEN c THEN NULL ELSE error('''' || CAST(c AS VARCHAR) || ''' is not true!') END, "
                     "(c, m) AS CASE WHEN c THEN NULL ELSE error(m) END"},
@@ -86,7 +86,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"regexp_replace", "(s, p, r) AS regexp_replace(" S "as_string(s), p, regexp_replace(r, '\\$(\\d)', '\\\\\\1', 'g'), 'g'), "
                        "(s, p, r, pos) AS substring(" S "as_string(s), 1, CAST(pos AS BIGINT) - 1) || regexp_replace(substring(" S "as_string(s), CAST(pos AS BIGINT)), p, regexp_replace(r, '\\$(\\d)', '\\\\\\1', 'g'), 'g')"},
     {"regexp_count", "(s, p) AS CAST(len(regexp_extract_all(s, p)) AS INTEGER)"},
-    {"regexp_substr", "(s, p) AS CASE WHEN regexp_matches(s, p) THEN regexp_extract(s, p) END"},
+    {"regexp_substr", "(s, p) AS CASE WHEN regexp_matches(s, p) THEN nullif(regexp_extract(s, p), '') END"},
     {"regexp_instr", "(s, p) AS CASE WHEN s IS NULL OR p IS NULL THEN NULL WHEN regexp_matches(s, p) THEN CAST(length(regexp_replace(s, '(?s)(' || p || ').*', '')) + 1 AS INTEGER) ELSE 0 END, "
                      "(s, p, i) AS CASE WHEN s IS NULL OR p IS NULL THEN NULL WHEN regexp_matches(s, p) THEN CAST(length(regexp_replace(s, '(?s)(' || p || ').*', '')) + 1 AS INTEGER) ELSE 0 END"},
     {"regexp_extract", "(s, p) AS regexp_extract(s, p, 1), (s, p, i) AS regexp_extract(s, p, CAST(i AS INTEGER))"},
@@ -96,13 +96,11 @@ const SparkMacro SPARK_MACROS[] = {
     {"split", "(s, p) AS " S "split_impl(s, p, -1), (s, p, l) AS " S "split_impl(s, p, CAST(l AS INTEGER))"},
     {"substr", "(s, p) AS " S "substr_impl(" S "as_text_or_binary(s), CAST(p AS BIGINT), 9223372036854775807), "
                "(s, p, l) AS " S "substr_impl(" S "as_text_or_binary(s), CAST(p AS BIGINT), CAST(l AS BIGINT))"},
-    {"substring_index",
-     "(s, d, c) AS CASE WHEN s IS NULL OR d IS NULL OR c IS NULL THEN NULL WHEN c = 0 OR length(d) = 0 THEN '' "
-     "WHEN c > 0 THEN array_to_string(list_slice(string_split(s, d), 1, CAST(c AS BIGINT)), d) "
-     "ELSE array_to_string(list_slice(string_split(s, d), greatest(len(string_split(s, d)) + CAST(c AS BIGINT) + 1, 1), len(string_split(s, d))), d) END"},
+    {"substring_index", "(s, d, c) AS " S "substring_index_impl(" S "as_string(s), " S "as_string(d), CAST(c AS BIGINT))"},
     {"to_binary", "(s) AS unhex(s), (s, f) AS CASE lower(f) WHEN 'hex' THEN unhex(s) WHEN 'base64' THEN from_base64(s) WHEN 'utf-8' THEN encode(s) WHEN 'utf8' THEN encode(s) END"},
     {"try_to_binary", "(s) AS TRY(unhex(s)), (s, f) AS TRY(" S "to_binary(s, f))"},
-    {"unbase64", "(s) AS from_base64(s)"},
+    // Java's MIME decoder skips characters outside the base64 alphabet (whitespace, line breaks)
+    {"unbase64", "(s) AS from_base64(regexp_replace(" S "as_string(s), '[^A-Za-z0-9+/=]', '', 'g'))"},
     {"base64", "(b) AS to_base64(" S "as_binary(b))"},
     {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE upper(hex(CAST(x AS BIGINT))) END"},
     {"unhex", "(s) AS TRY(unhex(s))"},
@@ -142,7 +140,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"randn", "() AS sqrt(-2 * ln(random())) * cos(2 * pi() * random()), (s) AS sqrt(-2 * ln(random())) * cos(2 * pi() * random())"},
     {"try_divide", "(a, b) AS " S "divide(a, b)"},
     {"factorial", "(n) AS CASE WHEN n < 0 OR n > 20 THEN NULL ELSE CAST(factorial(CAST(n AS INTEGER)) AS BIGINT) END"},
-    {"bin", "(n) AS CASE WHEN n IS NULL THEN NULL WHEN CAST(n AS BIGINT) >= 0 THEN bin(CAST(n AS BIGINT)) ELSE bin(CAST(n AS BIGINT) + 18446744073709551616::HUGEINT) END"},
+    {"bin", "(n) AS CASE WHEN n IS NULL THEN NULL WHEN " S "as_long(n) >= 0 THEN bin(" S "as_long(n)) ELSE bin(" S "as_long(n) + 18446744073709551616::HUGEINT) END"},
     {"bit_count", "(n) AS CAST(bit_count(CAST(n AS BIGINT)) AS INTEGER)"},
     {"bit_get", "(n, p) AS CAST((CAST(n AS BIGINT) >> CAST(p AS INTEGER)) & 1 AS TINYINT)"},
     {"getbit", "(n, p) AS " S "bit_get(n, p)"},
@@ -261,8 +259,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_union", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE " S "array_distinct(list_concat(a, b)) END"},
     {"array_intersect", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NOT NULL) END"},
     {"array_except", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE list_filter(" S "array_distinct(a), lambda x: list_position(b, x) IS NULL) END"},
-    {"array_join", "(a, d) AS CASE WHEN d IS NULL THEN NULL ELSE array_to_string(list_filter(a, lambda x: x IS NOT NULL), d) END, "
-                   "(a, d, r) AS array_to_string(list_transform(a, lambda x: coalesce(CAST(x AS VARCHAR), r)), d)"},
+    {"array_join", "(a, d) AS " S "array_join_impl(list_transform(a, lambda x: " S "as_string(x)), d), "
+                   "(a, d, r) AS " S "array_join_impl(list_transform(a, lambda x: " S "as_string(x)), d, r)"},
     {"array_max", "(a) AS list_max(a)"},
     {"array_min", "(a) AS list_min(a)"},
     {"array_position", "(a, v) AS CASE WHEN a IS NULL OR v IS NULL THEN NULL ELSE coalesce(CAST(list_position(a, v) AS BIGINT), 0) END"},
@@ -376,8 +374,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"bitmap_construct_agg", "(p) AS " S "bitmap_from_positions(list(p))"},
     {"bitmap_or_agg", "(b) AS " S "bitmap_or_list(list(b))"},
     {"bitmap_count", "(b) AS " S "bitmap_count_impl(b)"},
-    {"hll_sketch_agg", "(x) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) AS BIGINT)) FILTER (WHERE x IS NOT NULL)), "
-                       "(x, k) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) AS BIGINT)) FILTER (WHERE x IS NOT NULL))"},
+    {"hll_sketch_agg", "(x) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) >> 1 AS BIGINT)) FILTER (WHERE x IS NOT NULL)), "
+                       "(x, k) AS " S "hll_from_list(list(DISTINCT CAST(hash(x) >> 1 AS BIGINT)) FILTER (WHERE x IS NOT NULL))"},
     {"hll_union_agg", "(s) AS " S "hll_union_list(list(s)), (s, b) AS " S "hll_union_list(list(s))"},
     {"hll_union", "(a, b) AS " S "hll_union_list([a, b]), (a, b, c) AS " S "hll_union_list([a, b])"},
     {"hll_sketch_estimate", "(s) AS " S "hll_estimate(s)"},
