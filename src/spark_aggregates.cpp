@@ -302,8 +302,11 @@ struct DoubleAvgOperation : public ClusteredCopy {
 
 // ---- sum of decimals: an exact 128-bit sum, NULL when it does not fit DECIMAL(min(38, p + 10), s) --
 
+//! The sum is `value + small`: narrow inputs are added to the 64-bit `small` with an overflow check, and only a
+//! carry out of it (rare) is moved to the 128-bit `value`, which keeps the hot loop at one add and one branch.
 struct DecimalSumState {
 	hugeint_t value;
+	int64_t small;
 	bool is_set;
 	bool overflow;
 };
@@ -323,20 +326,38 @@ inline void AddToDecimalState(hugeint_t &sum, bool &overflow, const hugeint_t &i
 	}
 }
 
-//! Adds an input to a 128-bit sum. Inputs of 64 bits or less cannot overflow it (that would take 2^64 rows), so they
-//! get a branch-free add; a hugeint input is checked.
-template <class T>
-inline void AddDecimalInput(hugeint_t &sum, bool &overflow, const T &input, idx_t count) {
+//! Moves a 64-bit partial sum into the 128-bit one (sign-extended, branch-free carry); 128 bits cannot overflow from
+//! 64-bit additions (that would take 2^64 spills).
+inline void SpillSmall(hugeint_t &sum, int64_t small) {
+	auto old = sum.lower;
+	sum.lower += uint64_t(small);
+	sum.upper += (small >> 63) + int64_t(sum.lower < old);
+}
+
+template <class STATE>
+inline hugeint_t TotalOf(const STATE &state) {
+	hugeint_t total = state.value;
+	SpillSmall(total, state.small);
+	return total;
+}
+
+//! Adds an input to the sum of a state; a hugeint input (or a repeated one) is checked against 128-bit overflow.
+template <class STATE, class T>
+inline void AddDecimalInput(STATE &state, const T &input, idx_t count) {
 	if constexpr (!std::is_same<T, hugeint_t>::value) {
 		if (count == 1) {
 			auto value = int64_t(input);
-			auto old = sum.lower;
-			sum.lower += uint64_t(value);
-			sum.upper += (value >> 63) + int64_t(sum.lower < old);
+			int64_t next;
+			if (DUCKDB_LIKELY(!__builtin_add_overflow(state.small, value, &next))) {
+				state.small = next;
+			} else {
+				SpillSmall(state.value, state.small);
+				state.small = value;
+			}
 			return;
 		}
 	}
-	AddToDecimalState(sum, overflow, ToHugeint(input), count);
+	AddToDecimalState(state.value, state.overflow, ToHugeint(input), count);
 }
 
 template <class IN, class OUT, bool ANSI = false>
@@ -348,29 +369,29 @@ struct DecimalSumOperation : public ClusteredCopy {
 		}
 		target.is_set = true;
 		target.overflow = target.overflow || source.overflow;
-		AddToDecimalState(target.value, target.overflow, source.value, 1);
+		AddToDecimalState(target.value, target.overflow, TotalOf(source), 1);
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
 		state.is_set = true;
-		AddDecimalInput(state.value, state.overflow, input, 1);
+		AddDecimalInput(state, input, 1);
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &, idx_t count) {
 		state.is_set = true;
-		AddDecimalInput(state.value, state.overflow, input, count);
+		AddDecimalInput(state, input, count);
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input) {
-		AddDecimalInput(local.value, local.overflow, input, 1);
+		AddDecimalInput(local, input, 1);
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input, idx_t count) {
-		AddDecimalInput(local.value, local.overflow, input, count);
+		AddDecimalInput(local, input, count);
 	}
 
 	template <class STATE>
@@ -386,7 +407,7 @@ struct DecimalSumOperation : public ClusteredCopy {
 		auto width = DecimalType::GetWidth(finalize_data.input.function.GetReturnType());
 		if (!state.is_set) {
 			finalize_data.ReturnNull();
-		} else if (state.overflow || !FitsWidth(state.value, width)) {
+		} else if (state.overflow || !FitsWidth(TotalOf(state), width)) {
 			if (ANSI) {
 				throw InvalidInputException("[NUMERIC_VALUE_OUT_OF_RANGE] The sum does not fit the decimal type. If "
 				                            "necessary set \"spark.sql.ansi.enabled\" to \"false\" to bypass this "
@@ -394,7 +415,7 @@ struct DecimalSumOperation : public ClusteredCopy {
 			}
 			finalize_data.ReturnNull();
 		} else {
-			target = FromHugeint<T>(state.value);
+			target = FromHugeint<T>(TotalOf(state));
 		}
 	}
 
@@ -407,6 +428,7 @@ struct DecimalSumOperation : public ClusteredCopy {
 
 struct DecimalAvgState {
 	hugeint_t value;
+	int64_t small;
 	int64_t count;
 	bool overflow;
 };
@@ -417,31 +439,31 @@ struct DecimalAvgOperation : public ClusteredCopy {
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
 		target.count += source.count;
 		target.overflow = target.overflow || source.overflow;
-		AddToDecimalState(target.value, target.overflow, source.value, 1);
+		AddToDecimalState(target.value, target.overflow, TotalOf(source), 1);
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
 		state.count++;
-		AddDecimalInput(state.value, state.overflow, input, 1);
+		AddDecimalInput(state, input, 1);
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &, idx_t count) {
 		state.count += int64_t(count);
-		AddDecimalInput(state.value, state.overflow, input, count);
+		AddDecimalInput(state, input, count);
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input) {
 		local.count++;
-		AddDecimalInput(local.value, local.overflow, input, 1);
+		AddDecimalInput(local, input, 1);
 	}
 
 	template <class INPUT_TYPE, class STATE>
 	static void UpdateClusteredLocal(STATE &local, const INPUT_TYPE &input, idx_t count) {
 		local.count += int64_t(count);
-		AddDecimalInput(local.value, local.overflow, input, count);
+		AddDecimalInput(local, input, count);
 	}
 
 	template <class STATE>
@@ -456,7 +478,8 @@ struct DecimalAvgOperation : public ClusteredCopy {
 		auto &result_type = function.GetReturnType();
 		auto sum_width = uint8_t(MinValue<int>(38, DecimalType::GetWidth(input_type) + 10));
 		// Spark: the sum is a DECIMAL(min(38, p + 10), s); when it overflows, the average is NULL
-		if (state.count == 0 || state.overflow || !FitsWidth(state.value, sum_width)) {
+		auto sum = TotalOf(state);
+		if (state.count == 0 || state.overflow || !FitsWidth(sum, sum_width)) {
 			finalize_data.ReturnNull();
 			return;
 		}
@@ -471,7 +494,7 @@ struct DecimalAvgOperation : public ClusteredCopy {
 			quotient_precision = 38;
 		}
 		hugeint_t quotient;
-		if (!DivideRounded(state.value, state.count, quotient_scale - input_scale, quotient) ||
+		if (!DivideRounded(sum, state.count, quotient_scale - input_scale, quotient) ||
 		    !FitsWidth(quotient, uint8_t(quotient_precision))) {
 			finalize_data.ReturnNull();
 			return;

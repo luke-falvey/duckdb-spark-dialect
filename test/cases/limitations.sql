@@ -375,3 +375,23 @@ SELECT avg(x), typeof(avg(x)), sum(x) FROM VALUES (TIMESTAMP '2020-01-01 00:00:0
 SELECT avg(x) FROM VALUES (DATE '2020-01-01') AS t(x);
 
 SELECT sum(x) FROM VALUES (DATE '2020-01-01') AS t(x);
+
+-- ===== perf: LIKE / ILIKE operators (DuckDB's operators for constant patterns without a backslash) =====
+
+SELECT s, s LIKE 'a%', s NOT LIKE 'a%', s ILIKE 'A%', s NOT ILIKE 'A%', s LIKE '_b%', s LIKE '%', s LIKE '' FROM VALUES ('abc'), ('Abd'), ('xbz'), (''), (CAST(NULL AS STRING)) AS t(s) ORDER BY s;
+
+SELECT s LIKE 'a\%', s LIKE 'a\_c', s NOT LIKE '%\\%', s LIKE 'a\\c', s ILIKE 'A\%' FROM VALUES ('a%'), ('a_c'), ('abc'), ('a\\c'), ('a\c') AS t(s) ORDER BY s;
+
+SELECT s LIKE p, s NOT LIKE p, s ILIKE p FROM VALUES ('abc', 'a%'), ('abc', 'x%'), ('abc', CAST(NULL AS STRING)), (CAST(NULL AS STRING), 'a%') AS t(s, p) ORDER BY s, p;
+
+SELECT 'abc' LIKE 'a%' ESCAPE '/', 'a%c' LIKE 'a/%c' ESCAPE '/', 'abc' NOT LIKE 'a/%c' ESCAPE '/';
+
+SELECT 1 LIKE '1%', 12 NOT LIKE '1_', CAST(DATE '2020-01-02' AS STRING) LIKE '2020%', 'a' LIKE 'a' OR 'x' LIKE 'y';
+
+SELECT 'abc' LIKE 'a\bc';
+
+SELECT 'abc' LIKE 'abc\';
+
+SELECT s FROM VALUES ('special requests here'), ('special'), ('requests special'), (CAST(NULL AS STRING)) AS t(s) WHERE s NOT LIKE '%special%requests%' ORDER BY s;
+
+SELECT c, count(o) FROM VALUES (1), (2), (3) AS cs(c) LEFT OUTER JOIN VALUES (1, 'x special requests'), (1, 'y'), (2, 'special'), (3, 'q requests') AS os(k, o) ON c = k AND o NOT LIKE '%special%requests%' GROUP BY c ORDER BY c;

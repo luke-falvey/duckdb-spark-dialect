@@ -496,6 +496,10 @@ ExprPtr TransformPredicated(PEGTransformer &t, ParseResult &pr) {
 		if (HasOptional(escape)) {
 			args.push_back(Expr(t, AsList(OptionalValue(escape)).GetChild(1)));
 		}
+		if (args.size() == 2 && (kind == "like" || kind == "ilike")) {
+			// no ESCAPE clause: bound by the dialect, which can use DuckDB's own (non-fallible) LIKE operators
+			return SparkCall(string(negate ? "not_" : "") + kind + "_op", std::move(args));
+		}
 		return MaybeNot(negate, SparkCall(kind, std::move(args)));
 	}
 	if (rule == "spisnull") {

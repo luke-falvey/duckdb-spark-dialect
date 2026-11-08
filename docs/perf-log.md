@@ -39,3 +39,37 @@ q10, q11, q15 are 1.17x to 1.25x), geometric mean of the ratio 1.124, 1.165, 1.1
 Consequences: a single-run ratio is only good to about +-10% (TPC-H queries +-15%); a change smaller than that has to
 be shown with `bench/ab.py` (interleaved, bootstrap interval), never by comparing two separate runs. Thresholds in CI
 must be well above these spreads.
+
+### Phase C: item 1 (sum/avg decimal) and a finding on Q13 (branch perf/opt-decimal-sum, from perf/tooling)
+
+**Profile** (`bench/profile.py`, `SELECT sum(d) FROM decs`, 1 thread): spark_sum 40% in the clustered update loop,
+20% bitpacking scan, 14% fastunpack; native `sum(d)` 51% in `ExecuteUnaryClustered<SumState<long>, ...>` (it also
+uses an int64 state, chosen from column statistics). The aggregation loops are comparable; the TPC-H queries
+that regressed with `spark_sum` are not dominated by this loop.
+
+**Change 1**: `DecimalSumState` / `DecimalAvgState` keep a 64-bit partial sum (`small`, checked add, carry into the
+128-bit part only on overflow). A/B (before = perf/tooling build, 11 runs): `sum_decimal` 2.39 -> 2.22 ms
+(0.929, [0.899, 0.961], faster), `avg_decimal` 2.11 -> 1.98 (0.939, faster), `sum_int` / `group_sum_int` no change.
+TPC-H Q01, Q06, Q09, Q10, Q13, Q18: no change. Correct but small; kept.
+
+**Finding (the real cause of Q13's 1.4x to 1.5x)**: `EXPLAIN` of Q13 shows native DuckDB pushes the `count(o_orderkey)`
+aggregate below the left join (pre-aggregating `orders` by `o_custkey`); in the Spark dialect the join becomes
+`RIGHT` and no pushdown happens. Cause: the dialect's `NOT LIKE` expanded to `NOT like_escape(s, check_like_pattern(p),
+'\\')`. `like_escape` is **fallible** (an invalid escape raises), and DuckDB neither moves a fallible predicate
+below an outer join nor applies the aggregate pushdown. Reproduced in the default dialect: `NOT like_escape(...)`,
+`NOT (a LIKE b)` and `NOT (a ~~ b)` all block it, `a NOT LIKE b` (the `!~~` function) does not.
+
+**Change 2**: `LIKE` / `ILIKE` / `NOT LIKE` / `NOT ILIKE` without an ESCAPE clause are bound by new dispatchers
+(`like_op`, `not_like_op`, `ilike_op`, `not_ilike_op`): a constant pattern without a backslash (Spark's escape never
+applies) uses DuckDB's `~~`, `!~~`, `~~*`, `!~~*`; anything else keeps `like_escape` with the pattern check. Tests:
+new cases in `test/cases/limitations.sql` (NULLs, backslash patterns, column patterns, ESCAPE, the Q13 shape).
+Full suite, ANSI cases, crash replay, `--known`, `args_sweep --functions like,ilike,rlike,regexp_like` (2 findings,
+both present before the change: `ESCAPE NULL` is accepted by the lenient dialect, `regexp_like(NULL, <invalid regex>)`
+raises), differential smoke (0 failing): all unchanged.
+
+**Result** (A/B, before = perf/tooling build, 7 runs, all 22 TPC-H queries): Q13 97.6 -> 65.2 ms (0.668,
+[0.636, 0.685], faster); every other query "no change"; geometric mean B/A 0.989.
+
+**Lesson / new backlog item**: fallible functions cost more than their own time: they disable optimizer rules.
+Audit every `RegisterFallible` / `SetFallible` kernel that appears in predicates, join conditions and aggregate
+arguments (see backlog item 11).

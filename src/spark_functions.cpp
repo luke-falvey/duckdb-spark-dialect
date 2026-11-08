@@ -2077,6 +2077,39 @@ ExprP BindSimpleSortKey(FunctionBindExpressionInput &input) {
 	return b.Constant(Value::BOOLEAN(simple));
 }
 
+//! `s [NOT] LIKE p` / `ILIKE` without an ESCAPE clause. With a constant pattern that has no backslash, Spark's
+//! escape character never applies and DuckDB's own LIKE operators (`~~`, `!~~`, `~~*`, `!~~*`) give the same result.
+//! They are not fallible, unlike like_escape: DuckDB moves an ON-clause filter below an outer join, and pushes
+//! aggregates below it (TPC-H Q13), only when the predicate cannot fail. Other patterns keep the checked form.
+template <bool NEGATE, bool CASE_INSENSITIVE>
+ExprP BindLikeOperator(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "like", 2, 2);
+	Builder b(input.context);
+	auto subject = b.Spark("as_string", Arg(input, 0));
+	auto pattern_arg = Arg(input, 1);
+	auto pattern = b.Spark("as_string", pattern_arg->Copy());
+	bool simple = false;
+	if (pattern->IsFoldable()) {
+		auto value = ExpressionExecutor::EvaluateScalar(input.context, *pattern);
+		simple = !value.IsNull() && value.ToString().find('\\') == string::npos;
+	}
+	if (simple) {
+		const char *name = NEGATE ? (CASE_INSENSITIVE ? "!~~*" : "!~~") : (CASE_INSENSITIVE ? "~~*" : "~~");
+		return b.Call(name, std::move(subject), std::move(pattern), true);
+	}
+	vector<ExprP> args;
+	args.push_back(std::move(subject));
+	args.push_back(b.Spark("check_like_pattern", std::move(pattern)));
+	args.push_back(b.Constant(Value("\\")));
+	ExprP checked = b.Call(CASE_INSENSITIVE ? "ilike_escape" : "like_escape", std::move(args));
+	if (!NEGATE) {
+		return checked;
+	}
+	auto negated = make_uniq<BoundOperatorExpression>(ExpressionType::OPERATOR_NOT, LogicalType::BOOLEAN);
+	negated->GetChildrenMutable().push_back(std::move(checked));
+	return std::move(negated);
+}
+
 ExprP BindPositive(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "positive", 1, 1);
 	Builder b(input.context);
@@ -2913,6 +2946,10 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
 	    {"zero_key", BindZeroKey},
+	    {"like_op", BindLikeOperator<false, false>},
+	    {"not_like_op", BindLikeOperator<true, false>},
+	    {"ilike_op", BindLikeOperator<false, true>},
+	    {"not_ilike_op", BindLikeOperator<true, true>},
 	    {"simple_sort_key", BindSimpleSortKey},
 	    {"narrow_int", BindNarrowInt},
 	    {"comparator_result", BindComparatorResult},
