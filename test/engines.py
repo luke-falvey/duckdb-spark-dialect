@@ -134,9 +134,14 @@ def spark_rejects_statically(result):
 # ----------------------------------------------------------------------------------------------
 # DuckDB worker process
 
-def _duck_worker(conn, extension, dialect, load_extension, workdir):
+def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=None):
     use_utc()
     os.chdir(workdir)
+    if memory_mb:
+        # a runaway statement fails with an allocation error instead of exhausting the machine's memory
+        import resource
+        limit = memory_mb * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
     import duckdb
     from harness import normalize_typed
 
@@ -202,8 +207,10 @@ def _duck_worker(conn, extension, dialect, load_extension, workdir):
 class DuckRunner:
     """DuckDB (+ extension) in a worker process. dialect=None keeps DuckDB's default dialect."""
 
-    def __init__(self, dialect="spark", load_extension=True, timeout=10.0, extension=None, workdir=None):
+    def __init__(self, dialect="spark", load_extension=True, timeout=10.0, extension=None, workdir=None,
+                 memory_mb=None):
         self.dialect = dialect
+        self.memory_mb = memory_mb
         self.load_extension = load_extension
         self.timeout = timeout
         self.extension = str(extension or extension_path())
@@ -218,7 +225,8 @@ class DuckRunner:
     def _start(self):
         parent, child = self._ctx.Pipe()
         self._proc = self._ctx.Process(target=_duck_worker, daemon=True,
-                                       args=(child, self.extension, self.dialect, self.load_extension, self.workdir))
+                                       args=(child, self.extension, self.dialect, self.load_extension, self.workdir,
+                                             self.memory_mb))
         self._proc.start()
         child.close()
         self._conn = parent

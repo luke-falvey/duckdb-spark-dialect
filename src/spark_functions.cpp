@@ -463,6 +463,50 @@ void IntRemainderKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//! NULL where the value is zero (decimal divisors), so callers need not repeat the operand in a CASE:
+//! copying an operand makes nested expressions grow exponentially.
+template <class T>
+void ZeroToNullKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<T, T>(args.data[0], result, args.size(), [](T a) -> optional<T> {
+		if (a == T(0)) {
+			return optional<T>();
+		}
+		return a;
+	});
+}
+
+//! Spark's 0-based array index as DuckDB's 1-based index; NULL for negative indexes (out of range in Spark)
+void SparkIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<int64_t, int64_t>(args.data[0], result, args.size(), [](int64_t i) -> optional<int64_t> {
+		if (i < 0 || i == NumericLimits<int64_t>::Maximum()) {
+			return optional<int64_t>();
+		}
+		return i + 1;
+	});
+}
+
+ExprP ZeroToNull(Builder &b, ExprP value) {
+	auto type = value->GetReturnType();
+	scalar_function_t fn;
+	switch (type.InternalType()) {
+	case PhysicalType::INT16:
+		fn = ZeroToNullKernel<int16_t>;
+		break;
+	case PhysicalType::INT32:
+		fn = ZeroToNullKernel<int32_t>;
+		break;
+	case PhysicalType::INT64:
+		fn = ZeroToNullKernel<int64_t>;
+		break;
+	case PhysicalType::INT128:
+		fn = ZeroToNullKernel<hugeint_t>;
+		break;
+	default:
+		throw InternalException("ZeroToNull: unsupported type %s", type.ToString());
+	}
+	return b.Kernel(ScalarFunction(Identifier("spark_zero_to_null"), {type}, type, fn), std::move(value));
+}
+
 void IntDivKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<int64_t, int64_t, int64_t>(args.data[0], args.data[1], result, args.size(),
 	                                                   [](int64_t a, int64_t b) -> optional<int64_t> {
@@ -1356,11 +1400,13 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 		                               LogicalType::DOUBLE, DoubleRemainderKernel),
 		                b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
 	}
+	// integers mixed with decimals; anything else (intervals, ...) is a type error as in Spark
+	if (!(IsDecimal(lt) || IsIntegral(lt)) || !(IsDecimal(rt) || IsIntegral(rt))) {
+		throw BinderException("[DATATYPE_MISMATCH] %% requires numeric operands, got %s and %s", SparkTypeName(lt),
+		                      SparkTypeName(rt));
+	}
 	// decimals: NULL when dividing by zero
-	auto zero_check = b.Compare(ExpressionType::COMPARE_EQUAL, right->Copy(), b.Constant(Value::INTEGER(0)));
-	auto result = b.Op("%", std::move(left), std::move(right));
-	auto type = result->GetReturnType();
-	return b.Case(std::move(zero_check), b.NullOf(type), std::move(result));
+	return b.Op("%", std::move(left), ZeroToNull(b, std::move(right)));
 }
 
 ExprP BindNegative(FunctionBindExpressionInput &input) {
@@ -1374,6 +1420,23 @@ ExprP BindNegative(FunctionBindExpressionInput &input) {
 	vector<ExprP> args;
 	args.push_back(std::move(child));
 	return b.Call("-", std::move(args), true);
+}
+
+//! The comparator of array_sort(arr, (l, r) -> ...) must return INT, like in Spark
+ExprP BindComparatorResult(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "array_sort", 1, 1);
+	Builder b(input.context);
+	auto result = Arg(input, 0);
+	auto type = result->GetReturnType();
+	if (IsNull(type)) {
+		return b.Cast(std::move(result), LogicalType::INTEGER);
+	}
+	if (type.id() != LogicalTypeId::INTEGER) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_RETURN_TYPE] The array_sort comparator must return INT, "
+		                      "but returns %s",
+		                      SparkTypeName(type));
+	}
+	return result;
 }
 
 ExprP BindPositive(FunctionBindExpressionInput &input) {
@@ -1453,31 +1516,13 @@ ExprP BindConcat(FunctionBindExpressionInput &input) {
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
 	}
-	ExprP null_check;
-	for (auto &arg : args) {
-		auto check = b.IsNull(arg->Copy());
-		null_check = null_check ? b.Or(std::move(null_check), std::move(check)) : std::move(check);
+	// `||` returns NULL if either side is NULL, for strings, lists and blobs alike (unlike DuckDB's concat())
+	ExprP result = all_lists || all_blobs ? std::move(args[0]) : ToSparkString(b, std::move(args[0]));
+	for (idx_t i = 1; i < args.size(); i++) {
+		auto next = all_lists || all_blobs ? std::move(args[i]) : ToSparkString(b, std::move(args[i]));
+		result = b.Op("||", std::move(result), std::move(next));
 	}
-	ExprP result;
-	if (all_lists) {
-		result = std::move(args[0]);
-		for (idx_t i = 1; i < args.size(); i++) {
-			result = b.Call("list_concat", std::move(result), std::move(args[i]));
-		}
-	} else if (all_blobs) {
-		result = std::move(args[0]);
-		for (idx_t i = 1; i < args.size(); i++) {
-			result = b.Op("||", std::move(result), std::move(args[i]));
-		}
-	} else {
-		vector<ExprP> strings;
-		for (auto &arg : args) {
-			strings.push_back(ToSparkString(b, std::move(arg)));
-		}
-		result = b.Call("concat", std::move(strings));
-	}
-	auto type = result->GetReturnType();
-	return b.Case(std::move(null_check), b.NullOf(type), std::move(result));
+	return result;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1492,11 +1537,10 @@ ExprP BindSubscript(FunctionBindExpressionInput &input) {
 	if (type.id() == LogicalTypeId::LIST || type.id() == LogicalTypeId::ARRAY) {
 		// 0-based; out of range (including negative) is NULL
 		auto idx = b.Cast(std::move(index), LogicalType::BIGINT);
-		auto negative = b.Compare(ExpressionType::COMPARE_LESSTHAN, idx->Copy(), b.Constant(Value::BIGINT(0)));
-		auto one_based = b.Op("+", std::move(idx), b.Constant(Value::BIGINT(1)));
-		auto element = b.Call("list_extract", std::move(base), std::move(one_based));
-		auto element_type = element->GetReturnType();
-		return b.Case(std::move(negative), b.NullOf(element_type), std::move(element));
+		auto one_based = b.Kernel(ScalarFunction(Identifier("spark_index"), {LogicalType::BIGINT}, LogicalType::BIGINT,
+		                                         SparkIndexKernel),
+		                          std::move(idx));
+		return b.Call("list_extract", std::move(base), std::move(one_based));
 	}
 	if (type.id() == LogicalTypeId::MAP) {
 		return b.Call("map_extract_value", std::move(base), std::move(index));
@@ -2194,6 +2238,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"mod", BindRemainder},
 	    {"negative", BindNegative},
 	    {"positive", BindPositive},
+	    {"comparator_result", BindComparatorResult},
 	    {"op_bit_and", BindBitAnd},
 	    {"op_bit_or", BindBitOr},
 	    {"op_bit_xor", BindBitXor},

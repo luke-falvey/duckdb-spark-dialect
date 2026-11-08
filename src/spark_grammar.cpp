@@ -17,6 +17,10 @@
 
 #include "spark_dialect.hpp"
 
+#if defined(__linux__) || defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/parser/expression/list.hpp"
 #include "duckdb/parser/expression/type_expression.hpp"
@@ -33,8 +37,62 @@ namespace {
 using ExprPtr = unique_ptr<ParsedExpression>;
 typedef ExprPtr (*expr_fn_t)(PEGTransformer &, ParseResult &);
 
+//! The hooks below transform sub-expressions recursively (DuckDB's own transformer does not), and every level
+//! of nesting passes through the whole precedence ladder (about 1 KB of stack per hook, ~17 hooks per level).
+//! Deeply nested input must fail with an error instead of overflowing the stack, so the stack used by nested
+//! hooks is bounded by a share of the thread's stack, leaving the rest for binding and execution.
+idx_t ThreadStackSize() {
+#if defined(__APPLE__)
+	return pthread_get_stacksize_np(pthread_self());
+#elif defined(__linux__) && defined(__GLIBC__)
+	pthread_attr_t attr;
+	if (pthread_getattr_np(pthread_self(), &attr) == 0) {
+		size_t size = 0;
+		pthread_attr_getstacksize(&attr, &size);
+		pthread_attr_destroy(&attr);
+		if (size > 0) {
+			return size;
+		}
+	}
+	return 2 * 1024 * 1024;
+#else
+	return 1024 * 1024;
+#endif
+}
+
+struct HookDepthGuard {
+	struct State {
+		idx_t depth = 0;
+		uintptr_t base = 0;
+		idx_t budget = 0;
+	};
+	static State &Get() {
+		static thread_local State state;
+		return state;
+	}
+	HookDepthGuard() {
+		auto &state = Get();
+		char marker;
+		auto here = reinterpret_cast<uintptr_t>(&marker);
+		if (state.depth == 0) {
+			state.base = here;
+			state.budget = ThreadStackSize() / 3;
+		}
+		state.depth++;
+		auto used = state.base > here ? state.base - here : here - state.base;
+		if (used > state.budget) {
+			state.depth--;
+			throw ParserException("Expression is nested too deeply for the Spark dialect");
+		}
+	}
+	~HookDepthGuard() {
+		Get().depth--;
+	}
+};
+
 template <expr_fn_t FN>
 arena_ptr<TransformResultValue> FinalizeExpr(PEGTransformer &t, ParseResult &pr) {
+	HookDepthGuard guard;
 	return t.MakeResult<ExprPtr>(FN(t, pr));
 }
 
@@ -950,7 +1008,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		replacements.push_back(ColRef("__spark_other"));
 		replacements.push_back(ColRef("__spark_elem"));
 		auto below = InlineLambda(args, 1, "array_sort", std::move(replacements));
-		auto is_below = Operator("<", std::move(below), ConstantExpression::Integer(0));
+		auto is_below = Operator("<", SparkCall("comparator_result", std::move(below)), ConstantExpression::Integer(0));
 		auto rank = DuckCall("len", DuckCall("list_filter", args[0]->Copy(),
 		                                     MakeLambda({"__spark_other"}, std::move(is_below))));
 		vector<pair<string, ExprPtr>> fields;

@@ -1173,6 +1173,9 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			i += 2;
 		}
 		idx_t name_end = i + 1;
+		if (name_end > ts.size()) {
+			return false; // no table name (truncated statement): let the parser report it
+		}
 		if (WordAt(ts, name_end, "PARTITION") && OpAt(ts, name_end + 1, "(")) {
 			Erase(ts, name_end, SkipParens(ts, name_end + 1));
 		}
@@ -1216,6 +1219,9 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			i += 2;
 		}
 		idx_t name_end = i + 1;
+		if (name_end > ts.size()) {
+			return false; // no table name (truncated statement): let the parser report it
+		}
 		Tokens name(ts.begin() + NumericCast<int64_t>(name_start), ts.begin() + NumericCast<int64_t>(name_end));
 		idx_t k = name_end;
 		if (WordAt(ts, k, "OPTIONS")) {
@@ -1315,6 +1321,9 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 			i += 2;
 		}
 		idx_t name_end = i + 1;
+		if (name_end > ts.size()) {
+			return false; // no table name (truncated statement): let the parser report it
+		}
 		Tokens head(ts.begin(), ts.begin() + NumericCast<int64_t>(name_end));
 		if (WordAt(ts, name_end, "ADD") && (WordAt(ts, name_end + 1, "COLUMNS") || WordAt(ts, name_end + 1, "COLUMN")) &&
 		    OpAt(ts, name_end + 2, "(")) {
