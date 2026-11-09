@@ -1546,6 +1546,21 @@ void SubstrKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, int64_t pos, int64_t len) {
 		    auto data = s.GetData();
 		    auto size = s.GetSize();
+		    constexpr int64_t SAFE = int64_t(1) << 62;
+		    if (pos >= 1 && pos <= SAFE && len >= 0 && len <= SAFE) {
+			    // common case: positive start, bounded length. Only the prefix up to the end position is scanned,
+			    // and no 128-bit arithmetic is needed (the clamping to the string is done by the offset search)
+			    int64_t start = pos - 1;
+			    idx_t from, to;
+			    if (BINARY) {
+				    from = idx_t(MinValue<int64_t>(start, int64_t(size)));
+				    to = idx_t(MinValue<int64_t>(start + len, int64_t(size)));
+			    } else {
+				    from = CodePointOffset(data, size, start);
+				    to = from + CodePointOffset(data + from, size - from, len);
+			    }
+			    return StringVector::AddStringOrBlob(result, string_t(data + from, UnsafeNumericCast<uint32_t>(to - from)));
+		    }
 		    bool bytes = BINARY;
 		    int64_t n = int64_t(size);
 		    if (!BINARY) {

@@ -12,7 +12,7 @@ hours; update this file whenever an item changes state.
 | 4 | `to_json` | 18x | write JSON from the vectors directly instead of `Value`s per row | <= 2x | todo |
 | 5 | `date_format` / `to_timestamp` with patterns | 3.5x -> 1.9x / 2.2x -> 2.0x | profile the formatter after the pattern cache; no `std::string` per field | <= 1.5x | done (1.9x; rest is AddString + memcpy) |
 | 6 | `split` with a literal separator | 3.4x | build the list child vector directly | <= 1.3x | done: 3.4x -> ~1.7x (206 -> 102 ms) | (literal separator done, see perf-log)
-| 7 | `substr` | 2.3x | detect ASCII once per string; use DuckDB's `substring` when the start is positive | <= 1.3x | todo |
+| 7 | `substr` | 2.3x | detect ASCII once per string; use DuckDB's `substring` when the start is positive | <= 1.3x | done: 0.69x of before |
 | 8 | `array_contains`, `size`, `floor`, `hex`, string to int / date casts, `cast_double_to_string` | 1.8x to 2.3x | small kernels instead of macros wrapping conversions | <= 1.3x | partly done: hex 2.3x -> ~1.0x; array_contains tried (no change); size/floor/casts open |
 | 9 | parsing | 3.35x | order `SpAtom` alternatives, first-set check for keyword alternatives, fewer hook frames, merge tokenizer passes | <= 2.0x | todo |
 | 10 | findings of phase B | | | | todo |

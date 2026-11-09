@@ -36,11 +36,11 @@ def create_tables(con, rows):
         {null10('CAST(((r * 104729) % 1000003) / 1000.0 AS DECIMAL(38,10))')} AS e
         FROM range({rows}) t(r)""")
     con.execute(f"""CREATE OR REPLACE TABLE strs AS SELECT
-        {null10("'ab' || CAST(r % 1000 AS VARCHAR) || 'c' || chr(97 + CAST(r % 26 AS INT))")} AS s,
+        {null10("'ab' || CAST(r % 99991 AS VARCHAR) || 'c' || chr(97 + CAST(r % 26 AS INT))")} AS s,
         {null10("chr(65 + CAST(r % 26 AS INT)) || 'xy'")} AS s2,
-        {null10("repeat('lorem' || CAST(r % 97 AS VARCHAR) || ' ipsum abc', 12)")} AS l,
-        {null10("'Ünïcødé ' || CAST(r % 1000 AS VARCHAR) || ' 日本'")} AS u,
-        {null10("'a' || CAST(r % 10 AS VARCHAR) || ',b;c,' || CAST(r % 7 AS VARCHAR) || ';d,e'")} AS csv,
+        {null10("repeat('lorem' || CAST(r % 99989 AS VARCHAR) || ' ipsum abc', 12)")} AS l,
+        {null10("'Ünïcødé ' || CAST(r % 99991 AS VARCHAR) || ' 日本'")} AS u,
+        {null10("'a' || CAST(r % 99991 AS VARCHAR) || ',b;c,' || CAST(r % 7 AS VARCHAR) || ';d,e'")} AS csv,
         {null10("CAST(r % 100000 - 50000 AS VARCHAR)")} AS sn,
         {null10("strftime(DATE '2000-01-01' + CAST(r % 9000 AS INT), '%Y-%m-%d')")} AS sd,
         {null10("strftime(TIMESTAMP '2000-01-01' + to_seconds(r * 37), '%Y-%m-%d %H:%M:%S')")} AS sts,

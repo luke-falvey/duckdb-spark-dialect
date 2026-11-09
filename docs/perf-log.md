@@ -133,3 +133,16 @@ DuckDB's hex() already returns upper-case digits, so `upper(hex(CAST(x AS BIGINT
 A/B hex: 37.5 -> 16.6 ms (0.443 [0.416, 0.577]). Tried `list_contains(a, v) OR CASE WHEN list_count(a) < len(a)
 THEN NULL ELSE false END` for array_contains: 1.150 [0.797, 1.190], no change, reverted. Remaining array_contains /
 size / floor overhead is the cast + coalesce that implement Spark's NULL semantics; closing it needs real kernels.
+
+## Benchmark validity: dictionary-compressed string columns in func_tables.duckdb
+Low-cardinality string columns (`l` 97 values, `s` 1000, `csv` 70, `u` 1000) are stored dictionary-compressed in the
+persisted tables, so native DuckDB evaluates on the dictionary only while the Spark kernels run per row. This made
+substr read 1.9 ms and split_comma 126x. Cardinalities raised to ~100k in bench/func_bench.py (tables rebuilt);
+in-memory `func_bench.py` numbers from before this commit are not comparable for the string pairs.
+
+## substr: fast path for positive start and bounded length
+Scans only the prefix up to the end position (was the whole string to count continuation bytes) and uses int64
+arithmetic (was 128-bit). The general path remains for negative / huge arguments. A/B (high-cardinality `l`):
+121.7 -> 84.2 ms (0.692 [0.637, 0.773]). Checks: run_duckdb both dialects, replay (+known), differential seed 1,
+args_sweep substr/substring/left/right/overlay: 3 findings identical before and after (encode(...) with
+bad charset arguments; pre-existing, item 12).
