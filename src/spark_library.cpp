@@ -1742,29 +1742,6 @@ vector<string> Units(const string &s, bool binary) {
 	return units;
 }
 
-string SparkPad(const string &s, int64_t length, const string &pad, bool left, bool binary) {
-	auto units = Units(s, binary);
-	if (length <= 0) {
-		return "";
-	}
-	if (int64_t(units.size()) >= length) {
-		string out;
-		for (int64_t i = 0; i < length; i++) {
-			out += units[i];
-		}
-		return out;
-	}
-	auto pad_units = Units(pad, binary);
-	if (pad_units.empty()) {
-		return s;
-	}
-	string fill;
-	for (int64_t i = 0; i < length - int64_t(units.size()); i++) {
-		fill += pad_units[i % pad_units.size()];
-	}
-	return left ? fill + s : s + fill;
-}
-
 //! Byte offset of code point `index` (UTF-8 lead bytes are those that are not 10xxxxxx)
 idx_t CodePointOffset(const char *data, idx_t size, int64_t index) {
 	idx_t offset = 0;
@@ -1778,6 +1755,55 @@ idx_t CodePointOffset(const char *data, idx_t size, int64_t index) {
 		}
 	}
 	return size;
+}
+
+//! Number of units (characters, or bytes for binary) of a value
+inline int64_t UnitCount(const char *data, idx_t size, bool binary) {
+	if (binary) {
+		return int64_t(size);
+	}
+	int64_t continuation = 0;
+	for (idx_t i = 0; i < size; i++) {
+		continuation += (static_cast<unsigned char>(data[i]) & 0xC0) == 0x80;
+	}
+	return int64_t(size) - continuation;
+}
+
+//! lpad / rpad into `out` (cleared first) without per-character allocations
+void SparkPad(string &out, string_t s_in, int64_t length, string_t pad_in, bool left, bool binary) {
+	out.clear();
+	if (length <= 0) {
+		return;
+	}
+	const char *s = s_in.GetData();
+	const idx_t n = s_in.GetSize();
+	const char *pad = pad_in.GetData();
+	const idx_t pn = pad_in.GetSize();
+	int64_t units = UnitCount(s, n, binary);
+	if (units >= length) {
+		idx_t end = binary ? idx_t(length) : CodePointOffset(s, n, length);
+		out.append(s, end);
+		return;
+	}
+	int64_t pad_units = UnitCount(pad, pn, binary);
+	if (pad_units == 0) {
+		out.append(s, n);
+		return;
+	}
+	int64_t need = length - units;
+	if (!left) {
+		out.append(s, n);
+	}
+	for (int64_t whole = need / pad_units; whole > 0; whole--) {
+		out.append(pad, pn);
+	}
+	int64_t rest = need % pad_units;
+	if (rest > 0) {
+		out.append(pad, binary ? idx_t(rest) : CodePointOffset(pad, pn, rest));
+	}
+	if (left) {
+		out.append(s, n);
+	}
 }
 
 //! UTF8String.substringSQL without copying characters: the result is a byte range of the input
@@ -1831,7 +1857,9 @@ template <bool BINARY, bool LEFT>
 void PadKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	TernaryExecutor::Execute<string_t, int64_t, string_t, string_t>(
 	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, int64_t len, string_t pad) {
-		    return StringVector::AddStringOrBlob(result, SparkPad(s.GetString(), len, pad.GetString(), LEFT, BINARY));
+		    static thread_local string out;
+		    SparkPad(out, s, len, pad, LEFT, BINARY);
+		    return StringVector::AddStringOrBlob(result, out);
 	    });
 }
 

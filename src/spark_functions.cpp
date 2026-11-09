@@ -875,6 +875,23 @@ void DoubleToIntegralKernel(DataChunk &args, ExpressionState &, Vector &result) 
 	});
 }
 
+//! floor / ceil of a double as Spark's BIGINT in one pass: NaN -> 0, saturating
+template <bool CEIL>
+void FloorCeilToLongKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<double, int64_t>(args.data[0], result, args.size(), [](double d) -> int64_t {
+		if (std::isnan(d)) {
+			return 0;
+		}
+		if (d >= double(NumericLimits<int64_t>::Maximum())) {
+			return NumericLimits<int64_t>::Maximum();
+		}
+		if (d <= double(NumericLimits<int64_t>::Minimum())) {
+			return NumericLimits<int64_t>::Minimum();
+		}
+		return int64_t(CEIL ? std::ceil(d) : std::floor(d));
+	});
+}
+
 ScalarFunction DoubleToIntegralFunction(const LogicalType &target) {
 	scalar_function_t fn;
 	switch (target.id()) {
@@ -930,7 +947,7 @@ bool ParseSparkIntegral(string_t input, int64_t &result, bool allow_fraction = t
 	if (i >= n) {
 		return false;
 	}
-	hugeint_t value = 0;
+	uint64_t value = 0;
 	bool any_digit = false;
 	for (; i < n; i++) {
 		char c = data[i];
@@ -944,10 +961,11 @@ bool ParseSparkIntegral(string_t input, int64_t &result, bool allow_fraction = t
 			return false;
 		}
 		any_digit = true;
-		value = value * 10 + (c - '0');
-		if (value > hugeint_t(NumericLimits<int64_t>::Maximum()) + 1) {
+		uint64_t digit = uint64_t(c - '0');
+		if (value > (NumericLimits<uint64_t>::Maximum() - digit) / 10) {
 			return false;
 		}
+		value = value * 10 + digit;
 	}
 	if (i < n) {
 		// fraction: digits only
@@ -961,13 +979,11 @@ bool ParseSparkIntegral(string_t input, int64_t &result, bool allow_fraction = t
 	if (!any_digit && (i == 0)) {
 		return false;
 	}
-	if (negative) {
-		value = -value;
-	}
-	if (value > hugeint_t(NumericLimits<int64_t>::Maximum()) || value < hugeint_t(NumericLimits<int64_t>::Minimum())) {
+	const uint64_t limit = uint64_t(NumericLimits<int64_t>::Maximum()) + (negative ? 1 : 0);
+	if (value > limit) {
 		return false;
 	}
-	result = Hugeint::Cast<int64_t>(value);
+	result = negative ? int64_t(uint64_t(0) - value) : int64_t(value);
 	return true;
 }
 
@@ -1131,54 +1147,97 @@ void StringToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
 // Spark value -> string (Cast to STRING)
 //===----------------------------------------------------------------------===//
 
-//! Java's Double.toString / Float.toString
+//! Java's Double.toString / Float.toString into `out` (at least 48 bytes); returns the length
 template <class T>
-string JavaFloatingToString(T value) {
+idx_t JavaFloatingToChars(T value, char *out) {
+	auto put = [&](const char *text) {
+		idx_t n = idx_t(strlen(text));
+		memcpy(out, text, n);
+		return n;
+	};
 	if (std::isnan(value)) {
-		return "NaN";
+		return put("NaN");
 	}
 	if (std::isinf(value)) {
-		return value > 0 ? "Infinity" : "-Infinity";
+		return put(value > 0 ? "Infinity" : "-Infinity");
 	}
 	if (value == 0) {
-		return std::signbit(value) ? "-0.0" : "0.0";
+		return put(std::signbit(value) ? "-0.0" : "0.0");
 	}
 	char buffer[64];
 	auto res = std::to_chars(buffer, buffer + sizeof(buffer), value, std::chars_format::scientific);
-	string sci(buffer, res.ptr);
-	// sci: [-]d[.ddd]e[+-]xx
-	bool negative = sci[0] == '-';
+	// buffer: [-]d[.ddd]e[+-]xx
+	const char *p = buffer;
+	bool negative = *p == '-';
 	if (negative) {
-		sci = sci.substr(1);
+		p++;
 	}
-	auto e_pos = sci.find('e');
-	string mantissa = sci.substr(0, e_pos);
-	int exponent = std::stoi(sci.substr(e_pos + 1));
-	string digits;
-	for (auto c : mantissa) {
-		if (c != '.') {
-			digits += c;
+	char digits[32];
+	idx_t nd = 0;
+	for (; p < res.ptr && *p != 'e'; p++) {
+		if (*p != '.') {
+			digits[nd++] = *p;
 		}
 	}
-	string result;
+	p++;
+	bool exp_negative = *p == '-';
+	if (*p == '-' || *p == '+') {
+		p++;
+	}
+	int exponent = 0;
+	for (; p < res.ptr; p++) {
+		exponent = exponent * 10 + (*p - '0');
+	}
+	if (exp_negative) {
+		exponent = -exponent;
+	}
+	idx_t n = 0;
+	if (negative) {
+		out[n++] = '-';
+	}
 	double magnitude = std::fabs(double(value));
 	if (magnitude >= 1e-3 && magnitude < 1e7) {
-		// plain decimal notation
 		if (exponent >= 0) {
-			string int_part = digits.substr(0, MinValue<idx_t>(digits.size(), idx_t(exponent) + 1));
-			while (int_part.size() < idx_t(exponent) + 1) {
-				int_part += '0';
+			idx_t int_digits = idx_t(exponent) + 1;
+			for (idx_t i = 0; i < int_digits; i++) {
+				out[n++] = i < nd ? digits[i] : '0';
 			}
-			string frac = digits.size() > idx_t(exponent) + 1 ? digits.substr(exponent + 1) : "0";
-			result = int_part + "." + frac;
+			out[n++] = '.';
+			if (nd > int_digits) {
+				memcpy(out + n, digits + int_digits, nd - int_digits);
+				n += nd - int_digits;
+			} else {
+				out[n++] = '0';
+			}
 		} else {
-			result = "0." + string(-exponent - 1, '0') + digits;
+			out[n++] = '0';
+			out[n++] = '.';
+			for (int i = 0; i < -exponent - 1; i++) {
+				out[n++] = '0';
+			}
+			memcpy(out + n, digits, nd);
+			n += nd;
 		}
 	} else {
-		string frac = digits.size() > 1 ? digits.substr(1) : "0";
-		result = digits.substr(0, 1) + "." + frac + "E" + to_string(exponent);
+		out[n++] = digits[0];
+		out[n++] = '.';
+		if (nd > 1) {
+			memcpy(out + n, digits + 1, nd - 1);
+			n += nd - 1;
+		} else {
+			out[n++] = '0';
+		}
+		out[n++] = 'E';
+		auto exp_text = std::to_chars(out + n, out + n + 8, exponent);
+		n = idx_t(exp_text.ptr - out);
 	}
-	return negative ? "-" + result : result;
+	return n;
+}
+
+template <class T>
+string JavaFloatingToString(T value) {
+	char buffer[64];
+	return string(buffer, JavaFloatingToChars(value, buffer));
 }
 
 string SparkValueToString(const Value &value, bool nested);
@@ -1287,13 +1346,19 @@ void ToStringKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto &input = args.data[0];
 	auto count = args.size();
 	if (input.GetType().id() == LogicalTypeId::DOUBLE) {
-		UnaryExecutor::Execute<double, string_t>(
-		    input, result, count, [&](double d) { return StringVector::AddString(result, JavaFloatingToString(d)); });
+		UnaryExecutor::Execute<double, string_t>(input, result, count, [&](double d) {
+			char buffer[64];
+			auto n = JavaFloatingToChars(d, buffer);
+			return StringVector::AddString(result, buffer, n);
+		});
 		return;
 	}
 	if (input.GetType().id() == LogicalTypeId::FLOAT) {
-		UnaryExecutor::Execute<float, string_t>(
-		    input, result, count, [&](float d) { return StringVector::AddString(result, JavaFloatingToString(d)); });
+		UnaryExecutor::Execute<float, string_t>(input, result, count, [&](float d) {
+			char buffer[64];
+			auto n = JavaFloatingToChars(d, buffer);
+			return StringVector::AddString(result, buffer, n);
+		});
 		return;
 	}
 	result.SetVectorType(VectorType::FLAT_VECTOR);
@@ -3053,8 +3118,9 @@ ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
 	if (IsDecimal(type)) {
 		return b.Call(CEIL ? "ceil" : "floor", std::move(e));
 	}
-	auto rounded = b.Call(CEIL ? "ceil" : "floor", b.Cast(std::move(e), LogicalType::DOUBLE));
-	return b.Kernel(DoubleToIntegralFunction(LogicalType::BIGINT), b.Cast(std::move(rounded), LogicalType::DOUBLE));
+	return b.Kernel(ScalarFunction(Identifier(CEIL ? "spark_ceil_to_long" : "spark_floor_to_long"), {LogicalType::DOUBLE},
+	                               LogicalType::BIGINT, FloorCeilToLongKernel<CEIL>),
+	                b.Cast(std::move(e), LogicalType::DOUBLE));
 }
 
 //! try_cast: like cast, but numeric conversions that overflow are NULL (Spark's ANSI cast semantics)

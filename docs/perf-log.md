@@ -304,3 +304,17 @@ the pattern lazily; making the macro lazy would cost the native regexp optimizat
 (empty field name) fails to bind, `inline(...) AS (x)` alias lists, lookbehind in split, `str_to_map` with a
 delimiter that leaves NULL keys. Checks: run_duckdb both dialects (1712 / 1776), replay (+known), differential seed 1,
 isolation clean, args_sweep on the touched functions: only the pre-existing findings above.
+
+## Backlog 8 (continued): lpad / rpad, floor / ceil, double to string, string to integer
+- lpad / rpad: `Units()` built a `vector<string>` per value and `fill +=` per character; now byte offsets and `memcpy`
+  appends into a reused buffer (whole copies of the pad, then a code-point prefix): 174.7 -> 53.6 ms (0.307 [0.298, 0.312]).
+- floor / ceil of a double: `floor(x)`, a cast and `spark_double_to_integral` (three passes) -> one kernel
+  (NaN -> 0, saturating): 5.26 -> 4.30 ms (0.818 [0.745, 0.893]).
+- CAST(double AS STRING) (Java `Double.toString`): `std::string` slicing / concatenation per value -> digits written into a
+  stack buffer: 194.5 -> 57.0 ms (0.293 [0.291, 0.300]).
+- CAST(string AS INT/BIGINT): 128-bit accumulation -> unsigned 64-bit with an overflow guard: 40.9 -> 36.7 ms (0.897 [0.890, 0.904]).
+New golden cases (limitations.sql): double / float strings across the plain / scientific boundary, NaN / Infinity / -0.0,
+string-to-integer edge cases, floor / ceil saturation, lpad / rpad with multi-byte pads, binary pad. Known difference left:
+`CAST(4.9E-324D AS STRING)` is `5.0E-324` here, `4.9E-324` in Java (Java prints two digits for the smallest denormals).
+args_sweep on floor / ceil / lpad / rpad / cast: 9 findings in 5 signatures, identical on the previous build (e.g.
+`ceil(3.1411, NULL)`: Spark requires an int literal scale, we accept it).

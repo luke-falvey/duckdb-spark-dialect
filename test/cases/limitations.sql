@@ -536,3 +536,21 @@ SELECT explode(map('a', 1, 'b', 2)) AS (k, v);
 SELECT 'a' LIKE 'a' ESCAPE NULL;
 
 SELECT split('abc', '', 2), split('abcd', '', 3), split('abc', '', 5), split('abc', '', 1), split('abc', '', 0), split('abc', '', -1), split('', '', 2), split('é日x', '', 2);
+
+-- ===== double / float to string (Java Double.toString), string to integer, floor / ceil, lpad / rpad =====
+
+SELECT CAST(x AS STRING) FROM VALUES (1.0D), (0.001D), (0.0009999D), (9999999.0D), (10000000.0D), (1.0E-5D), (123456789.123D), (-2.5D), (1.0E22D),
+  (1.7976931348623157E308D), (100.0D), (0.1D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)), (CAST('-Infinity' AS DOUBLE)), (-0.0D), (0.0D), (12345.678D), (1.0E7D) AS t(x);
+
+SELECT CAST(x AS STRING) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(0.001 AS FLOAT)), (CAST(1.0E10 AS FLOAT)), (CAST(3.4028235E38 AS FLOAT)), (CAST(0.1 AS FLOAT)), (CAST(-7.25 AS FLOAT)), (CAST(1.0E-4 AS FLOAT)) AS t(x);
+
+SELECT CAST(s AS INT), CAST(s AS BIGINT), CAST(s AS TINYINT) FROM VALUES ('12'), (' 7 '), ('-5'), ('+9'), ('1.9'), ('-1.9'), ('abc'), (''), ('2147483648'), ('-2147483648'),
+  ('9223372036854775807'), ('9223372036854775808'), ('-9223372036854775808'), ('-9223372036854775809'), ('1e3'), ('.5'), ('-.5'), ('5.'), ('0x10'), ('300'), ('-129'), ('99999999999999999999999') AS t(s);
+
+SELECT floor(x), ceil(x), floor(y), ceil(y) FROM VALUES (1.5D, -1.5D), (-0.5D, 0.5D), (1.0E19D, -1.0E19D), (CAST('NaN' AS DOUBLE), CAST('Infinity' AS DOUBLE)), (9.223372036854775E18D, -9.223372036854775E18D),
+  (CAST('-Infinity' AS DOUBLE), 2.0D) AS t(x, y);
+
+SELECT lpad(s, n, p), rpad(s, n, p) FROM VALUES ('abc', 6, 'xy'), ('abc', 2, 'xy'), ('abc', 3, 'xy'), ('abc', 0, 'x'), ('abc', -1, 'x'), ('', 3, 'ab'), ('é日', 5, '😀a'), ('é日x', 2, 'z'), ('abc', 5, ''),
+  ('abc', 8, 'é日'), (NULL, 3, 'a'), ('a', NULL, 'b'), ('a', 3, NULL) AS t(s, n, p);
+
+SELECT lpad(X'0102', 5, X'ff00'), rpad(X'0102', 5, X'ff00'), lpad(X'010203', 2, X'ff');
