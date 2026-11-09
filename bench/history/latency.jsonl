@@ -2,3 +2,4 @@
 {"suite": "latency", "time": "2026-11-09T10:32:29", "commit": "af15eff", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
 {"suite": "latency", "time": "2026-11-09T10:35:01", "commit": "a22cbc0", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
 {"suite": "latency", "time": "2026-11-09T10:42:31", "commit": "214ef19", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "latency", "time": "2026-11-09T18:27:16", "commit": "9590853", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}

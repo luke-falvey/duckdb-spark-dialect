@@ -12,21 +12,22 @@ Measured on the commit that last touched `src/` (see the JSON files in `bench/ou
 
 | measure | result | target |
 |---|---|---|
-| TPC-H SF1, geometric mean of the 22 queries (4 threads) | **1.10x** (`spark_strict` 1.08x) | ≤ 1.10x |
-| TPC-H SF1, worst queries | Q01 2.5x (explained below), Q10 1.6x, all others ≤ 1.3x | ≤ 1.5x, Q01 ≤ 2.0x |
-| TPC-DS SF1, geometric mean of the 99 queries (4 threads) | **1.10x** (`spark_strict` 1.08x); all 99 run in both dialects | - |
-| TPC-DS SF1, worst queries | Q02 1.85x, Q58 1.61x, Q44 1.57x; all others ≤ 1.5x | ≤ 1.5x |
-| Spark-shaped workloads (10, 2M rows) | geometric mean 1.19x (`spark_strict` 1.12x); worst JSON extract 1.49x, date bucketing 1.47x | - |
-| Parsing, case-file statements | 3.3x DuckDB's parser (~150 µs vs ~46 µs per statement) | ≤ 2x (not met) |
+| TPC-H SF1, geometric mean of the 22 queries (4 threads) | **1.10x** (`spark_strict` 1.10x) | ≤ 1.10x |
+| TPC-H SF1, worst queries | Q01 2.1x (explained below), Q10 1.8x, all others ≤ 1.15x | ≤ 1.5x, Q01 ≤ 2.0x |
+| TPC-DS SF1, geometric mean of the 99 queries (4 threads) | **1.08x** (`spark_strict` 1.09x); all 99 run in both dialects | - |
+| TPC-DS SF1, worst queries | Q02 1.6x, Q44 1.46x; all others ≤ 1.42x | ≤ 1.5x |
+| Spark-shaped workloads (10, 2M rows) | geometric mean 1.11x (`spark_strict` 1.08x); worst JSON extract 1.47x, date bucketing 1.41x | - |
+| Parsing, case-file statements | 3.2x DuckDB's parser (~135 µs vs ~42 µs per statement; 2.85x on the smoke subset) | ≤ 2x (not met) |
 | Parse time vs statement size | linear for every shape up to 10,000 items | linear |
-| Functions / operators (104 pairs) | geometric mean **1.19x**; 19 pairs above 1.5x (listed in "Remaining work") | ≤ 1.15x (not met) |
-| Tiny statements (`bench/latency_bench.py`) | 1.4x geometric mean; +25 to +340 µs per statement; `LOAD` 40 ms | - |
+| Functions / operators (104 pairs) | geometric mean **1.15x**; 15 pairs above 1.5x (listed in "Remaining work", mostly differences in what is compared) | ≤ 1.15x |
+| Tiny statements (`bench/latency_bench.py`) | 1.55x geometric mean; +25 to +355 µs per statement; `LOAD` 40 ms | - |
 | Threads / ANSI / memory | speed-up from 1 to 4 threads equal to native's; ANSI mode no measurable overhead; `memory_limit` 256 MB gives the same results | no regression |
 | Large inputs (`bench/scaling_bench.py`) | all finish or fail with an out-of-memory error; none crash or hang | no crash, bounded |
 
-Two targets are not met: parsing and the geometric mean of the function pairs. Parsing is the PEG matcher
-working through the larger Spark expression grammar (see `docs/perf-log.md`: no reordering gets it below ~2.6x).
-The pair geomean is dominated by a few kernels whose Spark semantics need extra work per row (listed below).
+Not met: parsing (the PEG matcher working through the larger Spark expression grammar; see `docs/perf-log.md`), TPC-H
+Q01 (128-bit decimal sums) and Q10 (the aggregate pushed below the join costs more with Spark's exported states than
+with native's). The pair geomean sits at the target; the pairs above 1.5x compare a Spark semantic against a cheaper
+native function (see below).
 
 ## Method
 
@@ -61,6 +62,7 @@ suspected; those were the biggest.
 | `date_format` / `to_timestamp`: the Java pattern was parsed per row | 6.4x | 3.6x | pattern cached per thread |
 | `format_string` / `printf`: format parsed and every argument read as a `Value` per row | 5.3x | 0.5x | format parsed once per distinct string; `%s` / `%d` read from the vectors |
 | `date_format`: a `std::string` per number | 3.6x | 1.9x | digits appended into one buffer |
+| `lpad` / `rpad`, `CAST(double AS STRING)`, `array_contains`, `size`, `floor`, `CAST(string AS INT)` | 3.3x / 2.1x / 2.6x / 1.7x / 1.6x / 1.5x | 1.0x - 1.7x (3.3x, 3.4x, 1.9x, 1.4x, 1.2x, 1.1x faster than before) | allocation-free kernels (`list_has_null`, `spark_size`, fused `floor`) |
 | `to_json` of a struct: `Value` per row, string temporaries | 20x | 1.4x | flat structs (strings, booleans, integers) serialised from the vectors |
 | TPC-DS ROLLUP / CUBE queries (Q22, Q36, Q67) and aggregates over joins (Q04, Q11, Q74): `spark_sum` / `spark_avg` could not export their state, so DuckDB neither cascaded grouping sets nor pushed the aggregate below the join | 1.6x - 3.4x | 0.96x - 1.2x | state layouts for the five aggregate states; aggregates also registered in `system.main` |
 | TPC-H Q13: a fallible `like_escape` blocked filter pushdown below the outer join | 1.5x | 1.0x | `LIKE` binds to DuckDB's `~~` for constant patterns without a backslash |
@@ -109,18 +111,20 @@ Spark's result types and overflow behaviour costs this; the dialect's own kernel
 
 Backlog with status: `docs/perf-backlog.md`; measurements and dead ends: `docs/perf-log.md`.
 
-- **Parsing (3.3x).** About 100 µs more per statement. 95% of the time is in DuckDB's PEG matcher. Experiments:
-  dropping the predicate alternatives saves 10 - 14%, dropping the lambda alternative (tried first for every
-  expression) ~20%; a lambda parsed as `SpOr ('->' SpExpression)?` with the parameters recovered in the transform is the
-  best lever left and would still end near 2.6x.
-- **Pairs above 1.5x** (in-memory tables, 1 thread): `add_decimal_wide` 2.4x (`decimal(18,2) + decimal(38,10)`,
-  result scale lowered with HALF_UP), `array_contains` 2.3x (NULL-aware three-valued result on top of
-  `list_contains`), `to_timestamp_pattern` 2.3x, `lpad` 2.3x, `cast_double_to_string` 2.1x (Java
-  `Double.toString`), `floor` 1.9x, `unix_timestamp` 1.9x, `cast_string_to_int` 1.9x, `aggregate_sum` 1.9x (lambda),
-  `date_format` 1.9x, `mul_decimal` 1.8x, `cast_string_to_date` 1.8x.
-- **TPC-H Q10 / Q11** are 10 - 20% slower since the aggregate is pushed below the join (as natively); Q01 stays near 2.5x.
-- **Tiny statements:** `CASE WHEN` under `spark_strict` 3.3x, string functions 2.1x (25 - 340 µs absolute).
+- **Parsing (3.2x).** About 90 µs more per statement. 95% of the time is in DuckDB's PEG matcher. The lambda is now
+  `SpOr ('->' SpExpression)?` (-23% on the smoke subset). The predicate alternatives (9 per operand, -10..14% when removed)
+  cannot be guarded cheaply: the PEG has no lookahead; factoring their common `NOT?` prefix is the next lever.
+- **Pairs above 1.5x** (in-memory tables, 1 thread): `to_timestamp_pattern` 2.2x and `date_format` 1.9x (Java pattern
+  semantics against `strptime` / `strftime`), `add_decimal_wide` 2.0x (`decimal(18,2) + decimal(38,10)`, the result
+  scale is lowered with HALF_UP; a one-kernel version was slower), `aggregate_sum` 1.9x (a lambda against native
+  `list_sum`), `get_json_object` 1.85x, `unix_timestamp` 1.8x, `split_comma` 1.8x, `cast_string_to_date` 1.8x, `floor` 1.7x
+  (a 4 ms operation; Spark returns BIGINT), `cast_string_to_int` 1.7x, `explode` 1.65x.
+- **TPC-H Q10** is 40% slower than with the aggregate left above the join (80 ms vs 117 ms single-threaded; native does
+  not care). Disabling the exported states for decimal sums would fix it and cost TPC-DS Q04 / Q11 / Q74.
+- **Tiny statements:** 73% of the time is parsing (`CASE WHEN` 1.9x, string functions 2.1x; 25 - 355 µs absolute).
 - **`array_sort` with a comparator** (O(n²) for comparators that are not the common `CASE WHEN` shape).
+- **Known differences:** see backlog 12 in `docs/perf-backlog.md` (`regexp_like(NULL, <invalid>)`, lookbehind in `split`,
+  empty `named_struct` field names, `CAST(4.9E-324D AS STRING)`).
 
 ## Reproducing
 
