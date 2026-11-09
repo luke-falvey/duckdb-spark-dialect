@@ -490,3 +490,15 @@ SELECT a.g, a.k, sum(b.d), avg(b.d), sum(b.l), avg(b.f), count(*) FROM
   (SELECT g, h AS k FROM se_t) a JOIN se_t b ON a.g = b.g AND a.k = b.h GROUP BY a.g, a.k ORDER BY a.g, a.k;
 
 SELECT a.g, sum(b.d * (1 - 0.05)), avg(b.i) FROM se_t a LEFT JOIN se_t b ON a.g = b.g GROUP BY a.g ORDER BY a.g;
+
+-- ===== explode(...) AS name names the generated column (usable in outer queries) =====
+
+SELECT tag, count(*) FROM (SELECT explode(array('a', 'b', 'a')) AS tag) GROUP BY tag ORDER BY tag;
+
+SELECT s.tag FROM (SELECT u, explode(a) AS tag FROM VALUES (1, array(10, 20)), (2, array(30)), (3, CAST(NULL AS ARRAY<INT>)) AS t(u, a)) s ORDER BY s.tag;
+
+SELECT u, tag FROM (SELECT u, explode_outer(a) AS tag FROM VALUES (1, array(10, 20)), (2, array()), (3, CAST(NULL AS ARRAY<INT>)) AS t(u, a)) ORDER BY u, tag;
+
+SELECT u, explode(a) AS tag, u + 1 AS v FROM VALUES (1, array(5, 6)) AS t(u, a);
+
+SELECT tag + 1 AS next FROM (SELECT explode(sequence(1, 3)) AS tag) ORDER BY next;

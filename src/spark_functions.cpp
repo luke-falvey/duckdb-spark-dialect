@@ -2501,7 +2501,7 @@ struct ExplodeBindData : public FunctionData {
 	}
 };
 
-LogicalType ExplodeRowType(const LogicalType &input, bool pos) {
+LogicalType ExplodeRowType(const LogicalType &input, bool pos, const string &column = "col") {
 	child_list_t<LogicalType> fields;
 	if (pos) {
 		fields.emplace_back(Identifier("pos"), LogicalType::INTEGER);
@@ -2510,7 +2510,7 @@ LogicalType ExplodeRowType(const LogicalType &input, bool pos) {
 		fields.emplace_back(Identifier("key"), MapType::KeyType(input));
 		fields.emplace_back(Identifier("value"), MapType::ValueType(input));
 	} else {
-		fields.emplace_back(Identifier("col"), ListType::GetChildType(input));
+		fields.emplace_back(Identifier(column), ListType::GetChildType(input));
 	}
 	return LogicalType::LIST(LogicalType::STRUCT(std::move(fields)));
 }
@@ -2611,13 +2611,25 @@ unique_ptr<FunctionData> ExplodeBind(BindScalarFunctionInput &input) {
 	if (type.id() != LogicalTypeId::LIST && type.id() != LogicalTypeId::MAP) {
 		throw BinderException("explode: input must be an array or a map, not %s", SparkTypeName(type));
 	}
-	input.GetBoundFunction().SetReturnType(ExplodeRowType(type, POS));
+	string column = "col";
+	if (arguments.size() > 1) {
+		// `explode(x) AS name`: the output column is named by the alias
+		if (!arguments[1]->IsFoldable()) {
+			throw BinderException("explode: the column name must be a constant");
+		}
+		column = ExpressionExecutor::EvaluateScalar(input.GetClientContext(), *arguments[1]).ToString();
+	}
+	input.GetBoundFunction().SetReturnType(ExplodeRowType(type, POS, column));
 	return make_uniq<ExplodeBindData>(POS, OUTER);
 }
 
 template <bool POS, bool OUTER>
-ScalarFunction ExplodeRowsFunction(const string &name) {
-	ScalarFunction fun(Identifier(name), {LogicalType::ANY}, LogicalType::ANY, ExplodeRowsKernel, ExplodeBind<POS, OUTER>);
+ScalarFunction ExplodeRowsFunction(const string &name, bool named = false) {
+	vector<LogicalType> args {LogicalType::ANY};
+	if (named) {
+		args.push_back(LogicalType::VARCHAR);
+	}
+	ScalarFunction fun(Identifier(name), args, LogicalType::ANY, ExplodeRowsKernel, ExplodeBind<POS, OUTER>);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	return fun;
 }
@@ -3201,6 +3213,10 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	RegisterFallible(loader, ExplodeRowsFunction<false, true>("explode_outer_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, false>("posexplode_rows"));
 	RegisterFallible(loader, ExplodeRowsFunction<true, true>("posexplode_outer_rows"));
+	RegisterFallible(loader, ExplodeRowsFunction<false, false>("explode_as_rows", true));
+	RegisterFallible(loader, ExplodeRowsFunction<false, true>("explode_outer_as_rows", true));
+	RegisterFallible(loader, ExplodeRowsFunction<true, false>("posexplode_as_rows", true));
+	RegisterFallible(loader, ExplodeRowsFunction<true, true>("posexplode_outer_as_rows", true));
 }
 
 bool SparkAnsiEnabled(ClientContext &context) {

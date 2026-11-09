@@ -1544,6 +1544,32 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 	return RewriteFunction(std::move(expr));
 }
 
+//! `SELECT explode(x) AS name`: the alias names the generated column (DuckDB's unnest of a struct ignores it)
+ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	auto expr = Expr(t, list.GetChild(0));
+	if (expr->GetAlias().empty() || expr->GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return expr;
+	}
+	auto &unnest = expr->Cast<FunctionExpression>();
+	if (StringUtil::Lower(unnest.FunctionName().GetIdentifierName()) != "unnest" || unnest.GetArguments().empty() ||
+	    unnest.GetArguments()[0].GetExpression().GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return expr;
+	}
+	auto &generator = unnest.GetArgumentsMutable()[0].GetExpressionMutable()->Cast<FunctionExpression>();
+	auto generator_name = StringUtil::Lower(generator.FunctionName().GetIdentifierName());
+	if (generator_name != "explode_rows" && generator_name != "explode_outer_rows" &&
+	    generator_name != "posexplode_rows" && generator_name != "posexplode_outer_rows") {
+		return expr;
+	}
+	auto alias = expr->GetAlias().GetIdentifierName();
+	auto args = TakeArguments(generator);
+	args.push_back(ConstantExpression::String(alias));
+	auto renamed = SparkCall(generator_name.substr(0, generator_name.size() - 5) + "_as_rows", std::move(args));
+	unnest.GetArgumentsMutable()[0].GetExpressionMutable() = std::move(renamed);
+	return expr;
+}
+
 ExprPtr TransformFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
 	return FinalizeFunctionHookResult(Expr(t, list.GetChild(0)));
@@ -2108,6 +2134,14 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	          "RowExpression / SubstringExpression / TrimExpression / OverlayExpression",
 	          special_rule->transform_process);
 	g.ReplaceRule("SpecialFunctionExpression <- DuckSpecialFunctionExpression", ExprProcess<TransformFunctionHook>);
+
+	auto aliased_rule = g.GetRule("AliasedExpression");
+	if (!aliased_rule) {
+		throw InternalException("spark dialect: AliasedExpression rule not found");
+	}
+	g.AddRule("DuckAliasedExpression <- ColIdExpression / ExpressionAsCollabel / ExpressionOptIdentifier",
+	          aliased_rule->transform_process);
+	g.ReplaceRule("AliasedExpression <- DuckAliasedExpression", ExprProcess<TransformAliasedHook>);
 
 	auto case_rule = g.GetRule("CaseExpression");
 	if (!case_rule) {

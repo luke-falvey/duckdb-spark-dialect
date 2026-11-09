@@ -228,3 +228,17 @@ Eight new golden cases (limitations.sql, from Spark): ROLLUP / CUBE / GROUPING S
 decimal(10,2), decimal(38,2), NULL groups, grouping(), 128-bit decimal overflow in cascaded levels, BIGINT wrap, and
 aggregates over inner / left joins. Checks: run_duckdb both dialects (1692 / 1756), replay (+known), differential seed 1,
 isolation clean, args_sweep sum / avg / mean clean.
+
+## Phase B: Spark-shaped workloads (bench/workload_bench.py, bench/workloads/*.sql, 2M-row event table)
+Ten workloads (funnel aggregation, string cleaning with regexp, windows, dimension join, date bucketing, array explode,
+JSON extract, CASE / cast buckets, collect_set top-N, try_cast cleaning). First run: geomean spark 1.134x, spark_strict
+1.091x; workloads at or below native: funnel 1.00, string cleaning 0.99, join 0.98, collect_set 0.91; slowest:
+date_bucketing 1.60x (year / month / dayofweek / date_format group keys), try_cast_clean 1.40x, json 1.26x.
+**Correctness finding (fixed):** `SELECT tag, count(*) FROM (SELECT user_id, explode(tags) AS tag FROM t) GROUP BY tag`
+failed with "Referenced column tag not found": the alias of `explode(x) AS name` was dropped (DuckDB's unnest of a
+struct names columns by the struct fields, so the column stayed `col`). The `AliasedExpression` rule is now hooked: when
+the select item is a Spark generator (explode / explode_outer / posexplode / posexplode_outer) with an alias, the
+generator is rebound as `*_as_rows(x, 'alias')` which names its output column. Golden cases from Spark added
+(limitations.sql). Still unsupported (syntax error): the alias list form `posexplode(a) AS (pos, col)`; recorded
+in backlog item 12. Checks: run_duckdb both dialects (1697 / 1761), replay (+known), differential seed 1, isolation
+clean, args_sweep on the generators: identical 8 findings before and after (inline(array(NULL)); pre-existing).
