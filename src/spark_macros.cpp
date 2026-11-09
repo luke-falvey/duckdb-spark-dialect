@@ -104,7 +104,7 @@ const SparkMacro SPARK_MACROS[] = {
     // Java's MIME decoder skips characters outside the base64 alphabet (whitespace, line breaks)
     {"unbase64", "(s) AS from_base64(regexp_replace(" S "as_string(s), '[^A-Za-z0-9+/=]', '', 'g'))"},
     {"base64", "(b) AS to_base64(" S "as_binary(b))"},
-    {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE upper(hex(CAST(x AS BIGINT))) END"},
+    {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE hex(CAST(x AS BIGINT)) END"},
     {"unhex", "(s) AS TRY(unhex(s))"},
     {"parse_url", "(u, p) AS " S "parse_url_impl(u, p), (u, p, k) AS " S "parse_url_impl(u, p, k)"},
     {"crc32", "(b) AS " S "crc32_impl(" S "as_binary(b))"},

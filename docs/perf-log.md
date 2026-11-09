@@ -127,3 +127,9 @@ literal separators use memchr (1 byte) / memmem. A/B (ab.py func, 7 runs): split
 (0.494 [0.473, 0.508]); split_regex 682.1 -> 588.1 ms (0.862 [0.835, 0.891]). Section 6 checks: run_duckdb both
 dialects, replay (+ --known), differential seed 1 budget 150: clean. args_sweep split: one finding, identical before and
 after (Spark raises on invalid regexes such as '[]' / '{}', we return a result): pre-existing, backlog item 12.
+
+## hex: drop redundant upper(); array_contains macro rewrite dropped
+DuckDB's hex() already returns upper-case digits, so `upper(hex(CAST(x AS BIGINT)))` did a wasted pass.
+A/B hex: 37.5 -> 16.6 ms (0.443 [0.416, 0.577]). Tried `list_contains(a, v) OR CASE WHEN list_count(a) < len(a)
+THEN NULL ELSE false END` for array_contains: 1.150 [0.797, 1.190], no change, reverted. Remaining array_contains /
+size / floor overhead is the cast + coalesce that implement Spark's NULL semantics; closing it needs real kernels.
