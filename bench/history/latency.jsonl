@@ -1,0 +1,2 @@
+{"suite": "latency", "time": "2026-11-09T10:32:17", "commit": "af15eff", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "latency", "time": "2026-11-09T10:32:29", "commit": "af15eff", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}

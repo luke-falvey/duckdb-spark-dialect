@@ -242,3 +242,18 @@ generator is rebound as `*_as_rows(x, 'alias')` which names its output column. G
 (limitations.sql). Still unsupported (syntax error): the alias list form `posexplode(a) AS (pos, col)`; recorded
 in backlog item 12. Checks: run_duckdb both dialects (1697 / 1761), replay (+known), differential seed 1, isolation
 clean, args_sweep on the generators: identical 8 findings before and after (inline(array(NULL)); pre-existing).
+
+## Phase B: latency, start-up, threads, ANSI, memory
+bench/latency_bench.py: `LOAD` of the extension 40 ms, first statement after `SET current_dialect` 4.4 ms. Tiny
+statements (warm connection, parse + bind + execute + fetch): `SELECT 1` 1.34x (75 -> 101 us), arithmetic 1.26x, cast
+1.96x, string functions 2.11x (256 -> 541 us), CASE WHEN 1.82x (spark_strict 3.30x: 146 -> 484 us), small GROUP BY
+1.02x, small join 1.29x; geomean 1.50x. In absolute terms the Spark dialect adds 25 - 340 us per statement, which only
+matters for workloads of many tiny statements. CASE WHEN under spark_strict is the largest outlier (the strict
+grammar's extra checks, plus the case_when dispatcher); not investigated further (backlog item 14).
+bench/threads_bench.py (TPC-H SF1, 7 queries, 1/2/4 threads): the Spark/native ratio does not grow with threads
+(Q18 4 threads: speed-up 4.07x vs native 4.00x; Q01 3.16x vs 3.08x; the others within 0.1 - 0.6 of native, noise at
+these 20 - 70 ms query times), so the kernels scale like DuckDB's own and there is no contention in the
+extension. ANSI mode (`spark_ansi_enabled = true` vs false, same dialect): no measurable overhead on these queries
+(on/off geomean 0.91, i.e. the second measurement is faster; order effect, not a speed-up). memory_limit 1GB and 256MB:
+all seven queries finish with the same result digest as the unlimited run (the Spark aggregates and kernels spill
+correctly). SF10 not run (disk: 20 GB free; SF10 needs ~3 GB data plus working space - possible, not scheduled).
