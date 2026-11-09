@@ -254,7 +254,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"window_time", "(w) AS w['end'] - INTERVAL 1 MICROSECOND"},
 
     // ---- collections ----
-    {"array_contains", "(a, v) AS CASE WHEN a IS NULL OR v IS NULL THEN NULL WHEN list_contains(a, v) THEN true WHEN list_count(a) < len(a) THEN NULL ELSE false END"},
+    {"array_contains", "(a, v) AS CASE WHEN a IS NULL OR v IS NULL THEN NULL WHEN list_contains(a, v) THEN true WHEN " S "list_has_null(a) THEN NULL ELSE false END"},
     {"array_append", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_append(a, v) END"},
     {"array_prepend", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_prepend(v, a) END"},
     {"array_compact", "(a) AS list_filter(a, lambda x: x IS NOT NULL)"},

@@ -554,3 +554,18 @@ SELECT lpad(s, n, p), rpad(s, n, p) FROM VALUES ('abc', 6, 'xy'), ('abc', 2, 'xy
   ('abc', 8, 'é日'), (NULL, 3, 'a'), ('a', NULL, 'b'), ('a', 3, NULL) AS t(s, n, p);
 
 SELECT lpad(X'0102', 5, X'ff00'), rpad(X'0102', 5, X'ff00'), lpad(X'010203', 2, X'ff');
+
+-- ===== size and array_contains kernels =====
+
+SELECT size(a), cardinality(a) FROM VALUES (array(1, 2, 3)), (array()), (CAST(NULL AS ARRAY<INT>)), (array(NULL, NULL)) AS t(a);
+
+SELECT size(m), cardinality(m) FROM VALUES (map(1, 'a', 2, 'b')), (map()), (CAST(NULL AS MAP<INT, STRING>)) AS t(m);
+
+SELECT size(NULL), size(array(array(1, 2), array(3))), size(array(struct(1 AS x))), size(split('a,b,c', ','));
+
+SELECT array_contains(a, v) FROM VALUES (array(1, 2, 3), 2), (array(1, 2, 3), 5), (array(1, NULL, 3), 5), (array(1, NULL, 3), 3), (array(), 1),
+  (CAST(NULL AS ARRAY<INT>), 1), (array(1, 2), CAST(NULL AS INT)), (array(NULL), 1), (array(NULL), CAST(NULL AS INT)) AS t(a, v);
+
+SELECT array_contains(a, v) FROM VALUES (array('a', 'b'), 'b'), (array('a', NULL), 'z'), (array('a', 'b'), 'c') AS t(a, v);
+
+SELECT array_contains(a, v) FROM VALUES (array(array(1), array(2, 3)), array(2, 3)), (array(array(1), CAST(NULL AS ARRAY<INT>)), array(9)) AS t(a, v);

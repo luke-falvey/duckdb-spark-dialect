@@ -318,3 +318,10 @@ string-to-integer edge cases, floor / ceil saturation, lpad / rpad with multi-by
 `CAST(4.9E-324D AS STRING)` is `5.0E-324` here, `4.9E-324` in Java (Java prints two digits for the smallest denormals).
 args_sweep on floor / ceil / lpad / rpad / cast: 9 findings in 5 signatures, identical on the previous build (e.g.
 `ceil(3.1411, NULL)`: Spark requires an int literal scale, we accept it).
+
+## Backlog 8 (continued): size, array_contains
+Profile of `array_contains(a, 5)`: `list_contains` 32%, the `list_count(a) < len(a)` NULL-element test (a generic list
+aggregate) 22%. New kernels: `list_has_null` (scans the child validity only) and `spark_size` (array / map length with the
+-1 / NULL-for-NULL rule in one pass, replacing len + cast + coalesce). A/B: array_contains 29.75 -> 15.79 ms
+(0.531 [0.525, 0.542]); size 9.38 -> 6.65 ms (0.709 [0.688, 0.732]). Golden cases from Spark (NULL / empty / nested arrays,
+maps, three-valued array_contains). Checks: run_duckdb both dialects (1725 / 1789), replay (+known), differential, args_sweep.

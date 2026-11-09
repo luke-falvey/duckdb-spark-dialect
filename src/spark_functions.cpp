@@ -2776,30 +2776,50 @@ ExprP BindAsBinary(FunctionBindExpressionInput &input) {
 	return SparkCast(b, ToSparkString(b, std::move(e)), LogicalType::BLOB);
 }
 
+//! size of an array or map in one pass: NULL input is -1 (spark.sql.legacy.sizeOfNull) or NULL (ANSI)
+template <bool NULL_IS_MINUS_ONE>
+void SizeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	auto &input = args.data[0];
+	UnifiedVectorFormat format;
+	input.ToUnifiedFormat(format);
+	auto entries = UnifiedVectorFormat::GetData<list_entry_t>(format);
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	auto out = FlatVector::GetDataMutable<int32_t>(result);
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto idx = format.sel->get_index(i);
+		if (format.validity.RowIsValid(idx)) {
+			out[i] = int32_t(entries[idx].length);
+		} else if (NULL_IS_MINUS_ONE) {
+			out[i] = -1;
+		} else {
+			FlatVector::ValidityMutable(result).SetInvalid(i);
+		}
+	}
+	if (args.AllConstant()) {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+	}
+}
+
 //! size / cardinality: -1 for NULL (spark.sql.legacy.sizeOfNull = true)
 ExprP BindSize(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "size", 1, 1);
 	Builder b(input.context);
 	auto e = Arg(input, 0);
 	auto type = Normalize(e->GetReturnType());
-	ExprP length;
-	if (type.id() == LogicalTypeId::MAP) {
-		length = b.Call("cardinality", e->Copy());
-	} else if (type.id() == LogicalTypeId::LIST || type.id() == LogicalTypeId::ARRAY) {
-		length = b.Call("len", e->Copy());
-	} else if (IsNull(type)) {
-		return b.Constant(AnsiEnabled(input.context) ? Value(LogicalType::INTEGER) : Value::INTEGER(-1));
-	} else {
+	bool ansi = AnsiEnabled(input.context);
+	if (IsNull(type)) {
+		return b.Constant(ansi ? Value(LogicalType::INTEGER) : Value::INTEGER(-1));
+	}
+	if (type.id() != LogicalTypeId::MAP && type.id() != LogicalTypeId::LIST && type.id() != LogicalTypeId::ARRAY) {
 		throw BinderException("size: argument must be an array or a map, not %s", SparkTypeName(type));
 	}
-	if (AnsiEnabled(input.context)) {
-		// size(NULL) is NULL in ANSI mode
-		return b.Cast(std::move(length), LogicalType::INTEGER);
+	if (type.id() == LogicalTypeId::ARRAY) {
+		e = b.Cast(std::move(e), LogicalType::LIST(ArrayType::GetChildType(type)));
 	}
-	vector<ExprP> options;
-	options.push_back(b.Cast(std::move(length), LogicalType::INTEGER));
-	options.push_back(b.Constant(Value::INTEGER(-1)));
-	return b.Coalesce(std::move(options));
+	auto function = ScalarFunction(Identifier(ansi ? "spark_size_ansi" : "spark_size"), {e->GetReturnType()},
+	                               LogicalType::INTEGER, ansi ? SizeKernel<false> : SizeKernel<true>);
+	function.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
+	return b.Kernel(function, std::move(e));
 }
 
 ExprP BindReverse(FunctionBindExpressionInput &input) {

@@ -607,6 +607,38 @@ void EpochSecondsWrapKernel(DataChunk &args, ExpressionState &, Vector &result) 
 	});
 }
 
+//! Does a list contain a NULL element? (array_contains's NULL result when the value is not found)
+void ListHasNullKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	auto &input = args.data[0];
+	UnifiedVectorFormat format;
+	input.ToUnifiedFormat(format);
+	auto entries = UnifiedVectorFormat::GetData<list_entry_t>(format);
+	auto &child = ListVector::GetChild(input);
+	UnifiedVectorFormat child_format;
+	child.ToUnifiedFormat(child_format);
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	auto out = FlatVector::GetDataMutable<bool>(result);
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto idx = format.sel->get_index(i);
+		if (!format.validity.RowIsValid(idx)) {
+			FlatVector::ValidityMutable(result).SetInvalid(i);
+			continue;
+		}
+		bool has_null = false;
+		if (!child_format.validity.CanHaveNull()) {
+			out[i] = false;
+			continue;
+		}
+		for (idx_t k = entries[idx].offset; k < entries[idx].offset + entries[idx].length && !has_null; k++) {
+			has_null = !child_format.validity.RowIsValid(child_format.sel->get_index(k));
+		}
+		out[i] = has_null;
+	}
+	if (args.AllConstant()) {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+	}
+}
+
 //! conv(num, from_base, to_base) following Spark's NumberConverter (unsigned 64-bit arithmetic)
 string Conv(const string &input, int from_base, int to_base, bool &valid) {
 	valid = true;
@@ -1443,6 +1475,8 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 	                   DecodeKernel));
 	reg(ScalarFunction(Identifier("epoch_seconds_wrap"), {LogicalType::BIGINT}, LogicalType::TIMESTAMP,
 	                   EpochSecondsWrapKernel));
+	reg(ScalarFunction(Identifier("list_has_null"), {LogicalType::LIST(LogicalType::ANY)}, LogicalType::BOOLEAN,
+	                   ListHasNullKernel));
 	reg(ScalarFunction(Identifier("url_encode"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, UrlEncodeKernel));
 	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                   LogicalType::INTEGER, LevenshteinKernel));
