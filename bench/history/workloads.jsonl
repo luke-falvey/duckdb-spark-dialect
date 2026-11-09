@@ -1,3 +1,4 @@
 {"suite": "workloads", "time": "2026-11-09T10:20:01", "commit": "6039e8d", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
 {"suite": "workloads", "time": "2026-11-09T10:31:52", "commit": "6039e8d", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
 {"suite": "workloads", "time": "2026-11-09T10:34:59", "commit": "a22cbc0", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "workloads", "time": "2026-11-09T10:42:26", "commit": "214ef19", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
