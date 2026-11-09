@@ -167,3 +167,15 @@ check wrapper (it cannot trigger). A/B mul_decimal: 9.20 -> 3.77 ms (0.409 [0.38
 85.9 -> 77.5 ms (0.903 [0.799, 0.980]), Q14 0.906; Q09/Q10/Q19 no change. Seven new golden cases in
 limitations.sql (precision/scale mixes, int16..int128 storage, integer operands, NULLs, negatives, max values).
 Checks: run_duckdb both dialects (ANSI cases included), replay (+known), differential seed 1, isolation clean.
+
+## decimal + / -: direct integer arithmetic when the exact result fits (precision <= 38)
+Profile of Q01 (gdb, 1 thread): the third multiplication went through the wide kernel, and `1 - l_discount` /
+`1 + l_tax` were cast to DECIMAL(38) (hugeint), subtracted, then narrowed by DecimalRescaleKernel. New
+`spark_decimal_{add,subtract}_exact` kernels align the scales with powers of ten and add the stored integers in
+`__int128` (operands of any physical width, any result width); no overflow or rounding is possible when Spark's
+result precision is <= 38. A/B TPC-H (before = multiply fix only): Q01 64.5 -> 53.6 ms (0.831 [0.769, 0.887]),
+Q03/Q05/Q10/Q14 no change. Six golden cases in limitations.sql (scale alignment, all storage widths, integer
+operands, NULLs, Q01 expression shape). Checks: run_duckdb both dialects (1684 / 1748 pass), replay (+known),
+differential seed 1, isolation clean.
+Full TPC-H SF1 afterwards (5 runs, 22 queries): geomean spark 1.070x, spark_strict 1.050x (target <= 1.10x);
+Q01 2.03x / 1.92x (target <= 2.0x), Q10 1.23x, Q11 1.12x, none above 1.5x.

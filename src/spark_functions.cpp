@@ -1538,6 +1538,8 @@ ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target);
 ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int s2, const LogicalType &target);
 ExprP SparkExactDecimalMultiply(Builder &b, ExprP left, const LogicalType &lt, ExprP right, const LogicalType &rt,
                                 const LogicalType &target);
+ExprP SparkExactDecimalAddSub(Builder &b, ExprP left, const LogicalType &lt, ExprP right, const LogicalType &rt,
+                              const LogicalType &target, bool subtract);
 
 template <class OP, class CHECKED_OP, bool CHECKED>
 ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
@@ -1625,6 +1627,10 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 				return finish(SparkWideDecimalMultiply(b, std::move(left), s1, std::move(right), s2, result_type));
 			}
 		} else {
+			if (precision <= 38 && (op == "+" || op == "-")) {
+				// the exact sum fits Spark's result type: align the scales and add the stored integers
+				return SparkExactDecimalAddSub(b, std::move(left), ld, std::move(right), rd, result_type, op == "-");
+			}
 			auto common = LogicalType::DECIMAL(38, uint8_t(MaxValue(s1, s2)));
 			value = b.Op(duck_op, b.Cast(std::move(left), common), b.Cast(std::move(right), common));
 		}
@@ -1874,6 +1880,94 @@ ExprP SparkExactDecimalMultiply(Builder &b, ExprP left, const LogicalType &lt, E
 		break;
 	}
 	return b.Kernel(ScalarFunction(Identifier("spark_decimal_multiply_exact"), {lt, rt}, target, fn),
+	                b.Cast(std::move(left), lt), b.Cast(std::move(right), rt));
+}
+
+inline __int128 To128(hugeint_t v) {
+	return (static_cast<__int128>(v.upper) << 64) | static_cast<__int128>(v.lower);
+}
+inline __int128 To128(int16_t v) { return v; }
+inline __int128 To128(int32_t v) { return v; }
+inline __int128 To128(int64_t v) { return v; }
+
+template <class OUT>
+inline OUT From128(__int128 v) {
+	return OUT(int64_t(v));
+}
+template <>
+inline hugeint_t From128<hugeint_t>(__int128 v) {
+	hugeint_t r;
+	r.lower = uint64_t(v);
+	r.upper = int64_t(v >> 64);
+	return r;
+}
+
+//! Decimal + / - whose exact result fits the result type (precision <= 38): align the scales by multiplying with
+//! powers of ten and add the stored integers. Nothing can overflow or need rounding.
+template <class A, class B, class OUT, bool SUBTRACT>
+void ExactDecimalAddSubKernel(DataChunk &args, ExpressionState &, Vector &result, __int128 scale_a, __int128 scale_b) {
+	BinaryExecutor::Execute<A, B, OUT>(args.data[0], args.data[1], result, args.size(), [&](A a, B b) -> OUT {
+		__int128 x = To128(a) * scale_a, y = To128(b) * scale_b;
+		return From128<OUT>(SUBTRACT ? x - y : x + y);
+	});
+}
+
+template <class A, class B, bool SUBTRACT>
+scalar_function_t ExactAddSubFor(PhysicalType out, __int128 sa, __int128 sb) {
+	switch (out) {
+	case PhysicalType::INT16:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { ExactDecimalAddSubKernel<A, B, int16_t, SUBTRACT>(a, st, r, sa, sb); };
+	case PhysicalType::INT32:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { ExactDecimalAddSubKernel<A, B, int32_t, SUBTRACT>(a, st, r, sa, sb); };
+	case PhysicalType::INT64:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { ExactDecimalAddSubKernel<A, B, int64_t, SUBTRACT>(a, st, r, sa, sb); };
+	default:
+		return [=](DataChunk &a, ExpressionState &st, Vector &r) { ExactDecimalAddSubKernel<A, B, hugeint_t, SUBTRACT>(a, st, r, sa, sb); };
+	}
+}
+
+template <class A, bool SUBTRACT>
+scalar_function_t ExactAddSubFor(PhysicalType right, PhysicalType out, __int128 sa, __int128 sb) {
+	switch (right) {
+	case PhysicalType::INT16:
+		return ExactAddSubFor<A, int16_t, SUBTRACT>(out, sa, sb);
+	case PhysicalType::INT32:
+		return ExactAddSubFor<A, int32_t, SUBTRACT>(out, sa, sb);
+	case PhysicalType::INT64:
+		return ExactAddSubFor<A, int64_t, SUBTRACT>(out, sa, sb);
+	default:
+		return ExactAddSubFor<A, hugeint_t, SUBTRACT>(out, sa, sb);
+	}
+}
+
+template <bool SUBTRACT>
+scalar_function_t ExactAddSubDispatch(PhysicalType left, PhysicalType right, PhysicalType out, __int128 sa, __int128 sb) {
+	switch (left) {
+	case PhysicalType::INT16:
+		return ExactAddSubFor<int16_t, SUBTRACT>(right, out, sa, sb);
+	case PhysicalType::INT32:
+		return ExactAddSubFor<int32_t, SUBTRACT>(right, out, sa, sb);
+	case PhysicalType::INT64:
+		return ExactAddSubFor<int64_t, SUBTRACT>(right, out, sa, sb);
+	default:
+		return ExactAddSubFor<hugeint_t, SUBTRACT>(right, out, sa, sb);
+	}
+}
+
+ExprP SparkExactDecimalAddSub(Builder &b, ExprP left, const LogicalType &lt, ExprP right, const LogicalType &rt,
+                              const LogicalType &target, bool subtract) {
+	int scale = DecimalType::GetScale(target);
+	__int128 sa = 1, sb = 1;
+	for (int i = DecimalType::GetScale(lt); i < scale; i++) {
+		sa *= 10;
+	}
+	for (int i = DecimalType::GetScale(rt); i < scale; i++) {
+		sb *= 10;
+	}
+	auto fn = subtract ? ExactAddSubDispatch<true>(lt.InternalType(), rt.InternalType(), target.InternalType(), sa, sb)
+	                   : ExactAddSubDispatch<false>(lt.InternalType(), rt.InternalType(), target.InternalType(), sa, sb);
+	return b.Kernel(ScalarFunction(Identifier(subtract ? "spark_decimal_subtract_exact" : "spark_decimal_add_exact"),
+	                               {lt, rt}, target, fn),
 	                b.Cast(std::move(left), lt), b.Cast(std::move(right), rt));
 }
 
