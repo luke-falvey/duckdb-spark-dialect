@@ -195,3 +195,18 @@ The remaining lever with real gain is parsing `x -> body` as `SpOr ('->' SpExpre
 column / parenthesised column list into lambda parameters in the transform (saves the failed SpLambda attempt per
 expression, ~20%); that is a grammar change with its own error-message risk and would still leave the ratio near 2.6x,
 so the <= 2.0x target is not reachable with grammar reordering alone. Absolute cost is ~100 us per statement.
+
+## Phase B: TPC-DS SF1 (bench/tpcds_bench.py, queries in bench/tpcds/ from the tpcds extension)
+All 99 queries run in both dialects (0 errors). Geomean (3 runs, 4 threads): spark 1.118x, spark_strict 1.128x.
+One flagged result difference (Q78): the intended type difference (Spark `/` on decimals is DECIMAL, native is DOUBLE;
+the sum of a narrow decimal widens to DECIMAL(38)), not a defect. Worst queries: Q22 3.35x, Q36 2.40x, Q74 2.12x,
+Q04 2.09x, Q02 1.82x, Q67 1.65x, Q11 1.57x, Q44 1.43x; everything else below 1.35x.
+Cause (EXPLAIN ANALYZE of Q22, source of the optimizers in duckdb/src/optimizer): the Spark aggregates `spark_sum` /
+`spark_avg` have no state-export layout (`SetStructStateExport`), so DuckDB (a) cannot cascade ROLLUP / CUBE grouping
+sets from the finest level with `combine_aggr` (Q22, Q36, Q67 compute every grouping set from the input CTE: 4
+consumers vs 1) and (b) cannot push the aggregate below the join (`partial_aggregate_pushdown`, needs
+`HasGetStateTypeCallback`: Q74 / Q04 / Q11 year_total shape). Both need `BindExportedAggregate`, which re-binds the
+aggregate by name in `system.main`; ours live in schema `spark`. A first attempt (earlier in this effort) was reverted:
+it threw a CatalogException for the unqualified lookup and Q10 got slower. Recorded as backlog item 13 (largest
+remaining plan-shape item; needs state layouts for the decimal / integer / double sum and avg states plus
+main-schema registration under a hidden name, and the isolation check).
