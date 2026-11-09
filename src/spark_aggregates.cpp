@@ -92,6 +92,10 @@ struct ClusteredCopy {
 // ---- sum of integers: a BIGINT that wraps -------------------------------------------------------
 
 struct IntegerSumState {
+	// exported state layout: lets DuckDB cascade grouping sets and push the aggregate below joins
+	static constexpr const char *STATE_NAMES[] = {"value", "is_set"};
+	using STATE_TYPE = StructStateType<int64_t, bool>;
+
 	int64_t value;
 	bool is_set;
 };
@@ -183,6 +187,9 @@ struct IntegerSumOperation : public ClusteredCopy {
 // ---- sum of doubles ------------------------------------------------------------------------------
 
 struct DoubleSumState {
+	static constexpr const char *STATE_NAMES[] = {"value", "is_set"};
+	using STATE_TYPE = StructStateType<double, bool>;
+
 	double value;
 	bool is_set;
 };
@@ -245,6 +252,9 @@ struct DoubleSumOperation : public ClusteredCopy {
 // ---- avg of integers and doubles: a double sum and a count ---------------------------------------
 
 struct DoubleAvgState {
+	static constexpr const char *STATE_NAMES[] = {"value", "count"};
+	using STATE_TYPE = StructStateType<double, int64_t>;
+
 	double value;
 	int64_t count;
 };
@@ -305,6 +315,9 @@ struct DoubleAvgOperation : public ClusteredCopy {
 //! The sum is `value + small`: narrow inputs are added to the 64-bit `small` with an overflow check, and only a
 //! carry out of it (rare) is moved to the 128-bit `value`, which keeps the hot loop at one add and one branch.
 struct DecimalSumState {
+	static constexpr const char *STATE_NAMES[] = {"value", "small", "is_set", "overflow"};
+	using STATE_TYPE = StructStateType<hugeint_t, int64_t, bool, bool>;
+
 	hugeint_t value;
 	int64_t small;
 	bool is_set;
@@ -427,6 +440,9 @@ struct DecimalSumOperation : public ClusteredCopy {
 // ---- avg of decimals: exact, HALF_UP, NULL on overflow -------------------------------------------
 
 struct DecimalAvgState {
+	static constexpr const char *STATE_NAMES[] = {"value", "small", "count", "overflow"};
+	using STATE_TYPE = StructStateType<hugeint_t, int64_t, int64_t, bool>;
+
 	hugeint_t value;
 	int64_t small;
 	int64_t count;
@@ -719,6 +735,15 @@ AggregateFunction MakeDoubleAvg() {
 
 } // namespace
 
+//! DuckDB re-binds an exported aggregate state (ROLLUP / CUBE cascades, aggregate pushdown below joins) by looking the
+//! aggregate up by name in system.main, so the Spark aggregates are also registered there. The names are internal
+//! (`spark_sum` / `spark_avg`); the default dialect has no use for them.
+static void RegisterInMain(ExtensionLoader &loader, const AggregateFunctionSet &set) {
+	loader.UseDefaultSchema(Identifier(DEFAULT_SCHEMA));
+	loader.RegisterFunction(set);
+	loader.UseDefaultSchema(Identifier(SPARK_SCHEMA));
+}
+
 void RegisterSparkAggregates(ExtensionLoader &loader) {
 	AggregateFunctionSet sum {Identifier("spark_sum")};
 	sum.AddFunction(DecimalWildcard(BindDecimal<true>));
@@ -741,6 +766,7 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 		sum.AddFunction(CastingOverload(type, BindUnsupported<true>));
 	}
 	loader.RegisterFunction(sum);
+	RegisterInMain(loader, sum);
 
 	AggregateFunctionSet avg {Identifier("spark_avg")};
 	avg.AddFunction(DecimalWildcard(BindDecimal<false>));
@@ -758,6 +784,7 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 		avg.AddFunction(CastingOverload(type, BindUnsupported<false>));
 	}
 	loader.RegisterFunction(avg);
+	RegisterInMain(loader, avg);
 }
 
 } // namespace duckdb

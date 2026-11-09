@@ -210,3 +210,21 @@ aggregate by name in `system.main`; ours live in schema `spark`. A first attempt
 it threw a CatalogException for the unqualified lookup and Q10 got slower. Recorded as backlog item 13 (largest
 remaining plan-shape item; needs state layouts for the decimal / integer / double sum and avg states plus
 main-schema registration under a hidden name, and the isolation check).
+
+## State export for spark_sum / spark_avg (backlog item 13): TPC-DS Q22 3.35x -> 1.11x
+`UnaryAggregate` wires `SetStructStateExport` automatically when the state declares `STATE_NAMES` and
+`STATE_TYPE = StructStateType<...>`: the five states (IntegerSumState, DoubleSumState, DoubleAvgState,
+DecimalSumState, DecimalAvgState) now declare them (same field order as the C++ struct). DuckDB re-binds an exported
+aggregate by name in `system.main` (`BindExportedAggregate`), so `spark_sum` / `spark_avg` are additionally registered
+there (internal names; the default dialect has no use for them; the isolation check is clean). Effect:
+- ROLLUP / CUBE / GROUPING SETS cascade from the finest level with combine_aggr (4 consumers -> 1 in Q22);
+- the aggregate is pushed below joins (`partial_aggregate_pushdown`), as for native sum / avg.
+TPC-DS SF1 (5 runs): Q22 3.35 -> 1.11, Q36 2.40 -> 1.09, Q74 2.12 -> 0.96, Q04 2.09 -> 1.19, Q67 1.65 -> 1.05, Q11
+1.57 -> 1.13; full run geomean spark 1.118 -> 1.092, spark_strict 1.128 -> 1.077, worst Q44 1.64x, no errors.
+TPC-H A/B (before/after, 5 runs): geomean 0.999; Q10 +22% ([1.117, 1.428]) and Q11 +13% are slower: the aggregate is
+now pushed below the join exactly as in the native plan, but the exported / combined states cost more than native's.
+Profile of Q10 shows no single Spark frame (memcpy 11%, scan decompression); left open.
+Eight new golden cases (limitations.sql, from Spark): ROLLUP / CUBE / GROUPING SETS over int, bigint, double,
+decimal(10,2), decimal(38,2), NULL groups, grouping(), 128-bit decimal overflow in cascaded levels, BIGINT wrap, and
+aggregates over inner / left joins. Checks: run_duckdb both dialects (1692 / 1756), replay (+known), differential seed 1,
+isolation clean, args_sweep sum / avg / mean clean.

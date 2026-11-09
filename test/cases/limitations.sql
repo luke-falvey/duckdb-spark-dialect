@@ -458,3 +458,35 @@ SELECT 1 - d, d + 1, l - d, i + d, typeof(1 - d), typeof(l + d) FROM VALUES
 SELECT sum(price * (1 - disc) * (1 + tax)), sum(price * (1 - disc)) FROM VALUES
   (CAST(10495.00 AS DECIMAL(15,2)), CAST(0.05 AS DECIMAL(15,2)), CAST(0.08 AS DECIMAL(15,2))),
   (CAST(33078.94 AS DECIMAL(15,2)), CAST(0.10 AS DECIMAL(15,2)), CAST(0.00 AS DECIMAL(15,2))) AS t(price, disc, tax);
+
+-- ===== sum / avg export their state: ROLLUP / CUBE cascade and aggregate pushdown below joins =====
+
+-- @setup
+CREATE TEMPORARY VIEW se_t AS SELECT * FROM VALUES
+  ('a', 'x', 1, 10L, 1.50, 2.5D), ('a', 'x', 2, 20L, 2.25, NULL), ('a', 'y', NULL, NULL, NULL, 1.0D),
+  ('b', 'x', 2147483647, 9223372036854775807L, 99999999.99, 3.5D), ('b', 'y', 1, 1L, 0.01, -0.5D),
+  ('b', 'y', 5, 7L, 12.34, 8.0D), ('c', NULL, NULL, NULL, NULL, NULL), (NULL, 'z', 3, 3L, 3.03, 3.0D)
+  AS se_t(g, h, i, l, d, f);
+
+SELECT g, h, sum(i), sum(l), sum(d), sum(f), avg(i), avg(l), avg(d), avg(f), count(*) FROM se_t GROUP BY ROLLUP(g, h) ORDER BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11;
+
+SELECT g, h, sum(i), sum(d), avg(d), avg(f), grouping(g), grouping(h) FROM se_t GROUP BY CUBE(g, h) ORDER BY 1, 2, 3, 4, 5, 6, 7, 8;
+
+SELECT g, sum(d), avg(d), sum(l), avg(i) FROM se_t GROUP BY GROUPING SETS ((g), (h), ()) ORDER BY 1, 2, 3, 4, 5;
+
+SELECT g, h, sum(CAST(d AS DECIMAL(38,2))), avg(CAST(d AS DECIMAL(38,2))), typeof(sum(CAST(d AS DECIMAL(38,2)))) FROM se_t
+GROUP BY ROLLUP(g, h) ORDER BY 1, 2, 3, 4, 5;
+
+-- 128-bit overflow of the decimal sum is NULL in every level, including the cascaded ones
+SELECT g, sum(v), avg(v) FROM VALUES
+  ('a', CAST('99999999999999999999999999999999999999' AS DECIMAL(38,0))), ('a', CAST('99999999999999999999999999999999999999' AS DECIMAL(38,0))),
+  ('b', CAST('1' AS DECIMAL(38,0))) AS t(g, v) GROUP BY ROLLUP(g) ORDER BY g;
+
+-- the BIGINT sum wraps
+SELECT g, sum(l) FROM VALUES ('a', 9223372036854775807L), ('a', 1L), ('b', 5L) AS t(g, l) GROUP BY ROLLUP(g) ORDER BY g;
+
+-- aggregate over a join (the aggregate can be pushed below the join)
+SELECT a.g, a.k, sum(b.d), avg(b.d), sum(b.l), avg(b.f), count(*) FROM
+  (SELECT g, h AS k FROM se_t) a JOIN se_t b ON a.g = b.g AND a.k = b.h GROUP BY a.g, a.k ORDER BY a.g, a.k;
+
+SELECT a.g, sum(b.d * (1 - 0.05)), avg(b.i) FROM se_t a LEFT JOIN se_t b ON a.g = b.g GROUP BY a.g ORDER BY a.g;
