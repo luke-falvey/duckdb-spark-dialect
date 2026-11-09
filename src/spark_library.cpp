@@ -1423,11 +1423,17 @@ void UrlEncodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 }
 
 void RegisterSparkLibrary(ExtensionLoader &loader) {
+	// only kernels that can raise are declared fallible (DuckDB then keeps them from being pushed below joins and into
+	// aggregates); the others are registered plainly: split (invalid regex), encode / decode (unknown charset),
+	// check_like_pattern (invalid escape)
 	auto reg = [&](ScalarFunction fn) {
+		loader.RegisterFunction(std::move(fn));
+	};
+	auto reg_fallible = [&](ScalarFunction fn) {
 		RegisterFallible(loader, std::move(fn));
 	};
 	RegisterSparkStringKernels(loader);
-	reg(ScalarFunction(Identifier("check_like_pattern"), {LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	reg_fallible(ScalarFunction(Identifier("check_like_pattern"), {LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                   CheckLikePatternKernel));
 	reg(ScalarFunction(Identifier("initcap"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, InitCapKernel));
 	reg(ScalarFunction(Identifier("soundex"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, SoundexKernel));
@@ -1440,7 +1446,7 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 		mask.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(mask);
 	}
-	reg(ScalarFunction(Identifier("split_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::INTEGER},
+	reg_fallible(ScalarFunction(Identifier("split_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::INTEGER},
 	                   LogicalType::LIST(LogicalType::VARCHAR), SplitKernel));
 	reg(ScalarFunction(Identifier("conv_impl"), {LogicalType::VARCHAR, LogicalType::INTEGER, LogicalType::INTEGER},
 	                   LogicalType::VARCHAR, ConvKernel));
@@ -1469,9 +1475,9 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 		ws.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(ws);
 	}
-	reg(ScalarFunction(Identifier("encode_charset"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BLOB,
+	reg_fallible(ScalarFunction(Identifier("encode_charset"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BLOB,
 	                   EncodeKernel));
-	reg(ScalarFunction(Identifier("decode_charset"), {LogicalType::BLOB, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	reg_fallible(ScalarFunction(Identifier("decode_charset"), {LogicalType::BLOB, LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                   DecodeKernel));
 	reg(ScalarFunction(Identifier("epoch_seconds_wrap"), {LogicalType::BIGINT}, LogicalType::TIMESTAMP,
 	                   EpochSecondsWrapKernel));

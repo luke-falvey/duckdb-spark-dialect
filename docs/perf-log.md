@@ -325,3 +325,26 @@ aggregate) 22%. New kernels: `list_has_null` (scans the child validity only) and
 -1 / NULL-for-NULL rule in one pass, replacing len + cast + coalesce). A/B: array_contains 29.75 -> 15.79 ms
 (0.531 [0.525, 0.542]); size 9.38 -> 6.65 ms (0.709 [0.688, 0.732]). Golden cases from Spark (NULL / empty / nested arrays,
 maps, three-valued array_contains). Checks: run_duckdb both dialects (1725 / 1789), replay (+known), differential, args_sweep.
+
+## Dropped: add_decimal_wide as one __int128 kernel
+`decimal(18,2) + decimal(38,10)` (result precision 39, scale lowered with HALF_UP) as a single kernel (align scales,
+checked `__int128` add, `__int128` division with rounding): 10.90 -> 12.12 ms (1.112 [1.078, 1.128], slower). The existing
+path (cast, hugeint add, the rescale kernel with its 64-bit division fast path) wins because 128-bit division
+(`__divti3`) costs more than the extra pass. Reverted.
+
+## Dropped: to_timestamp(str, pattern) micro-changes; explained pairs
+`ParseDatetimeKernel` with a reused `thread_local` buffer instead of `GetString()` and a `switch` instead of `strchr` for
+the adjacent-numeric test: 102.8 -> 149.4 ms (1.453, slower; a TLS access per row costs more than the short-string copy).
+Reverted. Pairs whose ratio is a difference of what is compared, not of the kernel: `aggregate_sum` (a Spark lambda
+`aggregate(a, 0, (acc, x) -> acc + x)` against native `list_sum`), `date_format` / `to_timestamp_pattern` (Java pattern
+semantics against `strftime` / `try_strptime`), `get_json_object` (JSONPath subset against `json_extract_string`).
+
+## Backlog 11: fallibility audit
+`RegisterFallible` (the flag that stops DuckDB from pushing a function below joins / into aggregates) was applied to every
+function of the library registry. Throw sites in `spark_library.cpp`: split's regex compile, the charset of encode / decode
+and `check_like_pattern`; the other 25 kernels (initcap, soundex, hypot, levenshtein, crc32, hash, sha2, conv, url_encode,
+mask, format_number, parse_url, concat_ws_array, ...) cannot raise and are now registered plainly. substr / lpad / rpad
+(string kernels), the casts and the LIKE operators already were. Ansi-mode kernels stay fallible by design.
+The TPC-H / TPC-DS plan shapes (bench/plan_diff.py) differ from native only in aggregate names (Q17's extra Filter and
+Q22's grouping cascade remain); no test shape is known where one of the 25 blocked pushdown, so there is no measured
+speed-up from this change, it removes a latent pessimisation.
