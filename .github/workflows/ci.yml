@@ -250,6 +250,9 @@ jobs:
           python bench/parse_bench.py --smoke --repeat 50
           python bench/func_bench.py --smoke --rows 300000 --runs 3
           python bench/tpch_bench.py --sf 0.1 --runs 3
+          python bench/tpcds_bench.py --sf 0.1 --runs 1 --queries 1,3,7,22,36,42,52,55,74,96
+          python bench/workload_bench.py --rows 200000 --runs 3
+          python bench/latency_bench.py --repeat 100 --loads 5
 
       - name: Check the catastrophic thresholds
         run: |

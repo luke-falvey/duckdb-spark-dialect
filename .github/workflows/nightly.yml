@@ -176,6 +176,10 @@ jobs:
           python bench/func_bench.py
           python bench/scaling_bench.py
           python bench/tpch_bench.py --sf 1
+          python bench/tpcds_bench.py --sf 1
+          python bench/workload_bench.py
+          python bench/latency_bench.py
+          python bench/threads_bench.py
           python bench/report.py > bench/out/report.md
           cat bench/out/report.md >> "$GITHUB_STEP_SUMMARY"
 
