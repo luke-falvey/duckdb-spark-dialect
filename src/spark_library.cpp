@@ -234,34 +234,55 @@ CachedRegex &CompileRegex(const string &pattern) {
 //! Calls on_match(position, length) for successive matches, like java.util.regex.Matcher.find(): after an empty
 //! match the search resumes one code point later. Stops when on_match returns false.
 template <class ON_MATCH>
-void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_match) {
+void FindRegexMatches(const string &pattern, const char *data, size_t size, ON_MATCH on_match) {
 	// a pattern without regex metacharacters (split(s, ','), the common case) is a plain substring search
 	if (!pattern.empty() && pattern.find_first_of("\\^$.|?*+()[]{}") == string::npos) {
+		const size_t plen = pattern.size();
 		size_t pos = 0;
-		while ((pos = str.find(pattern, pos)) != string::npos) {
-			if (!on_match(idx_t(pos), idx_t(pattern.size()))) {
+		if (plen == 1) {
+			const char c = pattern[0];
+			while (pos < size) {
+				auto hit = static_cast<const char *>(memchr(data + pos, c, size - pos));
+				if (!hit) {
+					return;
+				}
+				pos = size_t(hit - data);
+				if (!on_match(idx_t(pos), idx_t(1))) {
+					return;
+				}
+				pos++;
+			}
+			return;
+		}
+		while (pos + plen <= size) {
+			auto hit = static_cast<const char *>(memmem(data + pos, size - pos, pattern.data(), plen));
+			if (!hit) {
 				return;
 			}
-			pos += pattern.size();
+			pos = size_t(hit - data);
+			if (!on_match(idx_t(pos), idx_t(plen))) {
+				return;
+			}
+			pos += plen;
 		}
 		return;
 	}
 	auto &regex = CompileRegex(pattern);
 	if (regex.re2) {
-		duckdb_re2::StringPiece input(str);
+		duckdb_re2::StringPiece input(data, size);
 		duckdb_re2::StringPiece match;
 		size_t pos = 0;
-		while (pos <= str.size()) {
-			if (!regex.re2->Match(input, pos, str.size(), duckdb_re2::RE2::UNANCHORED, &match, 1)) {
+		while (pos <= size) {
+			if (!regex.re2->Match(input, pos, size, duckdb_re2::RE2::UNANCHORED, &match, 1)) {
 				return;
 			}
-			auto start = size_t(match.data() - str.data());
+			auto start = size_t(match.data() - data);
 			if (!on_match(idx_t(start), idx_t(match.size()))) {
 				return;
 			}
 			if (match.empty()) {
 				pos = start + 1;
-				while (pos < str.size() && (static_cast<unsigned char>(str[pos]) & 0xC0) == 0x80) {
+				while (pos < size && (static_cast<unsigned char>(data[pos]) & 0xC0) == 0x80) {
 					pos++;
 				}
 			} else {
@@ -270,14 +291,15 @@ void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_matc
 		}
 		return;
 	}
-	for (auto it = std::sregex_iterator(str.begin(), str.end(), *regex.fallback); it != std::sregex_iterator(); ++it) {
+	for (auto it = std::cregex_iterator(data, data + size, *regex.fallback); it != std::cregex_iterator(); ++it) {
 		if (!on_match(idx_t(it->position()), idx_t(it->length()))) {
 			return;
 		}
 	}
 }
 
-//! split(str, regex, limit) with java.lang.String.split semantics (limit <= 0: no limit, trailing empty kept)
+//! split(str, regex, limit) with java.lang.String.split semantics (limit <= 0: no limit, trailing empty kept).
+//! Parts are written straight into the list child (no per-row allocations); the list child grows geometrically.
 void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto count = args.size();
 	UnifiedVectorFormat f0, f1, f2;
@@ -286,68 +308,65 @@ void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	args.data[2].ToUnifiedFormat(f2);
 	result.SetVectorType(VectorType::FLAT_VECTOR);
 	auto entries = FlatVector::GetDataMutable<list_entry_t>(result);
-	idx_t total = 0;
-	vector<vector<string>> rows(count);
-	vector<bool> valid(count, true);
+	auto &child = ListVector::GetChildMutable(result);
+	idx_t capacity = ListVector::GetListCapacity(result);
+	idx_t offset = 0;
+	string_t *child_data = nullptr;
+	auto push = [&](const char *ptr, idx_t len) {
+		if (offset >= capacity || !child_data) {
+			ListVector::Reserve(result, MaxValue<idx_t>(offset + 1, capacity * 2 + 64));
+			capacity = ListVector::GetListCapacity(result);
+			child_data = FlatVector::GetDataMutable<string_t>(child);
+		}
+		child_data[offset++] = StringVector::AddString(child, ptr, len);
+	};
 	for (idx_t i = 0; i < count; i++) {
 		auto i0 = f0.sel->get_index(i), i1 = f1.sel->get_index(i), i2 = f2.sel->get_index(i);
 		if (!f0.validity.RowIsValid(i0) || !f1.validity.RowIsValid(i1) || !f2.validity.RowIsValid(i2)) {
-			valid[i] = false;
-			continue;
-		}
-		auto str = UnifiedVectorFormat::GetData<string_t>(f0)[i0].GetString();
-		auto pattern = UnifiedVectorFormat::GetData<string_t>(f1)[i1].GetString();
-		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
-		auto &parts = rows[i];
-		if (pattern.empty()) {
-			// split into characters (code points, not bytes); Spark keeps a trailing empty string only with limit
-			for (idx_t k = 0; k < str.size();) {
-				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
-					parts.push_back(str.substr(k));
-					break;
-				}
-				idx_t next = k + 1;
-				while (next < str.size() && (static_cast<unsigned char>(str[next]) & 0xC0) == 0x80) {
-					next++;
-				}
-				parts.push_back(str.substr(k, next - k));
-				k = next;
-			}
-			if (str.empty()) {
-				parts.push_back("");
-			}
-		} else {
-			idx_t last = 0;
-			FindRegexMatches(pattern, str, [&](idx_t pos, idx_t len) {
-				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
-					return false;
-				}
-				if (!(len == 0 && pos == 0)) {
-					parts.push_back(str.substr(last, pos - last));
-					last = pos + len;
-				}
-				return true;
-			});
-			parts.push_back(str.substr(last));
-		}
-		total += parts.size();
-	}
-	ListVector::Reserve(result, total);
-	auto &child = ListVector::GetChildMutable(result);
-	auto child_data = FlatVector::GetDataMutable<string_t>(child);
-	idx_t offset = 0;
-	for (idx_t i = 0; i < count; i++) {
-		if (!valid[i]) {
 			FlatVector::ValidityMutable(result).SetInvalid(i);
 			entries[i] = list_entry_t(offset, 0);
 			continue;
 		}
-		entries[i] = list_entry_t(offset, rows[i].size());
-		for (auto &part : rows[i]) {
-			child_data[offset++] = StringVector::AddString(child, part);
+		auto &sv = UnifiedVectorFormat::GetData<string_t>(f0)[i0];
+		const char *str = sv.GetData();
+		const idx_t size = sv.GetSize();
+		auto pattern = UnifiedVectorFormat::GetData<string_t>(f1)[i1].GetString();
+		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
+		const idx_t start_offset = offset;
+		if (pattern.empty()) {
+			// split into characters (code points, not bytes); Spark keeps a trailing empty string only with limit
+			for (idx_t k = 0; k < size;) {
+				if (limit > 0 && offset - start_offset + 1 == idx_t(limit)) {
+					push(str + k, size - k);
+					break;
+				}
+				idx_t next = k + 1;
+				while (next < size && (static_cast<unsigned char>(str[next]) & 0xC0) == 0x80) {
+					next++;
+				}
+				push(str + k, next - k);
+				k = next;
+			}
+			if (size == 0) {
+				push("", 0);
+			}
+		} else {
+			idx_t last = 0;
+			FindRegexMatches(pattern, str, size, [&](idx_t pos, idx_t len) {
+				if (limit > 0 && offset - start_offset + 1 == idx_t(limit)) {
+					return false;
+				}
+				if (!(len == 0 && pos == 0)) {
+					push(str + last, pos - last);
+					last = pos + len;
+				}
+				return true;
+			});
+			push(str + last, size - last);
 		}
+		entries[i] = list_entry_t(start_offset, offset - start_offset);
 	}
-	ListVector::SetListSize(result, total);
+	ListVector::SetListSize(result, offset);
 	if (args.AllConstant()) {
 		result.SetVectorType(VectorType::CONSTANT_VECTOR);
 	}

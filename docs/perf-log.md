@@ -119,3 +119,11 @@ distinct values, so DuckDB stores it dictionary-compressed and native `string_sp
 stored data, not of the kernel; the in-memory 3.3x is the honest per-row cost. Treat low-cardinality-column pairs
 in `--db` mode as dictionary-biased; pair changed to `size(split(...))` / `len(string_split(...))` so list
 construction cannot be elided. Follow-up for backlog item 6 (literal separator fast path).
+
+## split: write parts directly into the list child, memchr/memmem for literal separators
+SplitKernel built a vector<vector<string>> per chunk and copied every part twice (substr, then AddString). Now parts
+are written straight into the list child (geometric Reserve), the source is read as string_t without copying, and
+literal separators use memchr (1 byte) / memmem. A/B (ab.py func, 7 runs): split_comma 206.8 -> 102.2 ms
+(0.494 [0.473, 0.508]); split_regex 682.1 -> 588.1 ms (0.862 [0.835, 0.891]). Section 6 checks: run_duckdb both
+dialects, replay (+ --known), differential seed 1 budget 150: clean. args_sweep split: one finding, identical before and
+after (Spark raises on invalid regexes such as '[]' / '{}', we return a result): pre-existing, backlog item 12.
