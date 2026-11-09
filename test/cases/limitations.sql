@@ -502,3 +502,37 @@ SELECT u, tag FROM (SELECT u, explode_outer(a) AS tag FROM VALUES (1, array(10, 
 SELECT u, explode(a) AS tag, u + 1 AS v FROM VALUES (1, array(5, 6)) AS t(u, a);
 
 SELECT tag + 1 AS next FROM (SELECT explode(sequence(1, 3)) AS tag) ORDER BY next;
+
+-- ===== sweep findings: charsets, invalid regexes, generator alias lists, from_unixtime wrap, inline, ESCAPE NULL =====
+
+SELECT hex(encode('aé日😀', 'UTF-8')), hex(encode('aé日😀', 'UTF-16')), hex(encode('aé日😀', 'UTF-16BE')), hex(encode('aé日😀', 'UTF-16LE'));
+
+SELECT hex(encode('aé日', 'US-ASCII')), hex(encode('aé日', 'ISO-8859-1')), hex(encode('aé', 'utf-8'));
+
+SELECT decode(encode('aé日😀', 'UTF-16'), 'UTF-16'), decode(X'00e9006100', 'UTF-16BE'), decode(X'e900', 'UTF-16LE'), decode(X'e961', 'ISO-8859-1'), decode(X'ff61', 'UTF-8'), decode(X'c3a9', 'US-ASCII');
+
+SELECT encode('a', 'no-such-charset');
+
+SELECT decode(X'61', 'no-such-charset');
+
+SELECT encode(CAST(NULL AS STRING), 'UTF-8'), encode('a', CAST(NULL AS STRING));
+
+SELECT split('oneAtwoBthreeC', '[]', 2);
+
+SELECT split('oneAtwoBthreeC', '{}');
+
+SELECT split('a1b2c', '(?=[0-9])'), split('a1b2c', '[0-9]'), split('a.b', '\\.'), split('a{2}b', '\\{');
+
+SELECT from_unixtime(9223372036854775807L), from_unixtime(0L), from_unixtime(-1L), from_unixtime(1700000000L, 'yyyy/MM/dd HH:mm');
+
+SELECT inline(array(NULL));
+
+SELECT posexplode(array('x', 'y')) AS (pos, val);
+
+SELECT p, c FROM (SELECT posexplode(array(10, 20, 30)) AS (p, c)) WHERE p > 0 ORDER BY p;
+
+SELECT explode(map('a', 1, 'b', 2)) AS (k, v);
+
+SELECT 'a' LIKE 'a' ESCAPE NULL;
+
+SELECT split('abc', '', 2), split('abcd', '', 3), split('abc', '', 5), split('abc', '', 1), split('abc', '', 0), split('abc', '', -1), split('', '', 2), split('é日x', '', 2);

@@ -224,8 +224,58 @@ CachedRegex &CompileRegex(const string &pattern) {
 		cached.re2 = make_uniq<duckdb_re2::RE2>(pattern, options);
 		cached.fallback.reset();
 		if (!cached.re2->ok()) {
+			// std::regex only for the Java syntax RE2 lacks (lookaround, backreferences); a pattern RE2 rejects
+			// for any other reason is invalid in Java too, and Spark raises
+			bool java_only = pattern.find("(?=") != string::npos || pattern.find("(?!") != string::npos ||
+			                 pattern.find("(?<=") != string::npos || pattern.find("(?<!") != string::npos ||
+			                 pattern.find("(?>") != string::npos;
+			for (size_t i = 0; i + 1 < pattern.size() && !java_only; i++) {
+				if (pattern[i] == '\\') {
+					java_only = pattern[i + 1] >= '1' && pattern[i + 1] <= '9';
+					i++;
+				}
+			}
+			auto message = cached.re2->error();
+			auto failed = cached.re2->error_arg();
+			cached.pattern.clear();
 			cached.re2.reset();
+			if (!java_only) {
+				throw InvalidInputException("%s near `%s` in the regular expression '%s'", message, failed, pattern);
+			}
+			cached.pattern = pattern;
 			cached.fallback = make_uniq<std::regex>(pattern);
+		}
+		// Java rejects a '{' that does not start a quantifier ("Illegal repetition"); RE2 takes it literally
+		if (cached.re2) {
+			bool in_class = false;
+			for (size_t i = 0; i < pattern.size(); i++) {
+				char c = pattern[i];
+				if (c == '\\') {
+					i++;
+				} else if (in_class) {
+					in_class = c != ']';
+				} else if (c == '[') {
+					in_class = true;
+				} else if (c == '{') {
+					size_t j = i + 1;
+					while (j < pattern.size() && isdigit(static_cast<unsigned char>(pattern[j]))) {
+						j++;
+					}
+					bool ok = j > i + 1;
+					if (ok && j < pattern.size() && pattern[j] == ',') {
+						j++;
+						while (j < pattern.size() && isdigit(static_cast<unsigned char>(pattern[j]))) {
+							j++;
+						}
+					}
+					if (!ok || j >= pattern.size() || pattern[j] != '}') {
+						cached.pattern.clear();
+						cached.re2.reset();
+						throw InvalidInputException("Illegal repetition near index %llu in the regular expression '%s'",
+						                            (unsigned long long)i, pattern);
+					}
+				}
+			}
 		}
 	}
 	return cached;
@@ -334,10 +384,10 @@ void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
 		const idx_t start_offset = offset;
 		if (pattern.empty()) {
-			// split into characters (code points, not bytes); Spark keeps a trailing empty string only with limit
+			// split into characters (code points, not bytes)
 			for (idx_t k = 0; k < size;) {
-				if (limit > 0 && offset - start_offset + 1 == idx_t(limit)) {
-					push(str + k, size - k);
+				if (limit > 0 && offset - start_offset == idx_t(limit)) {
+					// Spark keeps only the first `limit` characters for an empty pattern (no remainder)
 					break;
 				}
 				idx_t next = k + 1;
@@ -370,6 +420,191 @@ void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	if (args.AllConstant()) {
 		result.SetVectorType(VectorType::CONSTANT_VECTOR);
 	}
+}
+
+//! Java charsets Spark's encode / decode accept in practice
+enum class Charset { UTF8, ASCII, LATIN1, UTF16, UTF16BE, UTF16LE, UTF32, UTF32BE, UTF32LE };
+
+Charset ParseCharset(const string &name_p, const char *function) {
+	auto name = StringUtil::Upper(name_p);
+	if (name == "UTF-8" || name == "UTF8") {
+		return Charset::UTF8;
+	}
+	if (name == "US-ASCII" || name == "ASCII") {
+		return Charset::ASCII;
+	}
+	if (name == "ISO-8859-1" || name == "ISO_8859_1" || name == "LATIN1") {
+		return Charset::LATIN1;
+	}
+	if (name == "UTF-16") {
+		return Charset::UTF16;
+	}
+	if (name == "UTF-16BE") {
+		return Charset::UTF16BE;
+	}
+	if (name == "UTF-16LE") {
+		return Charset::UTF16LE;
+	}
+	if (name == "UTF-32") {
+		return Charset::UTF32;
+	}
+	if (name == "UTF-32BE") {
+		return Charset::UTF32BE;
+	}
+	if (name == "UTF-32LE") {
+		return Charset::UTF32LE;
+	}
+	throw InvalidInputException("[INVALID_PARAMETER_VALUE.CHARSET] The value of parameter(s) `charset` in `%s` is invalid: "
+	                            "expects one of the charsets 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', "
+	                            "'UTF-16', 'UTF-32', but got %s.",
+	                            function, name_p);
+}
+
+void AppendUnits(string &out, uint32_t value, int width, bool big_endian) {
+	for (int i = 0; i < width; i++) {
+		int shift = 8 * (big_endian ? width - 1 - i : i);
+		out.push_back(char((value >> shift) & 0xFF));
+	}
+}
+
+//! encode(str, charset): unmappable characters become '?' like java.lang.String.getBytes
+string EncodeCharset(const string &str, Charset charset) {
+	if (charset == Charset::UTF8) {
+		return str;
+	}
+	string out;
+	if (charset == Charset::UTF16) {
+		out += "\xFE\xFF";
+	}
+	for (auto cp : CodePoints(str)) {
+		switch (charset) {
+		case Charset::ASCII:
+			out.push_back(cp < 0x80 ? char(cp) : '?');
+			break;
+		case Charset::LATIN1:
+			out.push_back(cp < 0x100 ? char(cp) : '?');
+			break;
+		case Charset::UTF16:
+		case Charset::UTF16BE:
+		case Charset::UTF16LE: {
+			bool big = charset != Charset::UTF16LE;
+			if (cp >= 0x10000) {
+				auto v = uint32_t(cp) - 0x10000;
+				AppendUnits(out, 0xD800 + (v >> 10), 2, big);
+				AppendUnits(out, 0xDC00 + (v & 0x3FF), 2, big);
+			} else {
+				AppendUnits(out, uint32_t(cp), 2, big);
+			}
+			break;
+		}
+		default:
+			AppendUnits(out, uint32_t(cp), 4, charset != Charset::UTF32LE);
+			break;
+		}
+	}
+	return out;
+}
+
+//! decode(bin, charset): malformed input becomes U+FFFD like java.lang.String(byte[], charset)
+string DecodeCharset(const string &bytes, Charset charset) {
+	string out;
+	auto data = reinterpret_cast<const unsigned char *>(bytes.data());
+	size_t n = bytes.size();
+	switch (charset) {
+	case Charset::UTF8: {
+		size_t pos = 0;
+		while (pos < n) {
+			utf8proc_int32_t cp;
+			auto len = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t *>(data) + pos, utf8proc_ssize_t(n - pos), &cp);
+			if (len <= 0) {
+				AppendCodePoint(out, 0xFFFD);
+				pos++;
+			} else {
+				out.append(bytes, pos, size_t(len));
+				pos += size_t(len);
+			}
+		}
+		return out;
+	}
+	case Charset::ASCII:
+		for (size_t i = 0; i < n; i++) {
+			if (data[i] < 0x80) {
+				out.push_back(char(data[i]));
+			} else {
+				AppendCodePoint(out, 0xFFFD);
+			}
+		}
+		return out;
+	case Charset::LATIN1:
+		for (size_t i = 0; i < n; i++) {
+			AppendCodePoint(out, data[i]);
+		}
+		return out;
+	case Charset::UTF16:
+	case Charset::UTF16BE:
+	case Charset::UTF16LE: {
+		bool big = charset != Charset::UTF16LE;
+		size_t pos = 0;
+		if (charset == Charset::UTF16 && n >= 2) {
+			if (data[0] == 0xFE && data[1] == 0xFF) {
+				pos = 2;
+			} else if (data[0] == 0xFF && data[1] == 0xFE) {
+				pos = 2;
+				big = false;
+			}
+		}
+		auto unit = [&](size_t at) { return uint32_t(big ? (data[at] << 8) | data[at + 1] : (data[at + 1] << 8) | data[at]); };
+		while (pos + 1 < n) {
+			auto u = unit(pos);
+			pos += 2;
+			if (u >= 0xD800 && u < 0xDC00 && pos + 1 < n && unit(pos) >= 0xDC00 && unit(pos) < 0xE000) {
+				u = 0x10000 + ((u - 0xD800) << 10) + (unit(pos) - 0xDC00);
+				pos += 2;
+			} else if (u >= 0xD800 && u < 0xE000) {
+				u = 0xFFFD;
+			}
+			AppendCodePoint(out, int32_t(u));
+		}
+		if (pos < n) {
+			AppendCodePoint(out, 0xFFFD);
+		}
+		return out;
+	}
+	default: {
+		bool big = charset != Charset::UTF32LE;
+		size_t pos = 0;
+		for (; pos + 3 < n; pos += 4) {
+			uint32_t u = big ? (uint32_t(data[pos]) << 24) | (data[pos + 1] << 16) | (data[pos + 2] << 8) | data[pos + 3]
+			                 : (uint32_t(data[pos + 3]) << 24) | (data[pos + 2] << 16) | (data[pos + 1] << 8) | data[pos];
+			AppendCodePoint(out, (u > 0x10FFFF || (u >= 0xD800 && u < 0xE000)) ? 0xFFFD : int32_t(u));
+		}
+		if (pos < n) {
+			AppendCodePoint(out, 0xFFFD);
+		}
+		return out;
+	}
+	}
+}
+
+void EncodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<string_t, string_t, string_t>(
+	    args.data[0], args.data[1], result, args.size(), [&](string_t s, string_t c) {
+		    return StringVector::AddStringOrBlob(result, EncodeCharset(s.GetString(), ParseCharset(c.GetString(), "encode")));
+	    });
+}
+
+void DecodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<string_t, string_t, string_t>(
+	    args.data[0], args.data[1], result, args.size(), [&](string_t b, string_t c) {
+		    return StringVector::AddString(result, DecodeCharset(b.GetString(), ParseCharset(c.GetString(), "decode")));
+	    });
+}
+
+//! from_unixtime(long): seconds * 1,000,000 with Java's wrapping long arithmetic
+void EpochSecondsWrapKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<int64_t, timestamp_t>(args.data[0], result, args.size(), [](int64_t seconds) {
+		return timestamp_t(int64_t(uint64_t(seconds) * uint64_t(1000000)));
+	});
 }
 
 //! conv(num, from_base, to_base) following Spark's NumberConverter (unsigned 64-bit arithmetic)
@@ -1202,6 +1437,12 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 		ws.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(ws);
 	}
+	reg(ScalarFunction(Identifier("encode_charset"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BLOB,
+	                   EncodeKernel));
+	reg(ScalarFunction(Identifier("decode_charset"), {LogicalType::BLOB, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                   DecodeKernel));
+	reg(ScalarFunction(Identifier("epoch_seconds_wrap"), {LogicalType::BIGINT}, LogicalType::TIMESTAMP,
+	                   EpochSecondsWrapKernel));
 	reg(ScalarFunction(Identifier("url_encode"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, UrlEncodeKernel));
 	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                   LogicalType::INTEGER, LevenshteinKernel));

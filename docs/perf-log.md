@@ -286,3 +286,21 @@ extension. ANSI mode (`spark_ansi_enabled = true` vs false, same dialect): no me
 (on/off geomean 0.91, i.e. the second measurement is faster; order effect, not a speed-up). memory_limit 1GB and 256MB:
 all seven queries finish with the same result digest as the unlimited run (the Spark aggregates and kernels spill
 correctly). SF10 not run (disk: 20 GB free; SF10 needs ~3 GB data plus working space - possible, not scheduled).
+
+## Backlog 12: correctness findings from the sweeps (each checked against Spark first)
+Fixed, with golden cases from Spark in limitations.sql:
+- `encode` / `decode` honour the charset (was: always UTF-8, charset ignored): US-ASCII, ISO-8859-1, UTF-8, UTF-16,
+  UTF-16BE/LE, UTF-32 variants; unmappable characters become `?`, malformed input U+FFFD; unknown charsets raise.
+- `x LIKE p ESCAPE NULL` raises at parse time (Spark: analysis error).
+- `split` with an invalid regex raises (`'[]'`, `'{}'`: "Illegal repetition"); `std::regex` is only the fallback for
+  lookahead / backreference syntax RE2 lacks (lookbehind is still unsupported: std::regex has none).
+- `split(s, '', n)` keeps only the first n characters (Spark 3.5), not the remainder.
+- `from_unixtime(long)` multiplies with Java's wrapping arithmetic (`from_unixtime(Long.MAX_VALUE)` = 1969-12-31 23:59:59).
+- `inline(array(NULL))` / non-struct arrays raise a type-mismatch error.
+- `posexplode(a) AS (pos, col)` / `explode(m) AS (k, v)` (alias lists) parse and name the columns; a wrong number of
+  aliases raises `UDTF_ALIAS_NUMBER_MISMATCH`.
+Left (documented): `regexp_like(NULL, <invalid regex>)` raises at bind time where Spark returns NULL (Spark compiles
+the pattern lazily; making the macro lazy would cost the native regexp optimizations), `named_struct('a', 1, '', 2)`
+(empty field name) fails to bind, `inline(...) AS (x)` alias lists, lookbehind in split, `str_to_map` with a
+delimiter that leaves NULL keys. Checks: run_duckdb both dialects (1712 / 1776), replay (+known), differential seed 1,
+isolation clean, args_sweep on the touched functions: only the pre-existing findings above.

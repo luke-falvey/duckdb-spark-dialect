@@ -2501,16 +2501,32 @@ struct ExplodeBindData : public FunctionData {
 	}
 };
 
-LogicalType ExplodeRowType(const LogicalType &input, bool pos, const string &column = "col") {
-	child_list_t<LogicalType> fields;
+LogicalType ExplodeRowType(const LogicalType &input, bool pos, const string &aliases = "") {
+	vector<std::pair<string, LogicalType>> columns;
 	if (pos) {
-		fields.emplace_back(Identifier("pos"), LogicalType::INTEGER);
+		columns.emplace_back("pos", LogicalType::INTEGER);
 	}
 	if (input.id() == LogicalTypeId::MAP) {
-		fields.emplace_back(Identifier("key"), MapType::KeyType(input));
-		fields.emplace_back(Identifier("value"), MapType::ValueType(input));
+		columns.emplace_back("key", MapType::KeyType(input));
+		columns.emplace_back("value", MapType::ValueType(input));
 	} else {
-		fields.emplace_back(Identifier(column), ListType::GetChildType(input));
+		columns.emplace_back("col", ListType::GetChildType(input));
+	}
+	if (!aliases.empty()) {
+		// `generator AS name` / `generator AS (a, b)`: one alias per output column
+		auto names = StringUtil::Split(aliases, ',');
+		if (names.size() != columns.size()) {
+			throw BinderException("[UDTF_ALIAS_NUMBER_MISMATCH] The number of aliases supplied in the AS clause does not "
+			                      "match the number of columns output by the UDTF: expected %llu aliases, got %llu",
+			                      (unsigned long long)columns.size(), (unsigned long long)names.size());
+		}
+		for (idx_t i = 0; i < columns.size(); i++) {
+			columns[i].first = names[i];
+		}
+	}
+	child_list_t<LogicalType> fields;
+	for (auto &column : columns) {
+		fields.emplace_back(Identifier(column.first), column.second);
 	}
 	return LogicalType::LIST(LogicalType::STRUCT(std::move(fields)));
 }
@@ -2611,7 +2627,7 @@ unique_ptr<FunctionData> ExplodeBind(BindScalarFunctionInput &input) {
 	if (type.id() != LogicalTypeId::LIST && type.id() != LogicalTypeId::MAP) {
 		throw BinderException("explode: input must be an array or a map, not %s", SparkTypeName(type));
 	}
-	string column = "col";
+	string column;
 	if (arguments.size() > 1) {
 		// `explode(x) AS name`: the output column is named by the alias
 		if (!arguments[1]->IsFoldable()) {
@@ -2635,9 +2651,18 @@ ScalarFunction ExplodeRowsFunction(const string &name, bool named = false) {
 }
 
 //! inline(array<struct>) rows: the array itself; inline_outer: a single NULL struct for NULL/empty input
+void CheckInlineInput(const LogicalType &type) {
+	if (type.id() != LogicalTypeId::LIST || ListType::GetChildType(type).id() != LogicalTypeId::STRUCT) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] inline requires an array of structs, not %s",
+		                      SparkTypeName(type));
+	}
+}
+
 ExprP BindInlineRows(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "inline", 1, 1);
-	return Arg(input, 0);
+	auto e = Arg(input, 0);
+	CheckInlineInput(e->GetReturnType());
+	return e;
 }
 
 ExprP BindInlineOuterRows(FunctionBindExpressionInput &input) {
@@ -2645,9 +2670,7 @@ ExprP BindInlineOuterRows(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto arr = Arg(input, 0);
 	auto type = arr->GetReturnType();
-	if (type.id() != LogicalTypeId::LIST) {
-		throw BinderException("inline_outer: input must be an array of structs");
-	}
+	CheckInlineInput(type);
 	auto empty = b.Or(b.IsNull(arr->Copy()),
 	                  b.Compare(ExpressionType::COMPARE_EQUAL, b.Call("len", arr->Copy()), b.Constant(Value::BIGINT(0))));
 	auto null_row = b.Constant(Value::LIST(ListType::GetChildType(type), {Value(ListType::GetChildType(type))}));

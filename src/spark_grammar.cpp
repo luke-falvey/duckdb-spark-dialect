@@ -495,6 +495,10 @@ ExprPtr TransformPredicated(PEGTransformer &t, ParseResult &pr) {
 		auto &escape = predicate.GetChild(3);
 		if (HasOptional(escape)) {
 			args.push_back(Expr(t, AsList(OptionalValue(escape)).GetChild(1)));
+			if (args.back()->GetExpressionClass() == ExpressionClass::CONSTANT &&
+			    StringUtil::CIEquals(args.back()->ToString(), "NULL")) {
+				throw ParserException("[INVALID_ESCAPE] the escape character must be a single-character string literal");
+			}
 		}
 		if (args.size() == 2 && (kind == "like" || kind == "ilike")) {
 			// no ESCAPE clause: bound by the dialect, which can use DuckDB's own (non-fallible) LIKE operators
@@ -1544,29 +1548,52 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 	return RewriteFunction(std::move(expr));
 }
 
-//! `SELECT explode(x) AS name`: the alias names the generated column (DuckDB's unnest of a struct ignores it)
-ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
-	auto &list = AsList(pr);
-	auto expr = Expr(t, list.GetChild(0));
-	if (expr->GetAlias().empty() || expr->GetExpressionClass() != ExpressionClass::FUNCTION) {
-		return expr;
+//! Names the output columns of a Spark generator (explode / posexplode, ...) after the aliases of the select item
+//! (comma separated). DuckDB's unnest of a struct names its columns by the struct fields and ignores the alias.
+bool RenameGeneratorColumns(ParsedExpression &expr, const string &aliases) {
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return false;
 	}
-	auto &unnest = expr->Cast<FunctionExpression>();
+	auto &unnest = expr.Cast<FunctionExpression>();
 	if (StringUtil::Lower(unnest.FunctionName().GetIdentifierName()) != "unnest" || unnest.GetArguments().empty() ||
 	    unnest.GetArguments()[0].GetExpression().GetExpressionClass() != ExpressionClass::FUNCTION) {
-		return expr;
+		return false;
 	}
 	auto &generator = unnest.GetArgumentsMutable()[0].GetExpressionMutable()->Cast<FunctionExpression>();
 	auto generator_name = StringUtil::Lower(generator.FunctionName().GetIdentifierName());
 	if (generator_name != "explode_rows" && generator_name != "explode_outer_rows" &&
 	    generator_name != "posexplode_rows" && generator_name != "posexplode_outer_rows") {
-		return expr;
+		return false;
 	}
-	auto alias = expr->GetAlias().GetIdentifierName();
 	auto args = TakeArguments(generator);
-	args.push_back(ConstantExpression::String(alias));
+	args.push_back(ConstantExpression::String(aliases));
 	auto renamed = SparkCall(generator_name.substr(0, generator_name.size() - 5) + "_as_rows", std::move(args));
 	unnest.GetArgumentsMutable()[0].GetExpressionMutable() = std::move(renamed);
+	return true;
+}
+
+//! AliasedExpression: `generator AS name` and `generator AS (a, b)` name the generated columns
+ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	auto &alt = Unwrap(list.GetChild(0));
+	if (StringUtil::CIEquals(alt.Cast<ListParseResult>().Name(), "SpAliasList")) {
+		auto &parts = alt.Cast<ListParseResult>();
+		auto expr = Expr(t, parts.GetChild(0));
+		string aliases;
+		for (auto &item : ListItems(parts.GetChild(3))) {
+			aliases += (aliases.empty() ? "" : ",") + t.Transform<string>(item.get());
+		}
+		if (!RenameGeneratorColumns(*expr, aliases)) {
+			throw ParserException("Syntax error: an alias list (AS (a, b)) is only allowed after a generator function "
+			                      "(explode, posexplode, inline, ...)");
+		}
+		expr->SetAlias(Identifier(aliases));
+		return expr;
+	}
+	auto expr = Expr(t, alt);
+	if (!expr->GetAlias().empty()) {
+		RenameGeneratorColumns(*expr, expr->GetAlias().GetIdentifierName());
+	}
 	return expr;
 }
 
@@ -2010,6 +2037,7 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	}
 
 	vector<RuleDef> rules = {
+	    {"SpAliasList <- Expression 'AS' '(' List(ColLabel) ')'", nullptr},
 	    {"SpExpression <- SpLambda / SpOr", ExprProcess<TransformForward>},
 	    {"SpLambda <- SpLambdaParams '->' SpExpression", ExprProcess<TransformLambda>},
 	    {"SpLambdaParams <- SpLambdaParen / ColId", nullptr},
@@ -2141,7 +2169,7 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	}
 	g.AddRule("DuckAliasedExpression <- ColIdExpression / ExpressionAsCollabel / ExpressionOptIdentifier",
 	          aliased_rule->transform_process);
-	g.ReplaceRule("AliasedExpression <- DuckAliasedExpression", ExprProcess<TransformAliasedHook>);
+	g.ReplaceRule("AliasedExpression <- SpAliasList / DuckAliasedExpression", ExprProcess<TransformAliasedHook>);
 
 	auto case_rule = g.GetRule("CaseExpression");
 	if (!case_rule) {
