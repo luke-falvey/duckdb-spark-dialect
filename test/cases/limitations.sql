@@ -395,3 +395,19 @@ SELECT 'abc' LIKE 'abc\';
 SELECT s FROM VALUES ('special requests here'), ('special'), ('requests special'), (CAST(NULL AS STRING)) AS t(s) WHERE s NOT LIKE '%special%requests%' ORDER BY s;
 
 SELECT c, count(o) FROM VALUES (1), (2), (3) AS cs(c) LEFT OUTER JOIN VALUES (1, 'x special requests'), (1, 'y'), (2, 'special'), (3, 'q requests') AS os(k, o) ON c = k AND o NOT LIKE '%special%requests%' GROUP BY c ORDER BY c;
+
+-- ===== to_json fast path (struct of strings / booleans / integers is serialised from the vectors) =====
+
+SELECT to_json(named_struct('a', 1, 'b', 'x'));
+
+SELECT to_json(named_struct('s', s, 'n', n)) FROM VALUES
+  ('plain', 1), ('quote " and \\ backslash', -2), ('tab\tnewline\nreturn\r', 3), (NULL, 4), ('', NULL), ('ünï 日本 ☃', 9223372036854775807L)
+  AS t(s, n);
+
+SELECT to_json(named_struct('t', CAST(t AS TINYINT), 's', CAST(s AS SMALLINT), 'i', CAST(i AS INT), 'l', CAST(l AS BIGINT), 'b', b))
+FROM VALUES (-128, -32768, -2147483648, -9223372036854775807L, true), (127, 32767, 2147483647, 9223372036854775807L, false),
+            (0, 0, 0, 0L, NULL), (NULL, NULL, NULL, NULL, NULL) AS t(t, s, i, l, b);
+
+SELECT to_json(CASE WHEN i = 1 THEN named_struct('a', i, 'b', 'x') END) FROM VALUES (1), (2) AS t(i);
+
+SELECT to_json(named_struct('a', CAST(NULL AS STRING), 'b', CAST(NULL AS INT)));

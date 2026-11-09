@@ -146,3 +146,14 @@ arithmetic (was 128-bit). The general path remains for negative / huge arguments
 121.7 -> 84.2 ms (0.692 [0.637, 0.773]). Checks: run_duckdb both dialects, replay (+known), differential seed 1,
 args_sweep substr/substring/left/right/overlay: 3 findings identical before and after (encode(...) with
 bad charset arguments; pre-existing, item 12).
+
+## to_json: append into one buffer, vector-native path for structs of strings / booleans / integers
+Profile (gdb, 33 samples): allocation-bound (Value construction per row, std::string temporaries, malloc/free).
+Step 1: JsonEscape/ToJson return strings -> AppendJson into one buffer, run-copying escape, formats read once
+per chunk: 1034.8 -> 751.8 ms (0.727 [0.691, 0.791]). Step 2: structs whose fields are all VARCHAR / BOOLEAN /
+TINYINT..BIGINT are serialised straight from the child vectors (UnifiedVectorFormat, pre-escaped `"name":`
+prefixes); everything else (maps, lists, dates, timestamps, decimals, nested) keeps the Value path:
+743.1 -> 71.2 ms (0.096 [0.091, 0.104]); to_json pair ~20x -> ~1.4x vs native. New golden cases in
+limitations.sql (escapes, control chars, unicode, NULL fields, NULL struct, all integer widths, boolean) from Spark.
+Checks: run_duckdb both dialects, replay (+known), differential seed 1, args_sweep to_json: 2 findings identical
+before and after (empty field name; item 12).
