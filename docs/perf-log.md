@@ -348,3 +348,16 @@ mask, format_number, parse_url, concat_ws_array, ...) cannot raise and are now r
 The TPC-H / TPC-DS plan shapes (bench/plan_diff.py) differ from native only in aggregate names (Q17's extra Filter and
 Q22's grouping cascade remain); no test shape is known where one of the 25 blocked pushdown, so there is no measured
 speed-up from this change, it removes a latent pessimisation.
+
+## Parsing (backlog 9) and tiny statements (backlog 14): lambda parsed as `SpOr ('->' SpExpression)?`
+Profile of a tiny `CASE WHEN` statement under spark_strict: 73% of the statement time is in `Parser::ParseTopLevelStatement`
+(the PEG matcher), so latency (14) is the parse cost (9). The earlier experiment showed that every expression paid for a
+failed `SpLambda` attempt (`SpLambdaParams '->'`). `SpExpression` is now `SpOr SpLambdaTail?` where the tail is `'->'
+SpExpression` and the parameters are recovered from the parsed left side (a bare column reference, or a `row` /
+`struct_pack` of bare column references for `(a, b) ->`; anything else is the same syntax error as before). A first version
+with an extra `SpExprMain` rule level showed no gain (3.67x -> 3.79x): the saving is the removed rule level, not the removed
+failure. Final: corpus 3.7x -> 2.85x (3 interleaved rounds: 195.0/194.7/192.0 us -> 151.3/146.5/148.5 us per statement).
+Behaviour kept for `x ->`, `(a, b) ->`, `(x) ->`, nesting, `(left, right) ->` (keywords as parameters parse as columns);
+new golden cases from Spark in limitations.sql including the two syntax-error forms. Lost: reserved words that are not
+valid column references as parameter names (none found in the corpus). Checks: run_duckdb both dialects, replay (+known),
+differential, isolation, args_sweep on the higher-order functions: findings unchanged (array_sort comparator returning NULL).

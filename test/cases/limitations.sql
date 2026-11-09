@@ -569,3 +569,18 @@ SELECT array_contains(a, v) FROM VALUES (array(1, 2, 3), 2), (array(1, 2, 3), 5)
 SELECT array_contains(a, v) FROM VALUES (array('a', 'b'), 'b'), (array('a', NULL), 'z'), (array('a', 'b'), 'c') AS t(a, v);
 
 SELECT array_contains(a, v) FROM VALUES (array(array(1), array(2, 3)), array(2, 3)), (array(array(1), CAST(NULL AS ARRAY<INT>)), array(9)) AS t(a, v);
+
+-- ===== lambda parameters (parsed as an expression followed by ->) =====
+
+SELECT transform(array(1, 2, 3), x -> x * 2), transform(array(1, 2), y -> y + 1), aggregate(array(1, 2, 3), 0, (acc, v) -> acc + v),
+  zip_with(array(1, 2), array(10, 20), (a, b) -> a + b), filter(array(1, 2, 3, 4), e -> e % 2 = 0);
+
+SELECT array_sort(array(5, 6, 1), (left, right) -> CASE WHEN left < right THEN -1 WHEN left > right THEN 1 ELSE 0 END);
+
+SELECT transform(array(array(1, 2), array(3)), a -> transform(a, b -> b + size(a))), exists(array(1, 2), q -> q > 1), forall(array(1, 2), q -> q > 0);
+
+SELECT transform(array(1, 2), x -> x) AS r1, transform(array(1, 2), key -> key + 1) AS r2, map_filter(map(1, 2, 3, 4), (k, v) -> k > 1) AS r3;
+
+SELECT transform(array(1, 2), a.b -> 1);
+
+SELECT transform(array(1, 2), 1 -> 1);

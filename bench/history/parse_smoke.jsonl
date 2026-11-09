@@ -11,3 +11,15 @@
 {"suite": "parse_smoke", "time": "2026-11-09T09:57:18", "commit": "2441f55", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
 {"suite": "parse_smoke", "time": "2026-11-09T09:57:32", "commit": "2441f55", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
 {"suite": "parse_smoke", "time": "2026-11-09T09:57:45", "commit": "2441f55", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:09:45", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:09:59", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:10:13", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:10:27", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:10:41", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:10:55", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:11:32", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:11:44", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:11:58", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:12:10", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:12:24", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}
+{"suite": "parse_smoke", "time": "2026-11-09T18:12:36", "commit": "d04d95b", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}

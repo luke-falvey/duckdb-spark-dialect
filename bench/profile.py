@@ -99,7 +99,7 @@ def profile(sql, dialect, seconds, setup, threads, ext, name):
         if dialect:
             head.append(f"SET current_dialect = '{dialect}';")
         statement = sql.strip().rstrip(";") + ";"
-        script.write_text("\n".join(head) + "\n" + (statement + "\n") * 4000)
+        script.write_text("\n".join(head) + "\n" + (statement + "\n") * int(os.environ.get("PROFILE_REPEAT", "4000")))
         proc = subprocess.Popen([SHELL, "-unsigned", "-no-agent"], stdin=open(script), stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
         time.sleep(3)  # load, setup and a few iterations

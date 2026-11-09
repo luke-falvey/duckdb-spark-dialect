@@ -560,19 +560,54 @@ ExprPtr TransformPrimary(PEGTransformer &t, ParseResult &pr) {
 	return result;
 }
 
-//! SpLambda <- SpLambdaParams '->' SpExpression
-ExprPtr TransformLambda(PEGTransformer &t, ParseResult &pr) {
-	auto &list = AsList(pr);
-	auto &params = Alt(list.GetChild(0));
-	vector<string> names;
-	if (StringUtil::CIEquals(params.Name(), "SpLambdaParen")) {
-		for (auto &item : ListItems(params.Cast<ListParseResult>().GetChild(1))) {
-			names.push_back(t.Transform<string>(item.get()));
+//! Lambda parameters recovered from an already parsed expression (`x -> ...`, `(x, y) -> ...`)
+vector<string> LambdaParamsFromExpression(const ParsedExpression &expr) {
+	auto fail = []() -> vector<string> { throw ParserException("syntax error at or near \"->\""); };
+	auto name_of = [&](const ParsedExpression &e, string &name) {
+		if (e.GetExpressionClass() != ExpressionClass::COLUMN_REF || !e.GetAlias().empty()) {
+			return false;
 		}
-	} else {
-		names.push_back(t.Transform<string>(params));
+		auto &ref = e.Cast<ColumnRefExpression>();
+		if (ref.ColumnNames().size() != 1) {
+			return false;
+		}
+		name = ref.ColumnNames()[0].GetIdentifierName();
+		return true;
+	};
+	vector<string> names;
+	string name;
+	if (name_of(expr, name)) {
+		names.push_back(name);
+		return names;
 	}
-	auto body = Expr(t, list.GetChild(2));
+	if (expr.GetExpressionClass() == ExpressionClass::FUNCTION) {
+		auto &func = expr.Cast<FunctionExpression>();
+		auto fname = StringUtil::Lower(func.FunctionName().GetIdentifierName());
+		if (fname == "row" || fname == "struct_pack") {
+			for (auto &arg : func.GetArguments()) {
+				if (!name_of(arg.GetExpression(), name)) {
+					return fail();
+				}
+				names.push_back(name);
+			}
+			if (!names.empty()) {
+				return names;
+			}
+		}
+	}
+	return fail();
+}
+
+//! SpExpression <- SpOr SpLambdaTail?   (the parameters of `x -> body` are read from the parsed left side)
+ExprPtr TransformExprMain(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	auto head = Expr(t, list.GetChild(0));
+	auto &tail = list.GetChild(1);
+	if (!HasOptional(tail)) {
+		return head;
+	}
+	auto names = LambdaParamsFromExpression(*head);
+	auto body = Expr(t, AsList(OptionalValue(tail)).GetChild(1));
 	auto lambda = make_uniq<LambdaExpression>(std::move(names), std::move(body));
 	lambda->GetLambdaSyntaxTypeMutable() = LambdaSyntaxType::LAMBDA_KEYWORD;
 	return std::move(lambda);
@@ -2038,10 +2073,8 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 
 	vector<RuleDef> rules = {
 	    {"SpAliasList <- Expression 'AS' '(' List(ColLabel) ')'", nullptr},
-	    {"SpExpression <- SpLambda / SpOr", ExprProcess<TransformForward>},
-	    {"SpLambda <- SpLambdaParams '->' SpExpression", ExprProcess<TransformLambda>},
-	    {"SpLambdaParams <- SpLambdaParen / ColId", nullptr},
-	    {"SpLambdaParen <- '(' List(ColLabel) ')'", nullptr},
+	    {"SpExpression <- SpOr SpLambdaTail?", ExprProcess<TransformExprMain>},
+	    {"SpLambdaTail <- '->' SpExpression", nullptr},
 	    {"SpOr <- SpAnd SpOrTail*", ExprProcess<TransformOr>},
 	    {"SpOrTail <- 'OR' SpAnd", nullptr},
 	    {"SpAnd <- SpNot SpAndTail*", ExprProcess<TransformAnd>},
