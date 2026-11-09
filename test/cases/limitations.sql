@@ -375,3 +375,212 @@ SELECT avg(x), typeof(avg(x)), sum(x) FROM VALUES (TIMESTAMP '2020-01-01 00:00:0
 SELECT avg(x) FROM VALUES (DATE '2020-01-01') AS t(x);
 
 SELECT sum(x) FROM VALUES (DATE '2020-01-01') AS t(x);
+
+-- ===== perf: LIKE / ILIKE operators (DuckDB's operators for constant patterns without a backslash) =====
+
+SELECT s, s LIKE 'a%', s NOT LIKE 'a%', s ILIKE 'A%', s NOT ILIKE 'A%', s LIKE '_b%', s LIKE '%', s LIKE '' FROM VALUES ('abc'), ('Abd'), ('xbz'), (''), (CAST(NULL AS STRING)) AS t(s) ORDER BY s;
+
+SELECT s LIKE 'a\%', s LIKE 'a\_c', s NOT LIKE '%\\%', s LIKE 'a\\c', s ILIKE 'A\%' FROM VALUES ('a%'), ('a_c'), ('abc'), ('a\\c'), ('a\c') AS t(s) ORDER BY s;
+
+SELECT s LIKE p, s NOT LIKE p, s ILIKE p FROM VALUES ('abc', 'a%'), ('abc', 'x%'), ('abc', CAST(NULL AS STRING)), (CAST(NULL AS STRING), 'a%') AS t(s, p) ORDER BY s, p;
+
+SELECT 'abc' LIKE 'a%' ESCAPE '/', 'a%c' LIKE 'a/%c' ESCAPE '/', 'abc' NOT LIKE 'a/%c' ESCAPE '/';
+
+SELECT 1 LIKE '1%', 12 NOT LIKE '1_', CAST(DATE '2020-01-02' AS STRING) LIKE '2020%', 'a' LIKE 'a' OR 'x' LIKE 'y';
+
+SELECT 'abc' LIKE 'a\bc';
+
+SELECT 'abc' LIKE 'abc\';
+
+SELECT s FROM VALUES ('special requests here'), ('special'), ('requests special'), (CAST(NULL AS STRING)) AS t(s) WHERE s NOT LIKE '%special%requests%' ORDER BY s;
+
+SELECT c, count(o) FROM VALUES (1), (2), (3) AS cs(c) LEFT OUTER JOIN VALUES (1, 'x special requests'), (1, 'y'), (2, 'special'), (3, 'q requests') AS os(k, o) ON c = k AND o NOT LIKE '%special%requests%' GROUP BY c ORDER BY c;
+
+-- ===== to_json fast path (struct of strings / booleans / integers is serialised from the vectors) =====
+
+SELECT to_json(named_struct('a', 1, 'b', 'x'));
+
+SELECT to_json(named_struct('s', s, 'n', n)) FROM VALUES
+  ('plain', 1), ('quote " and \\ backslash', -2), ('tab\tnewline\nreturn\r', 3), (NULL, 4), ('', NULL), ('ünï 日本 ☃', 9223372036854775807L)
+  AS t(s, n);
+
+SELECT to_json(named_struct('t', CAST(t AS TINYINT), 's', CAST(s AS SMALLINT), 'i', CAST(i AS INT), 'l', CAST(l AS BIGINT), 'b', b))
+FROM VALUES (-128, -32768, -2147483648, -9223372036854775807L, true), (127, 32767, 2147483647, 9223372036854775807L, false),
+            (0, 0, 0, 0L, NULL), (NULL, NULL, NULL, NULL, NULL) AS t(t, s, i, l, b);
+
+SELECT to_json(CASE WHEN i = 1 THEN named_struct('a', i, 'b', 'x') END) FROM VALUES (1), (2) AS t(i);
+
+SELECT to_json(named_struct('a', CAST(NULL AS STRING), 'b', CAST(NULL AS INT)));
+
+-- ===== decimal multiplication whose exact product fits the result type (direct integer product) =====
+
+SELECT CAST(a AS DECIMAL(3,0)) * CAST(b AS DECIMAL(3,1)), typeof(CAST(a AS DECIMAL(3,0)) * CAST(b AS DECIMAL(3,1)))
+FROM VALUES (999, 99.9), (-999, 99.9), (0, NULL), (NULL, 1.5), (1, -99.9) AS t(a, b);
+
+SELECT CAST(a AS DECIMAL(9,2)) * CAST(b AS DECIMAL(8,3)), typeof(CAST(a AS DECIMAL(9,2)) * CAST(b AS DECIMAL(8,3)))
+FROM VALUES (1234567.89, 12345.678), (-9999999.99, 99999.999), (0.01, 0.001), (NULL, NULL) AS t(a, b);
+
+SELECT CAST(a AS DECIMAL(18,2)) * CAST(b AS DECIMAL(18,2)), typeof(CAST(a AS DECIMAL(18,2)) * CAST(b AS DECIMAL(18,2)))
+FROM VALUES (9999999999999999.99, 9999999999999999.99), (-9999999999999999.99, 9999999999999999.99), (1.5, 2.25), (NULL, 1) AS t(a, b);
+
+SELECT CAST(a AS DECIMAL(20,5)) * CAST(b AS DECIMAL(15,2)), typeof(CAST(a AS DECIMAL(20,5)) * CAST(b AS DECIMAL(15,2)))
+FROM VALUES (123456789012345.12345, 1234567890123.45), (-1.00001, 3.33), (NULL, 2.00) AS t(a, b);
+
+SELECT CAST(a AS DECIMAL(36,0)) * CAST(b AS DECIMAL(1,0)), typeof(CAST(a AS DECIMAL(36,0)) * CAST(b AS DECIMAL(1,0)))
+FROM VALUES ('99999999999999999999999999999999999', 9), ('-5', 7) AS t(a, b);
+
+SELECT i * CAST(d AS DECIMAL(10,2)), l * CAST(d AS DECIMAL(10,2)), typeof(i * CAST(d AS DECIMAL(10,2)))
+FROM VALUES (2147483647, 9223372036854775807L, 12345678.90), (-3, -4L, -0.01) AS t(i, l, d);
+
+SELECT CAST(15.25 AS DECIMAL(5,2)) * CAST(1 AS DECIMAL(2,0)) * CAST(0.5 AS DECIMAL(3,1));
+
+-- ===== decimal + / - whose exact result fits the result type (scale alignment, direct integer arithmetic) =====
+
+SELECT a + b, a - b, typeof(a + b), typeof(a - b) FROM VALUES
+  (CAST(1.5 AS DECIMAL(3,1)), CAST(2.25 AS DECIMAL(4,2))), (CAST(-99.9 AS DECIMAL(3,1)), CAST(99.99 AS DECIMAL(4,2))),
+  (CAST(0.0 AS DECIMAL(3,1)), CAST(NULL AS DECIMAL(4,2))), (CAST(NULL AS DECIMAL(3,1)), CAST(1.00 AS DECIMAL(4,2))) AS t(a, b);
+
+SELECT a + b, a - b, typeof(a + b) FROM VALUES
+  (CAST(9999999999999999.99 AS DECIMAL(18,2)), CAST(9999999999999999.99 AS DECIMAL(18,2))),
+  (CAST(-9999999999999999.99 AS DECIMAL(18,2)), CAST(9999999999999999.99 AS DECIMAL(18,2))) AS t(a, b);
+
+SELECT a + b, a - b, typeof(a - b) FROM VALUES
+  (CAST('12345678901234567890123.45678' AS DECIMAL(28,5)), CAST('0.1' AS DECIMAL(2,1))),
+  (CAST('-1' AS DECIMAL(28,5)), CAST('99999999999999.9' AS DECIMAL(15,1))) AS t(a, b);
+
+SELECT a + b, a - b, typeof(a + b) FROM VALUES
+  (CAST('99999999999999999999999999999999999.9' AS DECIMAL(36,1)), CAST('0.05' AS DECIMAL(3,2))),
+  (CAST('-1' AS DECIMAL(36,1)), CAST('1' AS DECIMAL(3,2))) AS t(a, b);
+
+SELECT 1 - d, d + 1, l - d, i + d, typeof(1 - d), typeof(l + d) FROM VALUES
+  (CAST(0.06 AS DECIMAL(4,2)), 7L, 3), (CAST(-0.99 AS DECIMAL(4,2)), -9223372036854775807L, -2147483648) AS t(d, l, i);
+
+SELECT sum(price * (1 - disc) * (1 + tax)), sum(price * (1 - disc)) FROM VALUES
+  (CAST(10495.00 AS DECIMAL(15,2)), CAST(0.05 AS DECIMAL(15,2)), CAST(0.08 AS DECIMAL(15,2))),
+  (CAST(33078.94 AS DECIMAL(15,2)), CAST(0.10 AS DECIMAL(15,2)), CAST(0.00 AS DECIMAL(15,2))) AS t(price, disc, tax);
+
+-- ===== sum / avg export their state: ROLLUP / CUBE cascade and aggregate pushdown below joins =====
+
+-- @setup
+CREATE TEMPORARY VIEW se_t AS SELECT * FROM VALUES
+  ('a', 'x', 1, 10L, 1.50, 2.5D), ('a', 'x', 2, 20L, 2.25, NULL), ('a', 'y', NULL, NULL, NULL, 1.0D),
+  ('b', 'x', 2147483647, 9223372036854775807L, 99999999.99, 3.5D), ('b', 'y', 1, 1L, 0.01, -0.5D),
+  ('b', 'y', 5, 7L, 12.34, 8.0D), ('c', NULL, NULL, NULL, NULL, NULL), (NULL, 'z', 3, 3L, 3.03, 3.0D)
+  AS se_t(g, h, i, l, d, f);
+
+SELECT g, h, sum(i), sum(l), sum(d), sum(f), avg(i), avg(l), avg(d), avg(f), count(*) FROM se_t GROUP BY ROLLUP(g, h) ORDER BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11;
+
+SELECT g, h, sum(i), sum(d), avg(d), avg(f), grouping(g), grouping(h) FROM se_t GROUP BY CUBE(g, h) ORDER BY 1, 2, 3, 4, 5, 6, 7, 8;
+
+SELECT g, sum(d), avg(d), sum(l), avg(i) FROM se_t GROUP BY GROUPING SETS ((g), (h), ()) ORDER BY 1, 2, 3, 4, 5;
+
+SELECT g, h, sum(CAST(d AS DECIMAL(38,2))), avg(CAST(d AS DECIMAL(38,2))), typeof(sum(CAST(d AS DECIMAL(38,2)))) FROM se_t
+GROUP BY ROLLUP(g, h) ORDER BY 1, 2, 3, 4, 5;
+
+-- 128-bit overflow of the decimal sum is NULL in every level, including the cascaded ones
+SELECT g, sum(v), avg(v) FROM VALUES
+  ('a', CAST('99999999999999999999999999999999999999' AS DECIMAL(38,0))), ('a', CAST('99999999999999999999999999999999999999' AS DECIMAL(38,0))),
+  ('b', CAST('1' AS DECIMAL(38,0))) AS t(g, v) GROUP BY ROLLUP(g) ORDER BY g;
+
+-- the BIGINT sum wraps
+SELECT g, sum(l) FROM VALUES ('a', 9223372036854775807L), ('a', 1L), ('b', 5L) AS t(g, l) GROUP BY ROLLUP(g) ORDER BY g;
+
+-- aggregate over a join (the aggregate can be pushed below the join)
+SELECT a.g, a.k, sum(b.d), avg(b.d), sum(b.l), avg(b.f), count(*) FROM
+  (SELECT g, h AS k FROM se_t) a JOIN se_t b ON a.g = b.g AND a.k = b.h GROUP BY a.g, a.k ORDER BY a.g, a.k;
+
+SELECT a.g, sum(b.d * (1 - 0.05)), avg(b.i) FROM se_t a LEFT JOIN se_t b ON a.g = b.g GROUP BY a.g ORDER BY a.g;
+
+-- ===== explode(...) AS name names the generated column (usable in outer queries) =====
+
+SELECT tag, count(*) FROM (SELECT explode(array('a', 'b', 'a')) AS tag) GROUP BY tag ORDER BY tag;
+
+SELECT s.tag FROM (SELECT u, explode(a) AS tag FROM VALUES (1, array(10, 20)), (2, array(30)), (3, CAST(NULL AS ARRAY<INT>)) AS t(u, a)) s ORDER BY s.tag;
+
+SELECT u, tag FROM (SELECT u, explode_outer(a) AS tag FROM VALUES (1, array(10, 20)), (2, array()), (3, CAST(NULL AS ARRAY<INT>)) AS t(u, a)) ORDER BY u, tag;
+
+SELECT u, explode(a) AS tag, u + 1 AS v FROM VALUES (1, array(5, 6)) AS t(u, a);
+
+SELECT tag + 1 AS next FROM (SELECT explode(sequence(1, 3)) AS tag) ORDER BY next;
+
+-- ===== sweep findings: charsets, invalid regexes, generator alias lists, from_unixtime wrap, inline, ESCAPE NULL =====
+
+SELECT hex(encode('aé日😀', 'UTF-8')), hex(encode('aé日😀', 'UTF-16')), hex(encode('aé日😀', 'UTF-16BE')), hex(encode('aé日😀', 'UTF-16LE'));
+
+SELECT hex(encode('aé日', 'US-ASCII')), hex(encode('aé日', 'ISO-8859-1')), hex(encode('aé', 'utf-8'));
+
+SELECT decode(encode('aé日😀', 'UTF-16'), 'UTF-16'), decode(X'00e9006100', 'UTF-16BE'), decode(X'e900', 'UTF-16LE'), decode(X'e961', 'ISO-8859-1'), decode(X'ff61', 'UTF-8'), decode(X'c3a9', 'US-ASCII');
+
+SELECT encode('a', 'no-such-charset');
+
+SELECT decode(X'61', 'no-such-charset');
+
+SELECT encode(CAST(NULL AS STRING), 'UTF-8'), encode('a', CAST(NULL AS STRING));
+
+SELECT split('oneAtwoBthreeC', '[]', 2);
+
+SELECT split('oneAtwoBthreeC', '{}');
+
+SELECT split('a1b2c', '(?=[0-9])'), split('a1b2c', '[0-9]'), split('a.b', '\\.'), split('a{2}b', '\\{');
+
+SELECT from_unixtime(9223372036854775807L), from_unixtime(0L), from_unixtime(-1L), from_unixtime(1700000000L, 'yyyy/MM/dd HH:mm');
+
+SELECT inline(array(NULL));
+
+SELECT posexplode(array('x', 'y')) AS (pos, val);
+
+SELECT p, c FROM (SELECT posexplode(array(10, 20, 30)) AS (p, c)) WHERE p > 0 ORDER BY p;
+
+SELECT explode(map('a', 1, 'b', 2)) AS (k, v);
+
+SELECT 'a' LIKE 'a' ESCAPE NULL;
+
+SELECT split('abc', '', 2), split('abcd', '', 3), split('abc', '', 5), split('abc', '', 1), split('abc', '', 0), split('abc', '', -1), split('', '', 2), split('é日x', '', 2);
+
+-- ===== double / float to string (Java Double.toString), string to integer, floor / ceil, lpad / rpad =====
+
+SELECT CAST(x AS STRING) FROM VALUES (1.0D), (0.001D), (0.0009999D), (9999999.0D), (10000000.0D), (1.0E-5D), (123456789.123D), (-2.5D), (1.0E22D),
+  (1.7976931348623157E308D), (100.0D), (0.1D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)), (CAST('-Infinity' AS DOUBLE)), (-0.0D), (0.0D), (12345.678D), (1.0E7D) AS t(x);
+
+SELECT CAST(x AS STRING) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(0.001 AS FLOAT)), (CAST(1.0E10 AS FLOAT)), (CAST(3.4028235E38 AS FLOAT)), (CAST(0.1 AS FLOAT)), (CAST(-7.25 AS FLOAT)), (CAST(1.0E-4 AS FLOAT)) AS t(x);
+
+SELECT CAST(s AS INT), CAST(s AS BIGINT), CAST(s AS TINYINT) FROM VALUES ('12'), (' 7 '), ('-5'), ('+9'), ('1.9'), ('-1.9'), ('abc'), (''), ('2147483648'), ('-2147483648'),
+  ('9223372036854775807'), ('9223372036854775808'), ('-9223372036854775808'), ('-9223372036854775809'), ('1e3'), ('.5'), ('-.5'), ('5.'), ('0x10'), ('300'), ('-129'), ('99999999999999999999999') AS t(s);
+
+SELECT floor(x), ceil(x), floor(y), ceil(y) FROM VALUES (1.5D, -1.5D), (-0.5D, 0.5D), (1.0E19D, -1.0E19D), (CAST('NaN' AS DOUBLE), CAST('Infinity' AS DOUBLE)), (9.223372036854775E18D, -9.223372036854775E18D),
+  (CAST('-Infinity' AS DOUBLE), 2.0D) AS t(x, y);
+
+SELECT lpad(s, n, p), rpad(s, n, p) FROM VALUES ('abc', 6, 'xy'), ('abc', 2, 'xy'), ('abc', 3, 'xy'), ('abc', 0, 'x'), ('abc', -1, 'x'), ('', 3, 'ab'), ('é日', 5, '😀a'), ('é日x', 2, 'z'), ('abc', 5, ''),
+  ('abc', 8, 'é日'), (NULL, 3, 'a'), ('a', NULL, 'b'), ('a', 3, NULL) AS t(s, n, p);
+
+SELECT lpad(X'0102', 5, X'ff00'), rpad(X'0102', 5, X'ff00'), lpad(X'010203', 2, X'ff');
+
+-- ===== size and array_contains kernels =====
+
+SELECT size(a), cardinality(a) FROM VALUES (array(1, 2, 3)), (array()), (CAST(NULL AS ARRAY<INT>)), (array(NULL, NULL)) AS t(a);
+
+SELECT size(m), cardinality(m) FROM VALUES (map(1, 'a', 2, 'b')), (map()), (CAST(NULL AS MAP<INT, STRING>)) AS t(m);
+
+SELECT size(NULL), size(array(array(1, 2), array(3))), size(array(struct(1 AS x))), size(split('a,b,c', ','));
+
+SELECT array_contains(a, v) FROM VALUES (array(1, 2, 3), 2), (array(1, 2, 3), 5), (array(1, NULL, 3), 5), (array(1, NULL, 3), 3), (array(), 1),
+  (CAST(NULL AS ARRAY<INT>), 1), (array(1, 2), CAST(NULL AS INT)), (array(NULL), 1), (array(NULL), CAST(NULL AS INT)) AS t(a, v);
+
+SELECT array_contains(a, v) FROM VALUES (array('a', 'b'), 'b'), (array('a', NULL), 'z'), (array('a', 'b'), 'c') AS t(a, v);
+
+SELECT array_contains(a, v) FROM VALUES (array(array(1), array(2, 3)), array(2, 3)), (array(array(1), CAST(NULL AS ARRAY<INT>)), array(9)) AS t(a, v);
+
+-- ===== lambda parameters (parsed as an expression followed by ->) =====
+
+SELECT transform(array(1, 2, 3), x -> x * 2), transform(array(1, 2), y -> y + 1), aggregate(array(1, 2, 3), 0, (acc, v) -> acc + v),
+  zip_with(array(1, 2), array(10, 20), (a, b) -> a + b), filter(array(1, 2, 3, 4), e -> e % 2 = 0);
+
+SELECT array_sort(array(5, 6, 1), (left, right) -> CASE WHEN left < right THEN -1 WHEN left > right THEN 1 ELSE 0 END);
+
+SELECT transform(array(array(1, 2), array(3)), a -> transform(a, b -> b + size(a))), exists(array(1, 2), q -> q > 1), forall(array(1, 2), q -> q > 0);
+
+SELECT transform(array(1, 2), x -> x) AS r1, transform(array(1, 2), key -> key + 1) AS r2, map_filter(map(1, 2, 3, 4), (k, v) -> k > 1) AS r3;
+
+SELECT transform(array(1, 2), a.b -> 1);
+
+SELECT transform(array(1, 2), 1 -> 1);

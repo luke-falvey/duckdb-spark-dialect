@@ -7,17 +7,27 @@ end to end on TPC-H. The current numbers are in [PERFORMANCE_RESULTS.md](PERFORM
 
 ## Summary
 
+Measured on the commit that last touched `src/` (see the JSON files in `bench/out/` and
+[PERFORMANCE_RESULTS.md](PERFORMANCE_RESULTS.md)); every ratio is Spark dialect / native DuckDB on the same data.
+
 | measure | result | target |
 |---|---|---|
-| TPC-H SF1, geometric mean of the 22 queries (spark / native, 4 threads) | **1.12x** (`spark_strict` 1.10x) | ≤ 1.15x |
-| TPC-H SF1, worst query | Q1 at 2.5x (explained below); all others ≤ 1.44x | ≤ 1.5x, or explained |
-| Parsing, case-file statements | 3.3x DuckDB's parser (~110 µs vs ~34 µs per statement) | < 2x |
+| TPC-H SF1, geometric mean of the 22 queries (4 threads) | **1.10x** (`spark_strict` 1.10x) | ≤ 1.10x |
+| TPC-H SF1, worst queries | Q01 2.1x (explained below), Q10 1.8x, all others ≤ 1.15x | ≤ 1.5x, Q01 ≤ 2.0x |
+| TPC-DS SF1, geometric mean of the 99 queries (4 threads) | **1.08x** (`spark_strict` 1.09x); all 99 run in both dialects | - |
+| TPC-DS SF1, worst queries | Q02 1.6x, Q44 1.46x; all others ≤ 1.42x | ≤ 1.5x |
+| Spark-shaped workloads (10, 2M rows) | geometric mean 1.11x (`spark_strict` 1.08x); worst JSON extract 1.47x, date bucketing 1.41x | - |
+| Parsing, case-file statements | 3.2x DuckDB's parser (~135 µs vs ~42 µs per statement; 2.85x on the smoke subset) | ≤ 2x (not met) |
 | Parse time vs statement size | linear for every shape up to 10,000 items | linear |
-| Functions / operators (110 pairs) | most within 1.0x to 1.3x; worst listed below | - |
+| Functions / operators (104 pairs) | geometric mean **1.15x**; 15 pairs above 1.5x (listed in "Remaining work", mostly differences in what is compared) | ≤ 1.15x |
+| Tiny statements (`bench/latency_bench.py`) | 1.55x geometric mean; +25 to +355 µs per statement; `LOAD` 40 ms | - |
+| Threads / ANSI / memory | speed-up from 1 to 4 threads equal to native's; ANSI mode no measurable overhead; `memory_limit` 256 MB gives the same results | no regression |
 | Large inputs (`bench/scaling_bench.py`) | all finish or fail with an out-of-memory error; none crash or hang | no crash, bounded |
 
-The parsing target is not met. The remaining cost is in DuckDB's PEG matcher working through the larger
-Spark expression grammar; see "Remaining work".
+Not met: parsing (the PEG matcher working through the larger Spark expression grammar; see `docs/perf-log.md`), TPC-H
+Q01 (128-bit decimal sums) and Q10 (the aggregate pushed below the join costs more with Spark's exported states than
+with native's). The pair geomean sits at the target; the pairs above 1.5x compare a Spark semantic against a cheaper
+native function (see below).
 
 ## Method
 
@@ -50,6 +60,17 @@ suspected; those were the biggest.
 | `split` compiled a `std::regex` per row (also a stack-overflow risk on long input) | 26x | 1.4x | cached RE2, `std::regex` only for Java syntax RE2 lacks; literal patterns are a substring search |
 | `sha2(x, 256)`: own SHA implementation; it also decoded binary input as UTF-8 (failing on non-UTF-8 bytes) and printed SHA-384/512 wrongly | 8.9x | 1.1x | DuckDB's `sha256`; byte input; hex formatting fixed |
 | `date_format` / `to_timestamp`: the Java pattern was parsed per row | 6.4x | 3.6x | pattern cached per thread |
+| `format_string` / `printf`: format parsed and every argument read as a `Value` per row | 5.3x | 0.5x | format parsed once per distinct string; `%s` / `%d` read from the vectors |
+| `date_format`: a `std::string` per number | 3.6x | 1.9x | digits appended into one buffer |
+| `lpad` / `rpad`, `CAST(double AS STRING)`, `array_contains`, `size`, `floor`, `CAST(string AS INT)` | 3.3x / 2.1x / 2.6x / 1.7x / 1.6x / 1.5x | 1.0x - 1.7x (3.3x, 3.4x, 1.9x, 1.4x, 1.2x, 1.1x faster than before) | allocation-free kernels (`list_has_null`, `spark_size`, fused `floor`) |
+| `to_json` of a struct: `Value` per row, string temporaries | 20x | 1.4x | flat structs (strings, booleans, integers) serialised from the vectors |
+| TPC-DS ROLLUP / CUBE queries (Q22, Q36, Q67) and aggregates over joins (Q04, Q11, Q74): `spark_sum` / `spark_avg` could not export their state, so DuckDB neither cascaded grouping sets nor pushed the aggregate below the join | 1.6x - 3.4x | 0.96x - 1.2x | state layouts for the five aggregate states; aggregates also registered in `system.main` |
+| TPC-H Q13: a fallible `like_escape` blocked filter pushdown below the outer join | 1.5x | 1.0x | `LIKE` binds to DuckDB's `~~` for constant patterns without a backslash |
+| decimal `+`, `-`, `*` whose exact result fits (Q01 and `mul_decimal`) went through a cast to DECIMAL(38), hugeint arithmetic and a rescale kernel | 4.0x / 2.5x | 1.8x / 2.0x | direct integer kernels (64x64 -> 128 bit product, scale alignment in `__int128`) |
+| `split` copied every part twice | 3.4x | 1.7x | parts written into the list child; `memchr` / `memmem` for literal separators |
+| `substr` scanned the whole string and used 128-bit arithmetic | 1.8x | 1.2x | prefix scan, `int64` arithmetic for positive start and bounded length |
+| `hex` called `upper()` on DuckDB's already upper-case result | 2.3x | 1.0x | removed |
+| `explode(x) AS name` lost its alias (correctness: outer queries could not reference the column) | error | works | generator rebound with the alias as its column name |
 
 The suspects from the plan:
 
@@ -82,22 +103,28 @@ The suspects from the plan:
 
 ## Q1
 
-Q1 is 2.5x native at SF1 (2.25x at SF0.1, where fixed overhead weighs more). Execution itself is 2.7x
-(54 ms vs 20 ms): Spark's decimal rules make `l_extendedprice * (1 - l_discount)` a `decimal(32,4)` (128-bit),
+Q1 is 2.0x - 2.5x native at SF1 (run-to-run spread; native Q1 is ~25 ms). Before the decimal kernels it was 2.5x - 3.3x. Execution itself is about 2.2x: Spark's decimal rules make `l_extendedprice * (1 - l_discount)` a `decimal(32,4)` (128-bit),
 where DuckDB keeps it in 64 bits, and the four sums over such products run on 128-bit values. Matching
 Spark's result types and overflow behaviour costs this; the dialect's own kernels are not the bottleneck.
 
 ## Remaining work
 
-- **Parsing (3.3x).** Profiling shows the time in DuckDB's PEG matcher (`MatchStep`, `ExecuteFrame`). The Spark
-  expression ladder tries more alternatives per operand than DuckDB's (`SpAtom` alone has nine). Options:
-  ordering alternatives by frequency, merging the keyword-led alternatives behind one first-set check, or caching
-  parsed statements. About 75 µs per statement in absolute terms.
-- **`to_json`** (18x): builds JSON through DuckDB `Value`s per row.
-- **`mul_decimal`** (4x): the `decimal(37,4)` result of `decimal(18,2) * decimal(18,2)` is 128-bit; same cause
-  as Q1.
-- **`array_sort` with a comparator** (O(n²)), **`date_format`** (3.6x), **`cast_double_to_string`** (2.2x, Java
-  `Double.toString` formatting), **`hex`** (2.4x), **`array_contains`** (2.3x).
+Backlog with status: `docs/perf-backlog.md`; measurements and dead ends: `docs/perf-log.md`.
+
+- **Parsing (3.2x).** About 90 µs more per statement. 95% of the time is in DuckDB's PEG matcher. The lambda is now
+  `SpOr ('->' SpExpression)?` (-23% on the smoke subset). The predicate alternatives (9 per operand, -10..14% when removed)
+  cannot be guarded cheaply: the PEG has no lookahead; factoring their common `NOT?` prefix is the next lever.
+- **Pairs above 1.5x** (in-memory tables, 1 thread): `to_timestamp_pattern` 2.2x and `date_format` 1.9x (Java pattern
+  semantics against `strptime` / `strftime`), `add_decimal_wide` 2.0x (`decimal(18,2) + decimal(38,10)`, the result
+  scale is lowered with HALF_UP; a one-kernel version was slower), `aggregate_sum` 1.9x (a lambda against native
+  `list_sum`), `get_json_object` 1.85x, `unix_timestamp` 1.8x, `split_comma` 1.8x, `cast_string_to_date` 1.8x, `floor` 1.7x
+  (a 4 ms operation; Spark returns BIGINT), `cast_string_to_int` 1.7x, `explode` 1.65x.
+- **TPC-H Q10** is 40% slower than with the aggregate left above the join (80 ms vs 117 ms single-threaded; native does
+  not care). Disabling the exported states for decimal sums would fix it and cost TPC-DS Q04 / Q11 / Q74.
+- **Tiny statements:** 73% of the time is parsing (`CASE WHEN` 1.9x, string functions 2.1x; 25 - 355 µs absolute).
+- **`array_sort` with a comparator** (O(n²) for comparators that are not the common `CASE WHEN` shape).
+- **Known differences:** see backlog 12 in `docs/perf-backlog.md` (`regexp_like(NULL, <invalid>)`, lookbehind in `split`,
+  empty `named_struct` field names, `CAST(4.9E-324D AS STRING)`).
 
 ## Reproducing
 
@@ -106,11 +133,19 @@ python bench/parse_bench.py
 python bench/func_bench.py                 # --only name,name  --check (compare results with native)
 TPCH_EXTENSION=/path/to/tpch.duckdb_extension python bench/tpch_bench.py --sf 1   # or INSTALL tpch from the network
 python bench/scaling_bench.py
+TPCDS_EXTENSION=/path/to/tpcds.duckdb_extension python bench/tpcds_bench.py --sf 1   # or INSTALL tpcds
+python bench/workload_bench.py             # Spark-shaped workloads on a generated event table
+python bench/latency_bench.py              # LOAD, first statement, tiny statements
+python bench/threads_bench.py              # threads, ANSI mode, memory_limit
+python bench/ab.py --a DIR_A --b DIR_B --suite func|tpch   # interleaved A/B of two builds (bootstrap CI)
+python bench/profile.py --sql "..."        # gdb sampling profile of a query
+python bench/plan_diff.py                  # plan shape of Spark vs native
+python bench/report.py --history func      # trend from bench/history/
 python bench/report.py --write             # docs/PERFORMANCE_RESULTS.md
 python bench/report.py --check bench/baseline.json   # CI's catastrophic thresholds
 ```
 
 CI (`bench-smoke`) runs the smoke subset on every push and fails only on catastrophic regressions: a TPC-H
-geometric mean above 1.5x or a query above 4x native, a function ratio above 3x its value in
+geometric mean above 1.5x (also for TPC-DS and the workloads) or a query above 4x native, a function ratio above 3x its value in
 `bench/baseline.json`, or parse time growing more than 20x from 1,000 to 10,000 items. The nightly workflow runs
-everything and reports the numbers in its summary.
+everything (TPC-H, TPC-DS, workloads, latency, threads, scaling) and reports the numbers in its summary.

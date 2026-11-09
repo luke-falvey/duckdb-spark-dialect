@@ -1,65 +1,65 @@
 {
- "note": "func_smoke ratios (spark / native) recorded by `python bench/func_bench.py --smoke --rows 300000 --runs 3`; CI fails when a ratio exceeds 3x its baseline. Update deliberately, in its own commit.",
+ "note": "func_smoke ratios (spark / native) recorded by `python bench/func_bench.py --smoke --rows 300000 --runs 3`; CI fails when a ratio exceeds 3x its baseline. Update deliberately, in its own commit. Refreshed after the perf/opt-decimal-sum optimizations (no threshold changed; the 3x factor and the TPC-H / TPC-DS / workload limits are unchanged).",
  "machine": {
-  "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+  "cpu": "Intel(R) Xeon(R) Processor",
   "nproc": 4,
   "python": "3.13.18",
   "duckdb": "2.0.0",
-  "extension_sha": "daf472a",
-  "date": "2026-11-08 07:02"
+  "extension_sha": "1dfa297",
+  "date": "2026-11-09 10:35"
  },
  "func": [
   {
    "name": "add_int",
-   "ratio": 1.234
+   "ratio": 1.236
   },
   {
    "name": "divide_int",
-   "ratio": 1.321
+   "ratio": 1.323
   },
   {
    "name": "add_double",
-   "ratio": 1.209
+   "ratio": 1.15
   },
   {
    "name": "mul_decimal",
-   "ratio": 2.912
+   "ratio": 1.264
   },
   {
    "name": "compare_eq",
-   "ratio": 1.052
+   "ratio": 1.093
   },
   {
    "name": "concat_op",
-   "ratio": 1.001
+   "ratio": 1.034
   },
   {
    "name": "cast_int_to_string",
-   "ratio": 1.033
+   "ratio": 1.068
   },
   {
    "name": "cast_string_to_int",
-   "ratio": 1.9
+   "ratio": 1.848
   },
   {
    "name": "case_when",
-   "ratio": 1.121
+   "ratio": 1.219
   },
   {
    "name": "array_subscript",
-   "ratio": 1.073
+   "ratio": 1.067
   },
   {
    "name": "sum_int",
-   "ratio": 1.289
+   "ratio": 1.351
   },
   {
    "name": "sum_decimal",
-   "ratio": 1.317
+   "ratio": 1.356
   },
   {
    "name": "group_sum_int",
-   "ratio": 1.234
+   "ratio": 1.128
   },
   {
    "name": "upper",
@@ -67,55 +67,55 @@
   },
   {
    "name": "substr",
-   "ratio": 1.489
+   "ratio": 1.292
   },
   {
    "name": "split_regex",
-   "ratio": 1.262
+   "ratio": 1.194
   },
   {
    "name": "regexp_extract",
-   "ratio": 1.009
+   "ratio": 0.994
   },
   {
    "name": "like",
-   "ratio": 1.638
+   "ratio": 1.096
   },
   {
    "name": "get_json_object",
-   "ratio": 1.859
+   "ratio": 1.799
   },
   {
    "name": "date_format",
-   "ratio": 3.568
+   "ratio": 1.189
   },
   {
    "name": "array_sort",
-   "ratio": 1.001
+   "ratio": 1.099
   },
   {
    "name": "transform",
-   "ratio": 0.854
+   "ratio": 0.877
   },
   {
    "name": "explode",
-   "ratio": 1.713
+   "ratio": 1.685
   },
   {
    "name": "round",
-   "ratio": 0.859
+   "ratio": 1.076
   },
   {
    "name": "row_number",
-   "ratio": 1.358
+   "ratio": 1.606
   },
   {
    "name": "filter_int_eq",
-   "ratio": 1.129
+   "ratio": 1.217
   },
   {
    "name": "filter_date_range",
-   "ratio": 1.207
+   "ratio": 1.205
   }
  ]
 }

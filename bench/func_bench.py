@@ -36,11 +36,11 @@ def create_tables(con, rows):
         {null10('CAST(((r * 104729) % 1000003) / 1000.0 AS DECIMAL(38,10))')} AS e
         FROM range({rows}) t(r)""")
     con.execute(f"""CREATE OR REPLACE TABLE strs AS SELECT
-        {null10("'ab' || CAST(r % 1000 AS VARCHAR) || 'c' || chr(97 + CAST(r % 26 AS INT))")} AS s,
+        {null10("'ab' || CAST(r % 99991 AS VARCHAR) || 'c' || chr(97 + CAST(r % 26 AS INT))")} AS s,
         {null10("chr(65 + CAST(r % 26 AS INT)) || 'xy'")} AS s2,
-        {null10("repeat('lorem' || CAST(r % 97 AS VARCHAR) || ' ipsum abc', 12)")} AS l,
-        {null10("'Ünïcødé ' || CAST(r % 1000 AS VARCHAR) || ' 日本'")} AS u,
-        {null10("'a' || CAST(r % 10 AS VARCHAR) || ',b;c,' || CAST(r % 7 AS VARCHAR) || ';d,e'")} AS csv,
+        {null10("repeat('lorem' || CAST(r % 99989 AS VARCHAR) || ' ipsum abc', 12)")} AS l,
+        {null10("'Ünïcødé ' || CAST(r % 99991 AS VARCHAR) || ' 日本'")} AS u,
+        {null10("'a' || CAST(r % 99991 AS VARCHAR) || ',b;c,' || CAST(r % 7 AS VARCHAR) || ';d,e'")} AS csv,
         {null10("CAST(r % 100000 - 50000 AS VARCHAR)")} AS sn,
         {null10("strftime(DATE '2000-01-01' + CAST(r % 9000 AS INT), '%Y-%m-%d')")} AS sd,
         {null10("strftime(TIMESTAMP '2000-01-01' + to_seconds(r * 37), '%Y-%m-%d %H:%M:%S')")} AS sts,
@@ -80,6 +80,21 @@ def limit_rows(pair, sql, rows):
     return sql
 
 
+DB_PATH = common.OUT_DIR / "func_tables.duckdb"
+
+
+def make_db(rows):
+    """The benchmark tables once, in bench/out/func_tables.duckdb, so every tool (func_bench, ab, profile) times
+    identical data and opens it read-only instead of regenerating it."""
+    common.OUT_DIR.mkdir(exist_ok=True)
+    DB_PATH.unlink(missing_ok=True)
+    con = common.connect(str(DB_PATH), threads=2, load=False)
+    create_tables(con, rows)
+    con.execute("CREATE TABLE bench_meta AS SELECT %d AS rows" % rows)
+    con.close()
+    print(f"wrote {DB_PATH} ({rows} rows per table)")
+
+
 def run(args):
     pairs = tomllib.loads(PAIRS.read_text())["pair"]
     if args.only:
@@ -87,8 +102,12 @@ def run(args):
         pairs = [p for p in pairs if p["name"] in wanted]
     if args.smoke:
         pairs = [p for p in pairs if p.get("smoke")]
-    con = common.connect(threads=1)
-    create_tables(con, args.rows)
+    if args.db:
+        con = common.connect(str(DB_PATH), threads=1, read_only=True)
+        args.rows = con.execute("SELECT rows FROM bench_meta").fetchone()[0]
+    else:
+        con = common.connect(threads=1)
+        create_tables(con, args.rows)
     results = []
     for p in pairs:
         spark_sql = limit_rows(p, wrap(p, "spark"), args.rows)
@@ -131,10 +150,16 @@ def main():
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--name", default=None)
+    ap.add_argument("--make-db", action="store_true", help="write bench/out/func_tables.duckdb and exit")
+    ap.add_argument("--db", action="store_true", help="use bench/out/func_tables.duckdb (read-only) instead of tables in memory")
     args = ap.parse_args()
+    if args.make_db:
+        make_db(args.rows)
+        return
     results = run(args)
     common.write_results(args.name or ("func_smoke" if args.smoke else "func"), results)
 
 
 if __name__ == "__main__":
-    main()
+    with common.BenchLock():
+        main()

@@ -9,6 +9,7 @@
 #include "duckdb/common/types/decimal.hpp"
 #include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/common/vector/list_vector.hpp"
+#include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/common/vector/string_vector.hpp"
 #include "duckdb/common/vector_operations/binary_executor.hpp"
 #include "duckdb/common/vector_operations/unary_executor.hpp"
@@ -1282,9 +1283,17 @@ void IntervalAbsKernel(DataChunk &args, ExpressionState &, Vector &result) {
 //===----------------------------------------------------------------------===//
 // to_json with Spark's formatting (timestamps, null fields dropped, options)
 //===----------------------------------------------------------------------===//
-string JsonEscape(const string &s) {
-	string out = "\"";
-	for (auto c : s) {
+//! Appends the JSON string literal for [data, data + size); runs without characters to escape are copied at once.
+void AppendJsonString(string &out, const char *data, idx_t size) {
+	out += '"';
+	idx_t run = 0;
+	for (idx_t i = 0; i < size; i++) {
+		auto c = static_cast<unsigned char>(data[i]);
+		if (c >= 0x20 && c != '"' && c != '\\') {
+			continue;
+		}
+		out.append(data + run, i - run);
+		run = i + 1;
 		switch (c) {
 		case '"':
 			out += "\\\"";
@@ -1301,25 +1310,31 @@ string JsonEscape(const string &s) {
 		case '\t':
 			out += "\\t";
 			break;
-		default:
-			if ((unsigned char)c < 0x20) {
-				out += StringUtil::Format("\\u%04x", (unsigned char)c);
-			} else {
-				out += c;
-			}
+		default: {
+			static const char HEX[] = "0123456789abcdef";
+			out += "\\u00";
+			out += HEX[c >> 4];
+			out += HEX[c & 15];
+		}
 		}
 	}
-	return out + "\"";
+	out.append(data + run, size - run);
+	out += '"';
 }
 
-string ToJson(const Value &v, const string &ts_format, const string &date_format) {
+void AppendJsonString(string &out, const string &s) {
+	AppendJsonString(out, s.data(), s.size());
+}
+
+void AppendJson(string &out, const Value &v, const string &ts_format, const string &date_format) {
 	if (v.IsNull()) {
-		return "null";
+		out += "null";
+		return;
 	}
 	auto &type = v.type();
 	switch (type.id()) {
 	case LogicalTypeId::STRUCT: {
-		string out = "{";
+		out += '{';
 		auto &children = StructValue::GetChildren(v);
 		auto &fields = StructType::GetChildTypes(type);
 		bool first = true;
@@ -1327,14 +1342,19 @@ string ToJson(const Value &v, const string &ts_format, const string &date_format
 			if (children[i].IsNull()) {
 				continue;
 			}
-			out += (first ? "" : ",") + JsonEscape(fields[i].first.GetIdentifierName()) + ":" +
-			       ToJson(children[i], ts_format, date_format);
+			if (!first) {
+				out += ',';
+			}
+			AppendJsonString(out, fields[i].first.GetIdentifierName());
+			out += ':';
+			AppendJson(out, children[i], ts_format, date_format);
 			first = false;
 		}
-		return out + "}";
+		out += '}';
+		return;
 	}
 	case LogicalTypeId::MAP: {
-		string out = "{";
+		out += '{';
 		bool first = true;
 		for (auto &entry : ListValue::GetChildren(v)) {
 			auto &kv = StructValue::GetChildren(entry);
@@ -1349,46 +1369,187 @@ string ToJson(const Value &v, const string &ts_format, const string &date_format
 			} else {
 				key = SparkScalarString(kv[0]);
 			}
-			out += (first ? "" : ",") + JsonEscape(key) + ":" + ToJson(kv[1], ts_format, date_format);
+			if (!first) {
+				out += ',';
+			}
+			AppendJsonString(out, key);
+			out += ':';
+			AppendJson(out, kv[1], ts_format, date_format);
 			first = false;
 		}
-		return out + "}";
+		out += '}';
+		return;
 	}
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::ARRAY: {
-		string out = "[";
+		out += '[';
 		auto &children = ListValue::GetChildren(v);
 		for (idx_t i = 0; i < children.size(); i++) {
-			out += (i > 0 ? "," : "") + ToJson(children[i], ts_format, date_format);
+			if (i > 0) {
+				out += ',';
+			}
+			AppendJson(out, children[i], ts_format, date_format);
 		}
-		return out + "]";
+		out += ']';
+		return;
 	}
 	case LogicalTypeId::VARCHAR:
-		return JsonEscape(StringValue::Get(v));
+		AppendJsonString(out, StringValue::Get(v));
+		return;
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_TZ:
-		return JsonEscape(FormatDatetimeValue(v.GetValue<timestamp_t>(), ts_format));
+		AppendJsonString(out, FormatDatetimeValue(v.GetValue<timestamp_t>(), ts_format));
+		return;
 	case LogicalTypeId::DATE:
-		return JsonEscape(FormatDatetimeValue(Timestamp::FromDatetime(v.GetValue<date_t>(), dtime_t(0)), date_format));
+		AppendJsonString(out, FormatDatetimeValue(Timestamp::FromDatetime(v.GetValue<date_t>(), dtime_t(0)), date_format));
+		return;
 	case LogicalTypeId::BOOLEAN:
-		return v.GetValue<bool>() ? "true" : "false";
+		out += v.GetValue<bool>() ? "true" : "false";
+		return;
 	default:
-		return SparkScalarString(v);
+		out += SparkScalarString(v);
+	}
+}
+
+//! Appends the decimal text of a signed integer
+void AppendInteger(string &out, int64_t value) {
+	char buffer[24];
+	char *end = buffer + sizeof(buffer);
+	char *p = end;
+	uint64_t magnitude = value < 0 ? uint64_t(0) - uint64_t(value) : uint64_t(value);
+	do {
+		*--p = char('0' + magnitude % 10);
+		magnitude /= 10;
+	} while (magnitude);
+	if (value < 0) {
+		*--p = '-';
+	}
+	out.append(p, size_t(end - p));
+}
+
+bool IsSimpleJsonType(const LogicalType &type) {
+	switch (type.id()) {
+	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::BOOLEAN:
+	case LogicalTypeId::TINYINT:
+	case LogicalTypeId::SMALLINT:
+	case LogicalTypeId::INTEGER:
+	case LogicalTypeId::BIGINT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+//! to_json of a struct whose fields are all strings, booleans or integers, straight from the vectors: no Value
+//! objects. Rows and field order / NULL handling match AppendJson (NULL fields are dropped).
+void ToJsonSimpleStruct(Vector &input, idx_t count, Vector &result) {
+	auto &type = input.GetType();
+	auto &fields = StructType::GetChildTypes(type);
+	auto &entries = StructVector::GetEntries(input);
+	UnifiedVectorFormat sf;
+	input.ToUnifiedFormat(sf);
+	vector<UnifiedVectorFormat> cf(fields.size());
+	vector<string> names;
+	for (idx_t f = 0; f < fields.size(); f++) {
+		entries[f].ToUnifiedFormat(cf[f]);
+		string name;
+		AppendJsonString(name, fields[f].first.GetIdentifierName());
+		name += ':';
+		names.push_back(std::move(name));
+	}
+	auto out = FlatVector::GetDataMutable<string_t>(result);
+	string text;
+	for (idx_t i = 0; i < count; i++) {
+		auto row = sf.sel->get_index(i);
+		if (!sf.validity.RowIsValid(row)) {
+			FlatVector::ValidityMutable(result).SetInvalid(i);
+			continue;
+		}
+		text.clear();
+		text += '{';
+		bool first = true;
+		for (idx_t f = 0; f < fields.size(); f++) {
+			auto ci = cf[f].sel->get_index(row);
+			if (!cf[f].validity.RowIsValid(ci)) {
+				continue;
+			}
+			if (!first) {
+				text += ',';
+			}
+			first = false;
+			text += names[f];
+			switch (fields[f].second.id()) {
+			case LogicalTypeId::VARCHAR: {
+				auto &str = UnifiedVectorFormat::GetData<string_t>(cf[f])[ci];
+				AppendJsonString(text, str.GetData(), str.GetSize());
+				break;
+			}
+			case LogicalTypeId::BOOLEAN:
+				text += UnifiedVectorFormat::GetData<bool>(cf[f])[ci] ? "true" : "false";
+				break;
+			case LogicalTypeId::TINYINT:
+				AppendInteger(text, UnifiedVectorFormat::GetData<int8_t>(cf[f])[ci]);
+				break;
+			case LogicalTypeId::SMALLINT:
+				AppendInteger(text, UnifiedVectorFormat::GetData<int16_t>(cf[f])[ci]);
+				break;
+			case LogicalTypeId::INTEGER:
+				AppendInteger(text, UnifiedVectorFormat::GetData<int32_t>(cf[f])[ci]);
+				break;
+			default:
+				AppendInteger(text, UnifiedVectorFormat::GetData<int64_t>(cf[f])[ci]);
+				break;
+			}
+		}
+		text += '}';
+		out[i] = StringVector::AddString(result, text);
 	}
 }
 
 void ToJsonKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	result.SetVectorType(VectorType::FLAT_VECTOR);
+	{
+		auto &type = args.data[0].GetType();
+		bool simple = type.id() == LogicalTypeId::STRUCT && !StructType::GetChildTypes(type).empty();
+		if (simple) {
+			for (auto &child : StructType::GetChildTypes(type)) {
+				simple = simple && IsSimpleJsonType(child.second);
+			}
+		}
+		if (simple) {
+			ToJsonSimpleStruct(args.data[0], args.size(), result);
+			return;
+		}
+	}
 	auto out = FlatVector::GetDataMutable<string_t>(result);
+	// the datetime formats are almost always constants: read them once per chunk, not once per row
+	UnifiedVectorFormat f1, f2;
+	args.data[1].ToUnifiedFormat(f1);
+	args.data[2].ToUnifiedFormat(f2);
+	auto formats1 = UnifiedVectorFormat::GetData<string_t>(f1);
+	auto formats2 = UnifiedVectorFormat::GetData<string_t>(f2);
+	string ts_format, date_format;
+	idx_t last1 = DConstants::INVALID_INDEX, last2 = DConstants::INVALID_INDEX;
+	string text;
 	for (idx_t i = 0; i < args.size(); i++) {
 		auto value = args.data[0].GetValue(i);
 		if (value.IsNull()) {
 			FlatVector::ValidityMutable(result).SetInvalid(i);
 			continue;
 		}
-		auto ts_format = StringValue::Get(args.data[1].GetValue(i));
-		auto date_format = StringValue::Get(args.data[2].GetValue(i));
-		out[i] = StringVector::AddString(result, ToJson(value, ts_format, date_format));
+		auto i1 = f1.sel->get_index(i), i2 = f2.sel->get_index(i);
+		if (i1 != last1) {
+			ts_format = formats1[i1].GetString();
+			last1 = i1;
+		}
+		if (i2 != last2) {
+			date_format = formats2[i2].GetString();
+			last2 = i2;
+		}
+		text.clear();
+		AppendJson(text, value, ts_format, date_format);
+		out[i] = StringVector::AddString(result, text);
 	}
 }
 

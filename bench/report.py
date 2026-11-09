@@ -1,7 +1,8 @@
 """Summarize bench/out/*.json as Markdown (printed; --write puts it in docs/PERFORMANCE_RESULTS.md).
 
 usage: python bench/report.py [--write] [--check bench/baseline.json]
-  --check   fail (exit 1) on the catastrophic thresholds: TPC-H geometric mean > 1.5x or any query > 4x,
+  --check   fail (exit 1) on the catastrophic thresholds: TPC-H / TPC-DS / workload geometric mean > 1.5x or any
+            query > 4x,
             a function ratio > 3x its baseline, or parse time for 10,000 items > 20x that of 1,000.
 """
 import argparse
@@ -49,16 +50,19 @@ def func_section(data):
     return out
 
 
-def tpch_section(name, data):
+def tpch_section(name, data, title="TPC-H"):
     rows = data["results"]
-    dialects = [k[:-6] for k in rows[0] if k.endswith("_ratio")] if rows else []
-    head = "| query | native ms | " + " | ".join(f"{d} ms | {d} ratio" for d in dialects) + " |"
-    out = [f"## TPC-H ({name.replace('tpch_', '')}, all threads)", "", head,
+    key = "workload" if rows and "workload" in rows[0] else "query"
+    dialects = sorted({k[:-6] for r in rows for k in r if k.endswith("_ratio")}, reverse=True) if rows else []
+    head = f"| {key} | native ms | " + " | ".join(f"{d} ms | {d} ratio" for d in dialects) + " |"
+    out = [f"## {title} ({name.split('_', 1)[-1] if '_' in name else name}, all threads)", "", head,
            "|---|---:|" + "---:|---:|" * len(dialects)]
     for r in rows:
-        cells = [f"Q{r['query']:02d}", ms(r["native"]["median"])]
+        if "native" not in r:
+            continue
+        cells = [f"Q{r['query']:02d}" if key == "query" else r[key], ms(r["native"]["median"])]
         for d in dialects:
-            if d in r:
+            if d in r and isinstance(r[d], dict):
                 flag = "" if r.get(f"{d}_same_result") else " (result differs)"
                 cells += [ms(r[d]["median"]), f"{r[d + '_ratio']:.2f}x{flag}"]
             else:
@@ -70,6 +74,36 @@ def tpch_section(name, data):
         if g:
             out.append(f"Geometric mean ratio, {d}: **{g:.3f}x**")
     out.append("")
+    return out
+
+
+def latency_section(data):
+    res = data["results"]
+    out = ["## Fixed costs and tiny statements", "",
+           f"`LOAD` of the extension: {res['load_ms']:.1f} ms; first statement after `SET current_dialect`: "
+           f"{res['first_statement_ms']:.1f} ms.", "", "| statement | native µs | spark µs | ratio | spark_strict µs |",
+           "|---|---:|---:|---:|---:|"]
+    for r in res["tiny"]:
+        nat = f"{r['native_us']:.0f}" if r.get("native_us") else "-"
+        ratio = f"{r['spark_us'] / r['native_us']:.2f}x" if r.get("native_us") and "spark_us" in r else "-"
+        sp = f"{r['spark_us']:.0f}" if "spark_us" in r else "error"
+        ss = f"{r['spark_strict_us']:.0f}" if "spark_strict_us" in r else "error"
+        out.append(f"| {r['name']} | {nat} | {sp} | {ratio} | {ss} |")
+    out.append("")
+    return out
+
+
+def threads_section(data):
+    res = data["results"]
+    out = ["## Thread scaling, ANSI mode and memory limits (TPC-H)", "",
+           "| query | threads | native ms | spark ms | ratio |", "|---|---:|---:|---:|---:|"]
+    for r in res["threads"]:
+        out.append(f"| Q{r['query']:02d} | {r['threads']} | {r['native_s'] * 1000:.1f} | {r['spark_s'] * 1000:.1f} | {r['ratio']:.2f}x |")
+    if res.get("ansi"):
+        g = common.geomean([r["ratio"] for r in res["ansi"]])
+        out += ["", f"ANSI mode on / off, geometric mean over {len(res['ansi'])} queries: **{g:.3f}x**."]
+    bad = [m for m in res.get("memory", []) if m["status"] != "ok"]
+    out += ["", f"memory_limit runs: {len(res.get('memory', []))}, not ok: {len(bad)}.", ""]
     return out
 
 
@@ -119,6 +153,18 @@ def check(baseline_path):
                 # docs/PERFORMANCE.md)
                 if (r.get(f"{d}_ratio") or 0) > 4:
                     problems.append(f"{name} Q{r['query']} {d}: ratio {r[d + '_ratio']:.2f} > 4")
+    for name in ("tpcds_sf0.1", "tpcds_sf1", "workloads"):
+        data = load(name)
+        if not data:
+            continue
+        for d in ("spark", "spark_strict"):
+            ratios = [r.get(f"{d}_ratio") for r in data["results"] if r.get(f"{d}_ratio")]
+            g = common.geomean(ratios)
+            if g and g > 1.5:
+                problems.append(f"{name} {d}: geometric mean ratio {g:.2f} > 1.5")
+            for r in data["results"]:
+                if (r.get(f"{d}_ratio") or 0) > 4:
+                    problems.append(f"{name} {r.get('query', r.get('workload'))} {d}: ratio {r[d + '_ratio']:.2f} > 4")
     _, func = first("func_smoke", "func")
     if func and baseline_path and Path(baseline_path).exists():
         base = {r["name"]: r.get("ratio") for r in json.loads(Path(baseline_path).read_text())["func"]}
@@ -136,11 +182,36 @@ def check(baseline_path):
     return problems
 
 
+def history(suite, last, key="ratio"):
+    """Trend table from bench/history/<suite>.jsonl: the last `last` runs per item, oldest first."""
+    path = common.HISTORY_DIR / f"{suite}.jsonl"
+    if not path.exists():
+        return f"no history for {suite}"
+    runs = [json.loads(line) for line in path.read_text().splitlines() if line.strip()][-last:]
+    names = []
+    for r in runs:
+        names += [n for n in r["items"] if n not in names]
+    head = "| item | " + " | ".join(f"{r['commit']} {r['time'][5:16]}" for r in runs) + " | spread |"
+    out = [head, "|---|" + "---:|" * (len(runs) + 1)]
+    for n in names:
+        vals = [r["items"].get(n, {}).get(key) for r in runs]
+        have = [v for v in vals if v]
+        spread = f"{max(have) / min(have):.2f}x" if len(have) > 1 else ""
+        out.append(f"| {n} | " + " | ".join(f"{v:.3f}" if v else "" for v in vals) + f" | {spread} |")
+    return "\n".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--check", default=None)
+    ap.add_argument("--history", metavar="SUITE", help="print the trend of a suite from bench/history/")
+    ap.add_argument("--last", type=int, default=8)
+    ap.add_argument("--key", default="ratio", help="history value: ratio, spark_ratio, spark_ms, ...")
     args = ap.parse_args()
+    if args.history:
+        print(history(args.history, args.last, args.key))
+        return
     lines = ["# Performance results", "", "Generated by `python bench/report.py --write` from `bench/out/*.json`. "
              "See [PERFORMANCE.md](PERFORMANCE.md) for the method and the analysis.", ""]
     machine = None
@@ -159,6 +230,20 @@ def main():
         if d:
             lines += tpch_section(name, d)
             break
+    for name in ("tpcds_sf1", "tpcds_sf0.1"):
+        d = load(name)
+        if d:
+            lines += tpch_section(name, d, "TPC-DS")
+            break
+    d = load("workloads")
+    if d:
+        lines += tpch_section("workloads", d, "Spark-shaped workloads")
+    d = load("latency")
+    if d:
+        lines += latency_section(d)
+    d = load("threads")
+    if d:
+        lines += threads_section(d)
     name, d = first("scaling", "scaling_smoke")
     if d:
         lines += scaling_section(d)

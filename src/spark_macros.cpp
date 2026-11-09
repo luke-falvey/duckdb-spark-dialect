@@ -25,8 +25,8 @@ struct SparkMacro {
 // clang-format off
 const SparkMacro SPARK_MACROS[] = {
     // ---- predicates used by the grammar ----
-    {"like", "(s, p) AS like_escape(" S "as_string(s), " S "check_like_pattern(" S "as_string(p)), '\\'), (s, p, e) AS like_escape(" S "as_string(s), " S "as_string(p), e)"},
-    {"ilike", "(s, p) AS ilike_escape(" S "as_string(s), " S "check_like_pattern(" S "as_string(p)), '\\'), (s, p, e) AS ilike_escape(" S "as_string(s), " S "as_string(p), e)"},
+    {"like", "(s, p) AS like_escape(" S "as_string(s), " S "check_like_pattern(" S "as_string(p)), '\\'), (s, p, e) AS like_escape(" S "as_string(s), " S "as_string(p), CASE WHEN e IS NULL THEN error('[INVALID_ESCAPE] the escape character must be a single-character string literal') ELSE e END)"},
+    {"ilike", "(s, p) AS ilike_escape(" S "as_string(s), " S "check_like_pattern(" S "as_string(p)), '\\'), (s, p, e) AS ilike_escape(" S "as_string(s), " S "as_string(p), CASE WHEN e IS NULL THEN error('[INVALID_ESCAPE] the escape character must be a single-character string literal') ELSE e END)"},
     {"rlike", "(s, p) AS regexp_matches(" S "as_string(s), p)"},
     {"regexp", "(s, p) AS regexp_matches(" S "as_string(s), p)"},
     {"regexp_like", "(s, p) AS regexp_matches(" S "as_string(s), p)"},
@@ -62,8 +62,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"contains", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE contains(" S "as_string(a), " S "as_string(b)) END"},
     {"startswith", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE starts_with(" S "as_string(a), " S "as_string(b)) END"},
     {"endswith", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL ELSE ends_with(" S "as_string(a), " S "as_string(b)) END"},
-    {"encode", "(s, c) AS CASE WHEN c IS NULL THEN NULL ELSE encode(" S "as_string(s)) END"},
-    {"decode", "(b, c) AS decode(" S "as_binary(b))"},
+    {"encode", "(s, c) AS " S "encode_charset(" S "as_string(s), " S "as_string(c))"},
+    {"decode", "(b, c) AS " S "decode_charset(" S "as_binary(b), " S "as_string(c))"},
     {"elt", "(n, l) AS CASE WHEN n >= 1 THEN list_extract(l, n) END"},
     {"find_in_set", "(s, l) AS CASE WHEN s IS NULL OR l IS NULL THEN NULL WHEN contains(s, ',') THEN 0 ELSE coalesce(CAST(list_position(string_split(l, ','), s) AS INTEGER), 0) END"},
     {"format_number", "(x, d) AS " S "format_number_impl(CASE WHEN typeof(x) IN ('FLOAT', 'DOUBLE') THEN " S "double_to_decimal_string(CAST(x AS DOUBLE)) ELSE CAST(x AS VARCHAR) END, d)"},
@@ -104,7 +104,7 @@ const SparkMacro SPARK_MACROS[] = {
     // Java's MIME decoder skips characters outside the base64 alphabet (whitespace, line breaks)
     {"unbase64", "(s) AS from_base64(regexp_replace(" S "as_string(s), '[^A-Za-z0-9+/=]', '', 'g'))"},
     {"base64", "(b) AS to_base64(" S "as_binary(b))"},
-    {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE upper(hex(CAST(x AS BIGINT))) END"},
+    {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE hex(CAST(x AS BIGINT)) END"},
     {"unhex", "(s) AS TRY(unhex(s))"},
     {"parse_url", "(u, p) AS " S "parse_url_impl(u, p), (u, p, k) AS " S "parse_url_impl(u, p, k)"},
     {"crc32", "(b) AS " S "crc32_impl(" S "as_binary(b))"},
@@ -164,8 +164,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"to_timestamp_ntz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
     {"try_to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
     {"date_format", "(t, f) AS " S "format_datetime(" S "as_timestamp(t), f)"},
-    {"from_unixtime", "(t) AS " S "format_datetime(CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP), 'yyyy-MM-dd HH:mm:ss'), "
-                      "(t, f) AS " S "format_datetime(CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP), f)"},
+    {"from_unixtime", "(t) AS " S "format_datetime(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wrap(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
+                      "(t, f) AS " S "format_datetime(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wrap(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
     {"unix_timestamp", "() AS CAST(floor(epoch(now())) AS BIGINT), "
                        "(t) AS CAST(floor(epoch(CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END)) AS BIGINT), "
                        "(t, f) AS CAST(floor(epoch(CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), f) ELSE " S "as_timestamp(t) END)) AS BIGINT)"},
@@ -254,7 +254,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"window_time", "(w) AS w['end'] - INTERVAL 1 MICROSECOND"},
 
     // ---- collections ----
-    {"array_contains", "(a, v) AS CASE WHEN a IS NULL OR v IS NULL THEN NULL WHEN list_contains(a, v) THEN true WHEN list_count(a) < len(a) THEN NULL ELSE false END"},
+    {"array_contains", "(a, v) AS CASE WHEN a IS NULL OR v IS NULL THEN NULL WHEN list_contains(a, v) THEN true WHEN " S "list_has_null(a) THEN NULL ELSE false END"},
     {"array_append", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_append(a, v) END"},
     {"array_prepend", "(a, v) AS CASE WHEN a IS NULL THEN NULL ELSE list_prepend(v, a) END"},
     {"array_compact", "(a) AS list_filter(a, lambda x: x IS NOT NULL)"},

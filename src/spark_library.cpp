@@ -224,8 +224,58 @@ CachedRegex &CompileRegex(const string &pattern) {
 		cached.re2 = make_uniq<duckdb_re2::RE2>(pattern, options);
 		cached.fallback.reset();
 		if (!cached.re2->ok()) {
+			// std::regex only for the Java syntax RE2 lacks (lookaround, backreferences); a pattern RE2 rejects
+			// for any other reason is invalid in Java too, and Spark raises
+			bool java_only = pattern.find("(?=") != string::npos || pattern.find("(?!") != string::npos ||
+			                 pattern.find("(?<=") != string::npos || pattern.find("(?<!") != string::npos ||
+			                 pattern.find("(?>") != string::npos;
+			for (size_t i = 0; i + 1 < pattern.size() && !java_only; i++) {
+				if (pattern[i] == '\\') {
+					java_only = pattern[i + 1] >= '1' && pattern[i + 1] <= '9';
+					i++;
+				}
+			}
+			auto message = cached.re2->error();
+			auto failed = cached.re2->error_arg();
+			cached.pattern.clear();
 			cached.re2.reset();
+			if (!java_only) {
+				throw InvalidInputException("%s near `%s` in the regular expression '%s'", message, failed, pattern);
+			}
+			cached.pattern = pattern;
 			cached.fallback = make_uniq<std::regex>(pattern);
+		}
+		// Java rejects a '{' that does not start a quantifier ("Illegal repetition"); RE2 takes it literally
+		if (cached.re2) {
+			bool in_class = false;
+			for (size_t i = 0; i < pattern.size(); i++) {
+				char c = pattern[i];
+				if (c == '\\') {
+					i++;
+				} else if (in_class) {
+					in_class = c != ']';
+				} else if (c == '[') {
+					in_class = true;
+				} else if (c == '{') {
+					size_t j = i + 1;
+					while (j < pattern.size() && isdigit(static_cast<unsigned char>(pattern[j]))) {
+						j++;
+					}
+					bool ok = j > i + 1;
+					if (ok && j < pattern.size() && pattern[j] == ',') {
+						j++;
+						while (j < pattern.size() && isdigit(static_cast<unsigned char>(pattern[j]))) {
+							j++;
+						}
+					}
+					if (!ok || j >= pattern.size() || pattern[j] != '}') {
+						cached.pattern.clear();
+						cached.re2.reset();
+						throw InvalidInputException("Illegal repetition near index %llu in the regular expression '%s'",
+						                            (unsigned long long)i, pattern);
+					}
+				}
+			}
 		}
 	}
 	return cached;
@@ -234,34 +284,55 @@ CachedRegex &CompileRegex(const string &pattern) {
 //! Calls on_match(position, length) for successive matches, like java.util.regex.Matcher.find(): after an empty
 //! match the search resumes one code point later. Stops when on_match returns false.
 template <class ON_MATCH>
-void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_match) {
+void FindRegexMatches(const string &pattern, const char *data, size_t size, ON_MATCH on_match) {
 	// a pattern without regex metacharacters (split(s, ','), the common case) is a plain substring search
 	if (!pattern.empty() && pattern.find_first_of("\\^$.|?*+()[]{}") == string::npos) {
+		const size_t plen = pattern.size();
 		size_t pos = 0;
-		while ((pos = str.find(pattern, pos)) != string::npos) {
-			if (!on_match(idx_t(pos), idx_t(pattern.size()))) {
+		if (plen == 1) {
+			const char c = pattern[0];
+			while (pos < size) {
+				auto hit = static_cast<const char *>(memchr(data + pos, c, size - pos));
+				if (!hit) {
+					return;
+				}
+				pos = size_t(hit - data);
+				if (!on_match(idx_t(pos), idx_t(1))) {
+					return;
+				}
+				pos++;
+			}
+			return;
+		}
+		while (pos + plen <= size) {
+			auto hit = static_cast<const char *>(memmem(data + pos, size - pos, pattern.data(), plen));
+			if (!hit) {
 				return;
 			}
-			pos += pattern.size();
+			pos = size_t(hit - data);
+			if (!on_match(idx_t(pos), idx_t(plen))) {
+				return;
+			}
+			pos += plen;
 		}
 		return;
 	}
 	auto &regex = CompileRegex(pattern);
 	if (regex.re2) {
-		duckdb_re2::StringPiece input(str);
+		duckdb_re2::StringPiece input(data, size);
 		duckdb_re2::StringPiece match;
 		size_t pos = 0;
-		while (pos <= str.size()) {
-			if (!regex.re2->Match(input, pos, str.size(), duckdb_re2::RE2::UNANCHORED, &match, 1)) {
+		while (pos <= size) {
+			if (!regex.re2->Match(input, pos, size, duckdb_re2::RE2::UNANCHORED, &match, 1)) {
 				return;
 			}
-			auto start = size_t(match.data() - str.data());
+			auto start = size_t(match.data() - data);
 			if (!on_match(idx_t(start), idx_t(match.size()))) {
 				return;
 			}
 			if (match.empty()) {
 				pos = start + 1;
-				while (pos < str.size() && (static_cast<unsigned char>(str[pos]) & 0xC0) == 0x80) {
+				while (pos < size && (static_cast<unsigned char>(data[pos]) & 0xC0) == 0x80) {
 					pos++;
 				}
 			} else {
@@ -270,14 +341,15 @@ void FindRegexMatches(const string &pattern, const string &str, ON_MATCH on_matc
 		}
 		return;
 	}
-	for (auto it = std::sregex_iterator(str.begin(), str.end(), *regex.fallback); it != std::sregex_iterator(); ++it) {
+	for (auto it = std::cregex_iterator(data, data + size, *regex.fallback); it != std::cregex_iterator(); ++it) {
 		if (!on_match(idx_t(it->position()), idx_t(it->length()))) {
 			return;
 		}
 	}
 }
 
-//! split(str, regex, limit) with java.lang.String.split semantics (limit <= 0: no limit, trailing empty kept)
+//! split(str, regex, limit) with java.lang.String.split semantics (limit <= 0: no limit, trailing empty kept).
+//! Parts are written straight into the list child (no per-row allocations); the list child grows geometrically.
 void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	auto count = args.size();
 	UnifiedVectorFormat f0, f1, f2;
@@ -286,68 +358,282 @@ void SplitKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	args.data[2].ToUnifiedFormat(f2);
 	result.SetVectorType(VectorType::FLAT_VECTOR);
 	auto entries = FlatVector::GetDataMutable<list_entry_t>(result);
-	idx_t total = 0;
-	vector<vector<string>> rows(count);
-	vector<bool> valid(count, true);
+	auto &child = ListVector::GetChildMutable(result);
+	idx_t capacity = ListVector::GetListCapacity(result);
+	idx_t offset = 0;
+	string_t *child_data = nullptr;
+	auto push = [&](const char *ptr, idx_t len) {
+		if (offset >= capacity || !child_data) {
+			ListVector::Reserve(result, MaxValue<idx_t>(offset + 1, capacity * 2 + 64));
+			capacity = ListVector::GetListCapacity(result);
+			child_data = FlatVector::GetDataMutable<string_t>(child);
+		}
+		child_data[offset++] = StringVector::AddString(child, ptr, len);
+	};
 	for (idx_t i = 0; i < count; i++) {
 		auto i0 = f0.sel->get_index(i), i1 = f1.sel->get_index(i), i2 = f2.sel->get_index(i);
 		if (!f0.validity.RowIsValid(i0) || !f1.validity.RowIsValid(i1) || !f2.validity.RowIsValid(i2)) {
-			valid[i] = false;
-			continue;
-		}
-		auto str = UnifiedVectorFormat::GetData<string_t>(f0)[i0].GetString();
-		auto pattern = UnifiedVectorFormat::GetData<string_t>(f1)[i1].GetString();
-		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
-		auto &parts = rows[i];
-		if (pattern.empty()) {
-			// split into characters (code points, not bytes); Spark keeps a trailing empty string only with limit
-			for (idx_t k = 0; k < str.size();) {
-				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
-					parts.push_back(str.substr(k));
-					break;
-				}
-				idx_t next = k + 1;
-				while (next < str.size() && (static_cast<unsigned char>(str[next]) & 0xC0) == 0x80) {
-					next++;
-				}
-				parts.push_back(str.substr(k, next - k));
-				k = next;
-			}
-			if (str.empty()) {
-				parts.push_back("");
-			}
-		} else {
-			idx_t last = 0;
-			FindRegexMatches(pattern, str, [&](idx_t pos, idx_t len) {
-				if (limit > 0 && parts.size() + 1 == idx_t(limit)) {
-					return false;
-				}
-				if (!(len == 0 && pos == 0)) {
-					parts.push_back(str.substr(last, pos - last));
-					last = pos + len;
-				}
-				return true;
-			});
-			parts.push_back(str.substr(last));
-		}
-		total += parts.size();
-	}
-	ListVector::Reserve(result, total);
-	auto &child = ListVector::GetChildMutable(result);
-	auto child_data = FlatVector::GetDataMutable<string_t>(child);
-	idx_t offset = 0;
-	for (idx_t i = 0; i < count; i++) {
-		if (!valid[i]) {
 			FlatVector::ValidityMutable(result).SetInvalid(i);
 			entries[i] = list_entry_t(offset, 0);
 			continue;
 		}
-		entries[i] = list_entry_t(offset, rows[i].size());
-		for (auto &part : rows[i]) {
-			child_data[offset++] = StringVector::AddString(child, part);
+		auto &sv = UnifiedVectorFormat::GetData<string_t>(f0)[i0];
+		const char *str = sv.GetData();
+		const idx_t size = sv.GetSize();
+		auto pattern = UnifiedVectorFormat::GetData<string_t>(f1)[i1].GetString();
+		auto limit = UnifiedVectorFormat::GetData<int32_t>(f2)[i2];
+		const idx_t start_offset = offset;
+		if (pattern.empty()) {
+			// split into characters (code points, not bytes)
+			for (idx_t k = 0; k < size;) {
+				if (limit > 0 && offset - start_offset == idx_t(limit)) {
+					// Spark keeps only the first `limit` characters for an empty pattern (no remainder)
+					break;
+				}
+				idx_t next = k + 1;
+				while (next < size && (static_cast<unsigned char>(str[next]) & 0xC0) == 0x80) {
+					next++;
+				}
+				push(str + k, next - k);
+				k = next;
+			}
+			if (size == 0) {
+				push("", 0);
+			}
+		} else {
+			idx_t last = 0;
+			FindRegexMatches(pattern, str, size, [&](idx_t pos, idx_t len) {
+				if (limit > 0 && offset - start_offset + 1 == idx_t(limit)) {
+					return false;
+				}
+				if (!(len == 0 && pos == 0)) {
+					push(str + last, pos - last);
+					last = pos + len;
+				}
+				return true;
+			});
+			push(str + last, size - last);
+		}
+		entries[i] = list_entry_t(start_offset, offset - start_offset);
+	}
+	ListVector::SetListSize(result, offset);
+	if (args.AllConstant()) {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+	}
+}
+
+//! Java charsets Spark's encode / decode accept in practice
+enum class Charset { UTF8, ASCII, LATIN1, UTF16, UTF16BE, UTF16LE, UTF32, UTF32BE, UTF32LE };
+
+Charset ParseCharset(const string &name_p, const char *function) {
+	auto name = StringUtil::Upper(name_p);
+	if (name == "UTF-8" || name == "UTF8") {
+		return Charset::UTF8;
+	}
+	if (name == "US-ASCII" || name == "ASCII") {
+		return Charset::ASCII;
+	}
+	if (name == "ISO-8859-1" || name == "ISO_8859_1" || name == "LATIN1") {
+		return Charset::LATIN1;
+	}
+	if (name == "UTF-16") {
+		return Charset::UTF16;
+	}
+	if (name == "UTF-16BE") {
+		return Charset::UTF16BE;
+	}
+	if (name == "UTF-16LE") {
+		return Charset::UTF16LE;
+	}
+	if (name == "UTF-32") {
+		return Charset::UTF32;
+	}
+	if (name == "UTF-32BE") {
+		return Charset::UTF32BE;
+	}
+	if (name == "UTF-32LE") {
+		return Charset::UTF32LE;
+	}
+	throw InvalidInputException("[INVALID_PARAMETER_VALUE.CHARSET] The value of parameter(s) `charset` in `%s` is invalid: "
+	                            "expects one of the charsets 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', "
+	                            "'UTF-16', 'UTF-32', but got %s.",
+	                            function, name_p);
+}
+
+void AppendUnits(string &out, uint32_t value, int width, bool big_endian) {
+	for (int i = 0; i < width; i++) {
+		int shift = 8 * (big_endian ? width - 1 - i : i);
+		out.push_back(char((value >> shift) & 0xFF));
+	}
+}
+
+//! encode(str, charset): unmappable characters become '?' like java.lang.String.getBytes
+string EncodeCharset(const string &str, Charset charset) {
+	if (charset == Charset::UTF8) {
+		return str;
+	}
+	string out;
+	if (charset == Charset::UTF16) {
+		out += "\xFE\xFF";
+	}
+	for (auto cp : CodePoints(str)) {
+		switch (charset) {
+		case Charset::ASCII:
+			out.push_back(cp < 0x80 ? char(cp) : '?');
+			break;
+		case Charset::LATIN1:
+			out.push_back(cp < 0x100 ? char(cp) : '?');
+			break;
+		case Charset::UTF16:
+		case Charset::UTF16BE:
+		case Charset::UTF16LE: {
+			bool big = charset != Charset::UTF16LE;
+			if (cp >= 0x10000) {
+				auto v = uint32_t(cp) - 0x10000;
+				AppendUnits(out, 0xD800 + (v >> 10), 2, big);
+				AppendUnits(out, 0xDC00 + (v & 0x3FF), 2, big);
+			} else {
+				AppendUnits(out, uint32_t(cp), 2, big);
+			}
+			break;
+		}
+		default:
+			AppendUnits(out, uint32_t(cp), 4, charset != Charset::UTF32LE);
+			break;
 		}
 	}
-	ListVector::SetListSize(result, total);
+	return out;
+}
+
+//! decode(bin, charset): malformed input becomes U+FFFD like java.lang.String(byte[], charset)
+string DecodeCharset(const string &bytes, Charset charset) {
+	string out;
+	auto data = reinterpret_cast<const unsigned char *>(bytes.data());
+	size_t n = bytes.size();
+	switch (charset) {
+	case Charset::UTF8: {
+		size_t pos = 0;
+		while (pos < n) {
+			utf8proc_int32_t cp;
+			auto len = utf8proc_iterate(reinterpret_cast<const utf8proc_uint8_t *>(data) + pos, utf8proc_ssize_t(n - pos), &cp);
+			if (len <= 0) {
+				AppendCodePoint(out, 0xFFFD);
+				pos++;
+			} else {
+				out.append(bytes, pos, size_t(len));
+				pos += size_t(len);
+			}
+		}
+		return out;
+	}
+	case Charset::ASCII:
+		for (size_t i = 0; i < n; i++) {
+			if (data[i] < 0x80) {
+				out.push_back(char(data[i]));
+			} else {
+				AppendCodePoint(out, 0xFFFD);
+			}
+		}
+		return out;
+	case Charset::LATIN1:
+		for (size_t i = 0; i < n; i++) {
+			AppendCodePoint(out, data[i]);
+		}
+		return out;
+	case Charset::UTF16:
+	case Charset::UTF16BE:
+	case Charset::UTF16LE: {
+		bool big = charset != Charset::UTF16LE;
+		size_t pos = 0;
+		if (charset == Charset::UTF16 && n >= 2) {
+			if (data[0] == 0xFE && data[1] == 0xFF) {
+				pos = 2;
+			} else if (data[0] == 0xFF && data[1] == 0xFE) {
+				pos = 2;
+				big = false;
+			}
+		}
+		auto unit = [&](size_t at) { return uint32_t(big ? (data[at] << 8) | data[at + 1] : (data[at + 1] << 8) | data[at]); };
+		while (pos + 1 < n) {
+			auto u = unit(pos);
+			pos += 2;
+			if (u >= 0xD800 && u < 0xDC00 && pos + 1 < n && unit(pos) >= 0xDC00 && unit(pos) < 0xE000) {
+				u = 0x10000 + ((u - 0xD800) << 10) + (unit(pos) - 0xDC00);
+				pos += 2;
+			} else if (u >= 0xD800 && u < 0xE000) {
+				u = 0xFFFD;
+			}
+			AppendCodePoint(out, int32_t(u));
+		}
+		if (pos < n) {
+			AppendCodePoint(out, 0xFFFD);
+		}
+		return out;
+	}
+	default: {
+		bool big = charset != Charset::UTF32LE;
+		size_t pos = 0;
+		for (; pos + 3 < n; pos += 4) {
+			uint32_t u = big ? (uint32_t(data[pos]) << 24) | (data[pos + 1] << 16) | (data[pos + 2] << 8) | data[pos + 3]
+			                 : (uint32_t(data[pos + 3]) << 24) | (data[pos + 2] << 16) | (data[pos + 1] << 8) | data[pos];
+			AppendCodePoint(out, (u > 0x10FFFF || (u >= 0xD800 && u < 0xE000)) ? 0xFFFD : int32_t(u));
+		}
+		if (pos < n) {
+			AppendCodePoint(out, 0xFFFD);
+		}
+		return out;
+	}
+	}
+}
+
+void EncodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<string_t, string_t, string_t>(
+	    args.data[0], args.data[1], result, args.size(), [&](string_t s, string_t c) {
+		    return StringVector::AddStringOrBlob(result, EncodeCharset(s.GetString(), ParseCharset(c.GetString(), "encode")));
+	    });
+}
+
+void DecodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<string_t, string_t, string_t>(
+	    args.data[0], args.data[1], result, args.size(), [&](string_t b, string_t c) {
+		    return StringVector::AddString(result, DecodeCharset(b.GetString(), ParseCharset(c.GetString(), "decode")));
+	    });
+}
+
+//! from_unixtime(long): seconds * 1,000,000 with Java's wrapping long arithmetic
+void EpochSecondsWrapKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<int64_t, timestamp_t>(args.data[0], result, args.size(), [](int64_t seconds) {
+		return timestamp_t(int64_t(uint64_t(seconds) * uint64_t(1000000)));
+	});
+}
+
+//! Does a list contain a NULL element? (array_contains's NULL result when the value is not found)
+void ListHasNullKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	auto &input = args.data[0];
+	UnifiedVectorFormat format;
+	input.ToUnifiedFormat(format);
+	auto entries = UnifiedVectorFormat::GetData<list_entry_t>(format);
+	auto &child = ListVector::GetChild(input);
+	UnifiedVectorFormat child_format;
+	child.ToUnifiedFormat(child_format);
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	auto out = FlatVector::GetDataMutable<bool>(result);
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto idx = format.sel->get_index(i);
+		if (!format.validity.RowIsValid(idx)) {
+			FlatVector::ValidityMutable(result).SetInvalid(i);
+			continue;
+		}
+		bool has_null = false;
+		if (!child_format.validity.CanHaveNull()) {
+			out[i] = false;
+			continue;
+		}
+		for (idx_t k = entries[idx].offset; k < entries[idx].offset + entries[idx].length && !has_null; k++) {
+			has_null = !child_format.validity.RowIsValid(child_format.sel->get_index(k));
+		}
+		out[i] = has_null;
+	}
 	if (args.AllConstant()) {
 		result.SetVectorType(VectorType::CONSTANT_VECTOR);
 	}
@@ -1137,11 +1423,17 @@ void UrlEncodeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 }
 
 void RegisterSparkLibrary(ExtensionLoader &loader) {
+	// only kernels that can raise are declared fallible (DuckDB then keeps them from being pushed below joins and into
+	// aggregates); the others are registered plainly: split (invalid regex), encode / decode (unknown charset),
+	// check_like_pattern (invalid escape)
 	auto reg = [&](ScalarFunction fn) {
+		loader.RegisterFunction(std::move(fn));
+	};
+	auto reg_fallible = [&](ScalarFunction fn) {
 		RegisterFallible(loader, std::move(fn));
 	};
 	RegisterSparkStringKernels(loader);
-	reg(ScalarFunction(Identifier("check_like_pattern"), {LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	reg_fallible(ScalarFunction(Identifier("check_like_pattern"), {LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                   CheckLikePatternKernel));
 	reg(ScalarFunction(Identifier("initcap"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, InitCapKernel));
 	reg(ScalarFunction(Identifier("soundex"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, SoundexKernel));
@@ -1154,7 +1446,7 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 		mask.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(mask);
 	}
-	reg(ScalarFunction(Identifier("split_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::INTEGER},
+	reg_fallible(ScalarFunction(Identifier("split_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::INTEGER},
 	                   LogicalType::LIST(LogicalType::VARCHAR), SplitKernel));
 	reg(ScalarFunction(Identifier("conv_impl"), {LogicalType::VARCHAR, LogicalType::INTEGER, LogicalType::INTEGER},
 	                   LogicalType::VARCHAR, ConvKernel));
@@ -1183,6 +1475,14 @@ void RegisterSparkLibrary(ExtensionLoader &loader) {
 		ws.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 		reg(ws);
 	}
+	reg_fallible(ScalarFunction(Identifier("encode_charset"), {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BLOB,
+	                   EncodeKernel));
+	reg_fallible(ScalarFunction(Identifier("decode_charset"), {LogicalType::BLOB, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                   DecodeKernel));
+	reg(ScalarFunction(Identifier("epoch_seconds_wrap"), {LogicalType::BIGINT}, LogicalType::TIMESTAMP,
+	                   EpochSecondsWrapKernel));
+	reg(ScalarFunction(Identifier("list_has_null"), {LogicalType::LIST(LogicalType::ANY)}, LogicalType::BOOLEAN,
+	                   ListHasNullKernel));
 	reg(ScalarFunction(Identifier("url_encode"), {LogicalType::VARCHAR}, LogicalType::VARCHAR, UrlEncodeKernel));
 	reg(ScalarFunction(Identifier("levenshtein_impl"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                   LogicalType::INTEGER, LevenshteinKernel));
@@ -1482,29 +1782,6 @@ vector<string> Units(const string &s, bool binary) {
 	return units;
 }
 
-string SparkPad(const string &s, int64_t length, const string &pad, bool left, bool binary) {
-	auto units = Units(s, binary);
-	if (length <= 0) {
-		return "";
-	}
-	if (int64_t(units.size()) >= length) {
-		string out;
-		for (int64_t i = 0; i < length; i++) {
-			out += units[i];
-		}
-		return out;
-	}
-	auto pad_units = Units(pad, binary);
-	if (pad_units.empty()) {
-		return s;
-	}
-	string fill;
-	for (int64_t i = 0; i < length - int64_t(units.size()); i++) {
-		fill += pad_units[i % pad_units.size()];
-	}
-	return left ? fill + s : s + fill;
-}
-
 //! Byte offset of code point `index` (UTF-8 lead bytes are those that are not 10xxxxxx)
 idx_t CodePointOffset(const char *data, idx_t size, int64_t index) {
 	idx_t offset = 0;
@@ -1520,6 +1797,55 @@ idx_t CodePointOffset(const char *data, idx_t size, int64_t index) {
 	return size;
 }
 
+//! Number of units (characters, or bytes for binary) of a value
+inline int64_t UnitCount(const char *data, idx_t size, bool binary) {
+	if (binary) {
+		return int64_t(size);
+	}
+	int64_t continuation = 0;
+	for (idx_t i = 0; i < size; i++) {
+		continuation += (static_cast<unsigned char>(data[i]) & 0xC0) == 0x80;
+	}
+	return int64_t(size) - continuation;
+}
+
+//! lpad / rpad into `out` (cleared first) without per-character allocations
+void SparkPad(string &out, string_t s_in, int64_t length, string_t pad_in, bool left, bool binary) {
+	out.clear();
+	if (length <= 0) {
+		return;
+	}
+	const char *s = s_in.GetData();
+	const idx_t n = s_in.GetSize();
+	const char *pad = pad_in.GetData();
+	const idx_t pn = pad_in.GetSize();
+	int64_t units = UnitCount(s, n, binary);
+	if (units >= length) {
+		idx_t end = binary ? idx_t(length) : CodePointOffset(s, n, length);
+		out.append(s, end);
+		return;
+	}
+	int64_t pad_units = UnitCount(pad, pn, binary);
+	if (pad_units == 0) {
+		out.append(s, n);
+		return;
+	}
+	int64_t need = length - units;
+	if (!left) {
+		out.append(s, n);
+	}
+	for (int64_t whole = need / pad_units; whole > 0; whole--) {
+		out.append(pad, pn);
+	}
+	int64_t rest = need % pad_units;
+	if (rest > 0) {
+		out.append(pad, binary ? idx_t(rest) : CodePointOffset(pad, pn, rest));
+	}
+	if (left) {
+		out.append(s, n);
+	}
+}
+
 //! UTF8String.substringSQL without copying characters: the result is a byte range of the input
 template <bool BINARY>
 void SubstrKernel(DataChunk &args, ExpressionState &, Vector &result) {
@@ -1527,6 +1853,21 @@ void SubstrKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, int64_t pos, int64_t len) {
 		    auto data = s.GetData();
 		    auto size = s.GetSize();
+		    constexpr int64_t SAFE = int64_t(1) << 62;
+		    if (pos >= 1 && pos <= SAFE && len >= 0 && len <= SAFE) {
+			    // common case: positive start, bounded length. Only the prefix up to the end position is scanned,
+			    // and no 128-bit arithmetic is needed (the clamping to the string is done by the offset search)
+			    int64_t start = pos - 1;
+			    idx_t from, to;
+			    if (BINARY) {
+				    from = idx_t(MinValue<int64_t>(start, int64_t(size)));
+				    to = idx_t(MinValue<int64_t>(start + len, int64_t(size)));
+			    } else {
+				    from = CodePointOffset(data, size, start);
+				    to = from + CodePointOffset(data + from, size - from, len);
+			    }
+			    return StringVector::AddStringOrBlob(result, string_t(data + from, UnsafeNumericCast<uint32_t>(to - from)));
+		    }
 		    bool bytes = BINARY;
 		    int64_t n = int64_t(size);
 		    if (!BINARY) {
@@ -1556,7 +1897,9 @@ template <bool BINARY, bool LEFT>
 void PadKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	TernaryExecutor::Execute<string_t, int64_t, string_t, string_t>(
 	    args.data[0], args.data[1], args.data[2], result, args.size(), [&](string_t s, int64_t len, string_t pad) {
-		    return StringVector::AddStringOrBlob(result, SparkPad(s.GetString(), len, pad.GetString(), LEFT, BINARY));
+		    static thread_local string out;
+		    SparkPad(out, s, len, pad, LEFT, BINARY);
+		    return StringVector::AddStringOrBlob(result, out);
 	    });
 }
 
