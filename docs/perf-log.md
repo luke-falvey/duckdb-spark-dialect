@@ -6,11 +6,40 @@ One entry per action, newest last: date, branch and commit, what was measured or
 
 ## Summary (updated at the end of the work)
 
-(not finished yet)
+State at the last `src/` change (all numbers: Spark dialect / native DuckDB, same data; details in
+[PERFORMANCE.md](PERFORMANCE.md) and [PERFORMANCE_RESULTS.md](PERFORMANCE_RESULTS.md)):
+
+| target (plan) | result | met |
+|---|---|---|
+| TPC-H SF1 geomean <= 1.10x | 1.095x (`spark_strict` 1.083x) | yes (borderline) |
+| TPC-H worst <= 1.5x, Q01 <= 2.0x | Q01 2.0x - 2.5x, Q10 1.58x, rest <= 1.31x | no: Q01 (128-bit decimal sums, explained), Q10 |
+| TPC-DS (new) | geomean 1.104x, all 99 queries run in both dialects, worst Q02 1.85x | - |
+| parsing <= 2.0x | 3.3x (about +100 us per statement; no reordering reaches 2x) | no |
+| 104-pair geomean <= 1.15x | 1.189x; 19 pairs above 1.5x | no |
+| correctness | no new failures in run_duckdb (both dialects), replay (+known), differential, isolation | yes |
+
+What changed the numbers: state export for `spark_sum` / `spark_avg` (TPC-DS Q22 3.35x -> 1.11x, Q36, Q67, Q74, Q04,
+Q11), the LIKE binding (TPC-H Q13), direct decimal kernels (Q01, `mul_decimal`), `format_string` 11x, `to_json`
+10x, `date_format` 1.9x, `split` 2x, `substr` 1.4x, `hex` 2.3x. One correctness bug found by the new workloads and
+fixed: `explode(x) AS name` lost its alias. Unmet or open items are in [perf-backlog.md](perf-backlog.md): 8 (rest of
+the small kernels: `array_contains`, `size`, `floor`, `lpad`, casts, `add_decimal_wide`), 9 (parsing), 11 (audit of
+fallible kernels, partly), 12 (correctness findings, listed there), 14 (tiny-statement latency). Not run: SF10, a
+TPC-DS comparison against Spark's own result sets.
+
+Method notes that mattered: results of single runs are good to about +-10% (TPC-H +-15%), so every change was decided
+with interleaved `bench/ab.py` and a bootstrap interval; the persisted benchmark tables must not hold low-cardinality
+columns (dictionary compression made native DuckDB evaluate on the dictionary); `SPARK_EXTENSION` must point at
+the build under test for every `test/` runner (a run without it silently tests an older build).
 
 ## Branches pushed
 
-- `perf/tooling` (phase A)
+All work is stacked on one branch; the phase branches the plan names were not split out. Nothing is merged into main
+and no PR is open.
+
+- `perf/tooling` (phase A: A/B, profiler, history, noise-aware timing)
+- `perf/opt-decimal-sum` (contains perf/tooling; phase C optimizations, phase B coverage tooling: TPC-DS, workloads,
+  latency, threads / ANSI / memory runners, phase D: CI smoke additions, nightly, report.py, baseline refresh,
+  PERFORMANCE.md / PERFORMANCE_RESULTS.md, this summary)
 
 ## Entries
 
