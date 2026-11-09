@@ -157,3 +157,13 @@ prefixes); everything else (maps, lists, dates, timestamps, decimals, nested) ke
 limitations.sql (escapes, control chars, unicode, NULL fields, NULL struct, all integer widths, boolean) from Spark.
 Checks: run_duckdb both dialects, replay (+known), differential seed 1, args_sweep to_json: 2 findings identical
 before and after (empty field name; item 12).
+
+## decimal multiply: direct integer product when the exact result fits (p1 + p2 + 1 <= 38)
+Before, `d * d` cast the left operand to DECIMAL(wide) and went through DuckDB's `*` plus the rescale kernel
+(SparkDecimalResult). When Spark's result precision is <= 38 the product of the stored integers is already exact
+(no rounding, no overflow), so a kernel `spark_decimal_multiply_exact<A, B, OUT>` multiplies the physical integers
+(64x64 -> 128 bit when neither operand is 128-bit) and writes the result type directly; also skips the ANSI null
+check wrapper (it cannot trigger). A/B mul_decimal: 9.20 -> 3.77 ms (0.409 [0.388, 0.421]); TPC-H Q01
+85.9 -> 77.5 ms (0.903 [0.799, 0.980]), Q14 0.906; Q09/Q10/Q19 no change. Seven new golden cases in
+limitations.sql (precision/scale mixes, int16..int128 storage, integer operands, NULLs, negatives, max values).
+Checks: run_duckdb both dialects (ANSI cases included), replay (+known), differential seed 1, isolation clean.

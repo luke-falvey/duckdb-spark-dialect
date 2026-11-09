@@ -1536,6 +1536,8 @@ LogicalType DecimalOperandType(const Expression &expr, const LogicalType &type) 
 
 ExprP SparkDecimalResult(Builder &b, ExprP value, const LogicalType &target);
 ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int s2, const LogicalType &target);
+ExprP SparkExactDecimalMultiply(Builder &b, ExprP left, const LogicalType &lt, ExprP right, const LogicalType &rt,
+                                const LogicalType &target);
 
 template <class OP, class CHECKED_OP, bool CHECKED>
 ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
@@ -1612,6 +1614,10 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 		};
 		ExprP value;
 		if (op == "*") {
+			if (precision <= 38) {
+				// the exact product fits Spark's result type: multiply the stored integers directly
+				return SparkExactDecimalMultiply(b, std::move(left), ld, std::move(right), rd, result_type);
+			}
 			if (p1 + p2 <= 38) {
 				auto wide_left = LogicalType::DECIMAL(uint8_t(MinValue(38, MaxValue(p1, 38 - p2))), uint8_t(s1));
 				value = b.Op("*", b.Cast(std::move(left), wide_left), b.Cast(std::move(right), rd));
@@ -1790,6 +1796,84 @@ ExprP SparkWideDecimalMultiply(Builder &b, ExprP left, int s1, ExprP right, int 
 	auto lt = LogicalType::DECIMAL(38, uint8_t(s1));
 	auto rt = LogicalType::DECIMAL(38, uint8_t(s2));
 	return b.Kernel(ScalarFunction(Identifier("spark_decimal_multiply"), {lt, rt}, target, fn),
+	                b.Cast(std::move(left), lt), b.Cast(std::move(right), rt));
+}
+
+template <class OUT, class A, class B>
+inline typename std::enable_if<std::is_same<OUT, hugeint_t>::value && (std::is_same<A, hugeint_t>::value || std::is_same<B, hugeint_t>::value), OUT>::type
+ExactProduct(A a, B b) {
+	return hugeint_t(a) * hugeint_t(b);
+}
+
+template <class OUT, class A, class B>
+inline typename std::enable_if<std::is_same<OUT, hugeint_t>::value && !(std::is_same<A, hugeint_t>::value || std::is_same<B, hugeint_t>::value), OUT>::type
+ExactProduct(A a, B b) {
+	__int128 p = static_cast<__int128>(int64_t(a)) * static_cast<__int128>(int64_t(b));
+	hugeint_t r;
+	r.lower = uint64_t(p);
+	r.upper = int64_t(p >> 64);
+	return r;
+}
+
+template <class OUT, class A, class B>
+inline typename std::enable_if<!std::is_same<OUT, hugeint_t>::value, OUT>::type ExactProduct(A a, B b) {
+	return OUT(int64_t(a) * int64_t(b));
+}
+
+//! Decimal multiplication whose exact result fits the result type (p1 + p2 + 1 <= 38): no rounding and no overflow
+//! are possible, so the product of the stored integers is the answer.
+template <class A, class B, class OUT>
+void ExactDecimalMultiplyKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	BinaryExecutor::Execute<A, B, OUT>(args.data[0], args.data[1], result, args.size(),
+	                                   [](A a, B b) -> OUT { return ExactProduct<OUT, A, B>(a, b); });
+}
+
+template <class A, class B>
+scalar_function_t ExactMultiplyFor(PhysicalType out) {
+	switch (out) {
+	case PhysicalType::INT16:
+		return ExactDecimalMultiplyKernel<A, B, int16_t>;
+	case PhysicalType::INT32:
+		return ExactDecimalMultiplyKernel<A, B, int32_t>;
+	case PhysicalType::INT64:
+		return ExactDecimalMultiplyKernel<A, B, int64_t>;
+	default:
+		return ExactDecimalMultiplyKernel<A, B, hugeint_t>;
+	}
+}
+
+template <class A>
+scalar_function_t ExactMultiplyFor(PhysicalType right, PhysicalType out) {
+	switch (right) {
+	case PhysicalType::INT16:
+		return ExactMultiplyFor<A, int16_t>(out);
+	case PhysicalType::INT32:
+		return ExactMultiplyFor<A, int32_t>(out);
+	case PhysicalType::INT64:
+		return ExactMultiplyFor<A, int64_t>(out);
+	default:
+		return ExactMultiplyFor<A, hugeint_t>(out);
+	}
+}
+
+ExprP SparkExactDecimalMultiply(Builder &b, ExprP left, const LogicalType &lt, ExprP right, const LogicalType &rt,
+                                const LogicalType &target) {
+	scalar_function_t fn;
+	switch (lt.InternalType()) {
+	case PhysicalType::INT16:
+		fn = ExactMultiplyFor<int16_t>(rt.InternalType(), target.InternalType());
+		break;
+	case PhysicalType::INT32:
+		fn = ExactMultiplyFor<int32_t>(rt.InternalType(), target.InternalType());
+		break;
+	case PhysicalType::INT64:
+		fn = ExactMultiplyFor<int64_t>(rt.InternalType(), target.InternalType());
+		break;
+	default:
+		fn = ExactMultiplyFor<hugeint_t>(rt.InternalType(), target.InternalType());
+		break;
+	}
+	return b.Kernel(ScalarFunction(Identifier("spark_decimal_multiply_exact"), {lt, rt}, target, fn),
 	                b.Cast(std::move(left), lt), b.Cast(std::move(right), rt));
 }
 

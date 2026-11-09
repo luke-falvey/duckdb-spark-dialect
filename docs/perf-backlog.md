@@ -7,7 +7,7 @@ hours; update this file whenever an item changes state.
 | # | item | today | idea to start from | target | status |
 |---|---|---|---|---|---|
 | 1 | `sum(decimal)` / `avg(decimal)` 128-bit state | 1.6x -> 1.5x | accumulate in `int64_t` while the running sum fits (checked add), switch the state to `hugeint_t` on overflow; or pick the state by input precision at bind time | <= 1.15x; TPC-H geomean <= 1.12x | done (64-bit partial sum: 7% faster; the TPC-H cost was elsewhere, see 11) |
-| 2 | Q01 / `mul_decimal`: 128-bit decimal products | 2.57x / 4.0x | `EXPLAIN ANALYZE` for the dominant operator; keep 64-bit physical types where Spark's precision <= 18 | Q01 <= 2.0x | todo |
+| 2 | Q01 / `mul_decimal`: 128-bit decimal products | 2.57x / 4.0x | `EXPLAIN ANALYZE` for the dominant operator; keep 64-bit physical types where Spark's precision <= 18 | Q01 <= 2.0x | done: mul_decimal 4.0x -> ~1.7x, Q01 0.90x of before; Q01 remainder is in sum/avg and the group-by |
 | 3 | `format_string` / `printf` | 5.3x -> 0.5x | parse the format string once; fast paths for `%s` / `%d` | <= 1.5x | done |
 | 4 | `to_json` | 18x | write JSON from the vectors directly instead of `Value`s per row | <= 2x | done: ~20x -> ~1.4x for flat structs (nested types still use the Value path) |
 | 5 | `date_format` / `to_timestamp` with patterns | 3.5x -> 1.9x / 2.2x -> 2.0x | profile the formatter after the pattern cache; no `std::string` per field | <= 1.5x | done (1.9x; rest is AddString + memcpy) |
