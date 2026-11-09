@@ -1,0 +1,1 @@
+{"suite": "parse", "time": "2026-11-09T09:52:02", "commit": "2441f55", "branch": "perf/opt-decimal-sum", "machine": {"cpu": "Intel(R) Xeon(R) Processor", "nproc": 4}, "items": {}}

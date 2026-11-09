@@ -179,3 +179,19 @@ operands, NULLs, Q01 expression shape). Checks: run_duckdb both dialects (1684 /
 differential seed 1, isolation clean.
 Full TPC-H SF1 afterwards (5 runs, 22 queries): geomean spark 1.070x, spark_strict 1.050x (target <= 1.10x);
 Q01 2.03x / 1.92x (target <= 2.0x), Q10 1.23x, Q11 1.12x, none above 1.5x.
+
+## Parsing (backlog item 9): investigated, no change committed
+Corpus parse cost is 3.1x - 3.9x DuckDB's default dialect (run-to-run spread of the ratio is +-0.3x on this machine, so
+experiments were interleaved, 4 rounds). A gdb sample of a parse loop shows 95% inside the PEG matcher
+(`Matcher::MatchParseResult`, `MatchStack::ExecuteFrame` 38% self), i.e. the cost is the number of rule steps, not
+the tokenizer / rewrite or our transforms. Scaling is linear in all shapes (10 .. 10,000 items), per-item cost ~35 us
+for `cN + N AS aN`. Experiments (grammar rebuilt each time, all reverted):
+- dropping SpPredicate (9 alternatives per operand): -10..14% parse time (so factoring the NOT? prefix of the
+  predicate alternatives could gain at most that);
+- dropping the SpLambda alternative (tried first for every expression): corpus 3.17x -> 2.66x, select_items -27%;
+- SpLambdaParams `ColId` -> `Identifier`: no change (identifier matching is not the cost; the cost is the failed
+  rule entry and its discarded result).
+The remaining lever with real gain is parsing `x -> body` as `SpOr ('->' SpExpression)?` and converting a bare
+column / parenthesised column list into lambda parameters in the transform (saves the failed SpLambda attempt per
+expression, ~20%); that is a grammar change with its own error-message risk and would still leave the ratio near 2.6x,
+so the <= 2.0x target is not reachable with grammar reordering alone. Absolute cost is ~100 us per statement.
