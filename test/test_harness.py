@@ -221,3 +221,31 @@ def test_error_class_gating_is_limited_to_types_and_settings_files():
     from harness import class_is_gated
     assert class_is_gated("DATATYPE_MISMATCH.BINARY_OP_WRONG_TYPE", "types__c3_arithmetic.sql")
     assert not class_is_gated("DATATYPE_MISMATCH.BINARY_OP_WRONG_TYPE", "operators.sql")
+
+
+def test_spark_oracle_restarts_after_a_jvm_that_dies_with_the_statement():
+    """A runtime error whose text cannot be read (the JVM is gone) or that names a fatal error below its first line
+    keeps the statement's error and restarts the JVM before the next statement, without starting Spark here."""
+    from engines import SparkOracle
+
+    class Unreadable(Exception):
+        def __str__(self):
+            raise ConnectionRefusedError("[Errno 111] Connection refused")
+
+    class Fatal(Exception):
+        def __str__(self):
+            return "An error occurred while calling o1.collectToPython.\njava.lang.OutOfMemoryError: Java heap space"
+
+    for exc in (Unreadable(), Fatal()):
+        oracle = SparkOracle.__new__(SparkOracle)
+        restarts = []
+        oracle._restart = lambda: restarts.append(1)
+        oracle._alive = lambda: True
+
+        def collect(exc=exc):
+            raise exc
+
+        oracle.spark = SimpleNamespace(sql=lambda sql: SimpleNamespace(collect=collect))
+        r = oracle.run("SELECT 1")
+        assert r.status == "error" and r.phase == "runtime" and "fatal" not in r.extra
+        assert restarts == [1]

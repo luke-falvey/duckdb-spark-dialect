@@ -113,8 +113,8 @@ grouped by id, with a reproducing example, in
 [COVERAGE.md](COVERAGE.md). Most belong to a few causes: DuckDB has one `INTERVAL` and one `TIMESTAMP` type
 (`types-interval`, `types-ntz`), ANSI mode's implicit-cast rules are not implemented (`ansi-implicit-cast`), settings
 the dialect rejects (`conf-rejected`), and the open work the matrices found (`types-open-c1` ... `types-open-c14`:
-implicit conversions of function arguments, common types of `CASE` / `UNION` / `IN`, decimal division digits,
-overflow wrap-around of narrowing casts, and others). `strict` rejects less than Spark does: the strict dialect
+implicit conversions of function arguments, common types of `CASE` / `UNION`, key coercion of JOIN `USING` /
+`NATURAL` and `IN (subquery)`, and others). `strict` rejects less than Spark does: the strict dialect
 still accepts many implicit casts that Spark's analyzer refuses, and those leniencies are the bulk of the expected
 failures of `spark_strict`. Run `python scripts/xfail_summary.py` for the table.
 

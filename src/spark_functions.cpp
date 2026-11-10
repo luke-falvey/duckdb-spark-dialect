@@ -9,8 +9,11 @@
 #include "spark_dialect.hpp"
 
 #include "duckdb/common/types/decimal.hpp"
+#include "duckdb/common/types/uhugeint.hpp"
+#include <array>
 #include "duckdb/common/vector_operations/binary_executor.hpp"
 #include "duckdb/common/vector_operations/unary_executor.hpp"
+#include "duckdb/common/vector_operations/ternary_executor.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/common/operator/multiply.hpp"
@@ -661,6 +664,23 @@ void AnsiIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	    });
 }
 
+//! sequence(start, stop, step) over integers: the step, after checking that the array stays within Spark's size
+//! limit (a huge range is Spark's error, never an attempt to allocate billions of elements)
+void SequenceStepKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	TernaryExecutor::Execute<int64_t, int64_t, int64_t, int64_t>(
+	    args.data[0], args.data[1], args.data[2], result, args.size(), [](int64_t start, int64_t stop, int64_t step) {
+		    if (step != 0 && (hugeint_t(stop) - hugeint_t(start)) / hugeint_t(step) >= hugeint_t(0)) {
+			    auto count = (hugeint_t(stop) - hugeint_t(start)) / hugeint_t(step) + hugeint_t(1);
+			    if (count > hugeint_t(2147483632)) {
+				    throw InvalidInputException("[COLLECTION_SIZE_LIMIT_EXCEEDED] Unsuccessful try to create array with "
+				                                "%s elements due to exceeding the array size limit 2147483632.",
+				                                count.ToString());
+			    }
+		    }
+		    return step;
+	    });
+}
+
 //! element_at(array, index) in ANSI mode: the index must be within -length..-1 or 1..length
 void AnsiElementAtKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<int64_t, int64_t, int64_t>(
@@ -753,6 +773,125 @@ void IntDivKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		                                                   }
 		                                                   return a / b;
 	                                                   });
+}
+
+// Unsigned 128-bit arithmetic for the decimal division kernel: the compiler's native type where there is one (its
+// division is a single runtime call), DuckDB's portable uhugeint_t otherwise (bit-by-bit division, much slower)
+#if defined(__SIZEOF_INT128__)
+using U128 = unsigned __int128;
+inline U128 ToU128(hugeint_t v) { // v >= 0
+	return (U128(uint64_t(v.upper)) << 64) | U128(v.lower);
+}
+inline hugeint_t FromU128(U128 v) { // v < 2^127
+	return hugeint_t(int64_t(uint64_t(v >> 64)), uint64_t(v));
+}
+#else
+using U128 = uhugeint_t;
+inline U128 ToU128(hugeint_t v) {
+	return uhugeint_t(v);
+}
+inline hugeint_t FromU128(U128 v) {
+	return hugeint_t(v);
+}
+#endif
+
+//! 10^n as an unsigned 128-bit integer, n <= 38
+U128 PowerOfTen(idx_t n) {
+	static const auto table = [] {
+		std::array<U128, 39> t;
+		t[0] = U128(1);
+		for (idx_t i = 1; i < t.size(); i++) {
+			t[i] = t[i - 1] * U128(10);
+		}
+		return t;
+	}();
+	return table[n];
+}
+
+//! Spark's decimal division: both operands as DECIMAL(38, s1) / DECIMAL(38, s2), the quotient rounded HALF_UP to the
+//! scale of the result DECIMAL(38, S) (the caller narrows it to Spark's precision); NULL when the divisor is zero or
+//! the quotient has more than `precision` digits. Exact, unlike a division through DOUBLE.
+void DecimalDivideKernel(DataChunk &args, ExpressionState &, Vector &result, idx_t precision) {
+	auto s1 = idx_t(DecimalType::GetScale(args.data[0].GetType()));
+	auto s2 = idx_t(DecimalType::GetScale(args.data[1].GetType()));
+	auto scale = idx_t(DecimalType::GetScale(result.GetType()));
+	auto shift = int64_t(s2) + int64_t(scale) - int64_t(s1);
+	auto limit = PowerOfTen(precision);
+	auto digit_limit = PowerOfTen(precision - 1);
+	// the scaled dividend fits in 128 bits below this bound (fast path)
+	auto fast_bound = (shift >= 0 && shift <= 38) ? PowerOfTen(idx_t(38 - shift)) : U128(0);
+	auto scale_factor = (shift >= 0 && shift <= 38) ? PowerOfTen(idx_t(shift)) : U128(1);
+	BinaryExecutor::Execute<hugeint_t, hugeint_t, hugeint_t>(
+	    args.data[0], args.data[1], result, args.size(), [&](hugeint_t a, hugeint_t b) -> optional<hugeint_t> {
+		    if (b == hugeint_t(0)) {
+			    return optional<hugeint_t>();
+		    }
+		    bool negative = (a < hugeint_t(0)) != (b < hugeint_t(0));
+		    auto ua = ToU128(a < hugeint_t(0) ? -a : a);
+		    auto ub = ToU128(b < hugeint_t(0) ? -b : b);
+		    auto finish = [&](U128 q) -> optional<hugeint_t> {
+			    if (q >= limit) {
+				    return optional<hugeint_t>();
+			    }
+			    auto value = FromU128(q);
+			    return negative ? optional<hugeint_t>(-value) : optional<hugeint_t>(value);
+		    };
+		    if (ua < fast_bound) {
+			    // the scaled dividend fits: one division and a HALF_UP step on the remainder
+			    auto n = ua * scale_factor;
+			    U128 q, r;
+			    if (n <= U128(NumericLimits<uint64_t>::Maximum()) && ub <= U128(NumericLimits<uint64_t>::Maximum())) {
+				    auto n64 = uint64_t(n), b64 = uint64_t(ub);
+				    q = U128(n64 / b64);
+				    r = U128(n64 % b64);
+			    } else {
+				    q = n / ub;
+				    r = n % ub;
+			    }
+			    if (r * U128(2) >= ub) {
+				    q += U128(1);
+			    }
+			    return finish(q);
+		    }
+		    auto q = ua / ub;
+		    auto r = ua % ub;
+		    // the next decimal digit of r / ub, without overflowing: 10 * r = digit * ub + rest
+		    auto next_digit = [&]() {
+			    U128 acc(0);
+			    uint32_t digit = 0;
+			    for (int i = 0; i < 10; i++) {
+				    acc += r;
+				    if (acc >= ub) {
+					    acc -= ub;
+					    digit++;
+				    }
+			    }
+			    r = acc;
+			    return digit;
+		    };
+		    if (shift >= 0) {
+			    // another digit is past `precision` digits once q has precision - 1 of them
+			    for (int64_t i = 0; i < shift; i++) {
+				    if (q >= digit_limit) {
+					    return optional<hugeint_t>();
+				    }
+				    q = q * U128(10) + U128(next_digit());
+			    }
+			    if (next_digit() >= 5) {
+				    q += U128(1);
+			    }
+		    } else if (-shift > 38) {
+			    q = U128(0);
+		    } else {
+			    auto p = PowerOfTen(idx_t(-shift));
+			    auto rest = q % p;
+			    q = q / p;
+			    if (rest * U128(2) >= p) {
+				    q += U128(1);
+			    }
+		    }
+		    return finish(q);
+	    });
 }
 
 void DoubleDivideKernel(DataChunk &args, ExpressionState &, Vector &result) {
@@ -1187,6 +1326,45 @@ void StringToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//! CAST(<integral> AS BINARY): the big-endian two's complement bytes of the value (1, 2, 4 or 8 bytes)
+template <class T>
+void IntegralToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<T, string_t>(args.data[0], result, args.size(), [&](T v) {
+		auto u = typename std::make_unsigned<T>::type(v);
+		char bytes[sizeof(T)];
+		for (idx_t i = 0; i < sizeof(T); i++) {
+			bytes[sizeof(T) - 1 - i] = char(u & 0xFF);
+			u = decltype(u)(u >> 8);
+		}
+		return StringVector::AddStringOrBlob(result, string_t(bytes, uint32_t(sizeof(T))));
+	});
+}
+
+ScalarFunction IntegralToBlobFunction(const LogicalType &source) {
+	scalar_function_t fn;
+	switch (source.id()) {
+	case LogicalTypeId::TINYINT:
+		fn = IntegralToBlobKernel<int8_t>;
+		break;
+	case LogicalTypeId::SMALLINT:
+		fn = IntegralToBlobKernel<int16_t>;
+		break;
+	case LogicalTypeId::INTEGER:
+		fn = IntegralToBlobKernel<int32_t>;
+		break;
+	default:
+		fn = IntegralToBlobKernel<int64_t>;
+		break;
+	}
+	return ScalarFunction(Identifier("spark_integral_to_binary"), {source}, LogicalType::BLOB, fn);
+}
+
+//! The low 64 bits of an integer, like Java's BigDecimal.longValue (Spark's Decimal.toLong)
+void HugeintLowBitsKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<hugeint_t, int64_t>(args.data[0], result, args.size(),
+	                                           [](hugeint_t h) { return int64_t(h.lower); });
+}
+
 //===----------------------------------------------------------------------===//
 // Spark value -> string (Cast to STRING)
 //===----------------------------------------------------------------------===//
@@ -1490,6 +1668,17 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			}
 			return b.Kernel(NarrowFunction(source, target), std::move(e));
 		}
+		if (IsDecimal(source)) {
+			// Spark's Decimal.toLong keeps the low 64 bits of the integer part; narrower types wrap from there
+			auto whole = b.Cast(b.Call("trunc", std::move(e)), LogicalType::HUGEINT);
+			auto as_long = b.Kernel(ScalarFunction(Identifier("spark_low_bits"), {LogicalType::HUGEINT},
+			                                       LogicalType::BIGINT, HugeintLowBitsKernel),
+			                        std::move(whole));
+			if (target.id() == LogicalTypeId::BIGINT) {
+				return as_long;
+			}
+			return b.Kernel(NarrowFunction(LogicalType::BIGINT, target), std::move(as_long));
+		}
 		if (IsDecimal(source) || IsLargeIntegral(source)) {
 			auto truncated = IsDecimal(source) ? b.Call("trunc", std::move(e)) : std::move(e);
 			auto as_long = b.Cast(std::move(truncated), LogicalType::BIGINT, true);
@@ -1604,6 +1793,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			auto ts = b.Call("make_timestamp", std::move(micros));
 			return b.Case(b.IsNull(std::move(e)), b.NullOf(target), std::move(ts));
 		}
+	}
+	if (target.id() == LogicalTypeId::BLOB && IsIntegral(source)) {
+		return b.Kernel(IntegralToBlobFunction(source), std::move(e));
 	}
 	if (target.id() == LogicalTypeId::BLOB && IsString(source)) {
 		return b.Kernel(
@@ -2221,10 +2413,19 @@ ExprP BindDivideImpl(FunctionBindExpressionInput &input) {
 	if ((IsDecimal(lt) || IsDecimal(rt)) && !IsFloating(lt) && !IsFloating(rt)) {
 		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal,
 		                                     SparkConfBool(input.context, "spark.sql.decimalOperations.allowPrecisionLoss"));
-		auto quotient = b.Kernel(ScalarFunction(Identifier("spark_divide"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
-		                                        LogicalType::DOUBLE, DoubleDivideKernel),
-		                         b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
-		return b.Cast(std::move(quotient), result_type, true);
+		auto left_type = IsDecimal(lt) ? lt : left_decimal;
+		auto right_type = IsDecimal(rt) ? rt : right_decimal;
+		auto wide_left = LogicalType::DECIMAL(38, DecimalType::GetScale(left_type));
+		auto wide_right = LogicalType::DECIMAL(38, DecimalType::GetScale(right_type));
+		auto precision = idx_t(DecimalType::GetWidth(result_type));
+		auto quotient = b.Kernel(
+		    ScalarFunction(Identifier("spark_decimal_divide"), {wide_left, wide_right},
+		                   LogicalType::DECIMAL(38, DecimalType::GetScale(result_type)),
+		                   [precision](DataChunk &args, ExpressionState &state, Vector &out) {
+			                   DecimalDivideKernel(args, state, out, precision);
+		                   }),
+		    b.Cast(std::move(left), wide_left), b.Cast(std::move(right), wide_right));
+		return b.Cast(std::move(quotient), result_type);
 	}
 	return b.Kernel(ScalarFunction(Identifier("spark_divide"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
 	                               LogicalType::DOUBLE, DoubleDivideKernel),
@@ -2360,6 +2561,17 @@ ExprP BindComparisonAs(FunctionBindExpressionInput &input, ExpressionType type) 
 				r = SparkCast(b, std::move(r), target);
 			}
 		}
+	}
+	// equality of a boolean with a fractional number (BooleanEquality): the boolean is cast to the number's type
+	bool equality = type == ExpressionType::COMPARE_EQUAL || type == ExpressionType::COMPARE_NOTEQUAL ||
+	                type == ExpressionType::COMPARE_NOT_DISTINCT_FROM || type == ExpressionType::COMPARE_DISTINCT_FROM;
+	auto fractional = [](const LogicalType &t) {
+		return IsFloating(t) || IsDecimal(t);
+	};
+	if (equality && lt.id() == LogicalTypeId::BOOLEAN && fractional(rt)) {
+		l = b.Cast(std::move(l), rt);
+	} else if (equality && rt.id() == LogicalTypeId::BOOLEAN && fractional(lt)) {
+		r = b.Cast(std::move(r), lt);
 	}
 	return b.Compare(type, std::move(l), std::move(r));
 }
@@ -2680,20 +2892,121 @@ void CastToCommonType(Builder &b, vector<ExprP> &args) {
 	}
 }
 
-//! value IN (items...) after the common type of all operands
+//! value IN (items...) after the common type of all operands. Structs compare by position like Spark; operands of
+//! different kinds (a struct with a scalar, an array with a struct, ...) are Spark's analysis error, never a
+//! comparison of mismatched types.
 ExprP BindInListValue(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	vector<ExprP> args;
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
 	}
+	auto kind = [](const LogicalType &type) {
+		switch (type.id()) {
+		case LogicalTypeId::STRUCT:
+		case LogicalTypeId::LIST:
+		case LogicalTypeId::MAP:
+			return type.id();
+		case LogicalTypeId::ARRAY:
+			return LogicalTypeId::LIST;
+		default:
+			return LogicalTypeId::INVALID;
+		}
+	};
+	auto mismatch = [&]() {
+		string types;
+		for (auto &arg : args) {
+			types += (types.empty() ? "" : ", ") + SparkTypeName(arg->GetReturnType());
+		}
+		return BinderException("[DATATYPE_MISMATCH.DATA_DIFF_TYPES] Cannot resolve IN due to data type mismatch: Input "
+		                       "to `in` should all be the same type, but it's [%s]",
+		                       types);
+	};
 	bool nested = false;
-	for (auto &arg : args) {
-		auto id = Normalize(arg->GetReturnType()).id();
-		nested = nested || id == LogicalTypeId::STRUCT;  // struct fields keep DuckDB's by-name rules
+	optional_idx first;
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto type = Normalize(args[i]->GetReturnType());
+		if (IsNull(type)) {
+			continue;
+		}
+		nested = nested || kind(type) != LogicalTypeId::INVALID;
+		if (!first.IsValid()) {
+			first = i;
+			continue;
+		}
+		auto first_type = Normalize(args[first.GetIndex()]->GetReturnType());
+		if (kind(type) != kind(first_type) ||
+		    (type.id() == LogicalTypeId::STRUCT &&
+		     StructType::GetChildCount(type) != StructType::GetChildCount(first_type))) {
+			throw mismatch();
+		}
 	}
 	if (!nested) {
 		CastToCommonType(b, args);
+	} else {
+		// operands of the same field types compare as they are (field names do not matter); once a cast is needed,
+		// Spark's common struct type requires the same field names (case-insensitive)
+		std::function<bool(const LogicalType &, const LogicalType &, bool)> same;
+		same = [&](const LogicalType &x, const LogicalType &y, bool names) -> bool {
+			auto l = Normalize(x), r = Normalize(y);
+			if (IsNull(l) || IsNull(r)) {
+				return true;
+			}
+			if (l.id() != r.id()) {
+				// with a cast, atomic types of different ids widen; nested kinds must agree
+				auto is_nested = [](const LogicalType &t) {
+					return t.id() == LogicalTypeId::STRUCT || t.id() == LogicalTypeId::LIST || t.id() == LogicalTypeId::MAP;
+				};
+				return names && !is_nested(l) && !is_nested(r);
+			}
+			switch (l.id()) {
+			case LogicalTypeId::STRUCT: {
+				if (StructType::GetChildCount(l) != StructType::GetChildCount(r)) {
+					return false;
+				}
+				for (idx_t i = 0; i < StructType::GetChildCount(l); i++) {
+					if (names && !StringUtil::CIEquals(StructType::GetChildName(l, i).GetIdentifierName(), StructType::GetChildName(r, i).GetIdentifierName())) {
+						return false;
+					}
+					if (!same(StructType::GetChildType(l, i), StructType::GetChildType(r, i), names)) {
+						return false;
+					}
+				}
+				return true;
+			}
+			case LogicalTypeId::LIST:
+				return same(ListType::GetChildType(l), ListType::GetChildType(r), names);
+			case LogicalTypeId::MAP:
+				return same(MapType::KeyType(l), MapType::KeyType(r), names) &&
+				       same(MapType::ValueType(l), MapType::ValueType(r), names);
+			default:
+				return names || l == r;
+			}
+		};
+		bool structurally_equal = true;
+		for (auto &arg : args) {
+			structurally_equal = structurally_equal && same(args[0]->GetReturnType(), arg->GetReturnType(), false);
+		}
+		if (!structurally_equal) {
+			for (auto &arg : args) {
+				if (!same(args[0]->GetReturnType(), arg->GetReturnType(), true)) {
+					throw mismatch();
+				}
+			}
+		}
+		LogicalType common = LogicalType::SQLNULL;
+		try {
+			for (auto &arg : args) {
+				common = SparkWiderType(b.context, common, arg->GetReturnType());
+			}
+		} catch (std::exception &) {
+			throw mismatch();
+		}
+		for (auto &arg : args) {
+			if (arg->GetReturnType() != common) {
+				arg = SparkCast(b, std::move(arg), common);
+			}
+		}
 	}
 	auto result = make_uniq<BoundOperatorExpression>(ExpressionType::COMPARE_IN, LogicalType::BOOLEAN);
 	for (auto &arg : args) {
@@ -3062,6 +3375,35 @@ ExprP BindAsType(FunctionBindExpressionInput &input) {
 	return SparkCast(b, Arg(input, 0), LogicalType(TARGET));
 }
 
+//! A DOUBLE parameter of a math or statistics function: numbers and strings are cast (Spark's implicit cast, NULL when
+//! a string is malformed), any other type is Spark's analysis error
+ExprP BindAsDoubleParam(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "as_double_param", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	if (!(IsNull(type) || IsString(type) || IsNumeric(type))) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the function call due to data "
+		                      "type mismatch: the parameter requires the \"DOUBLE\" type, however the argument has the "
+		                      "type \"%s\".",
+		                      StringUtil::Upper(SparkTypeName(type)));
+	}
+	return SparkCast(b, std::move(e), LogicalType::DOUBLE);
+}
+
+//! the value argument of round / bround: an untyped NULL or a string is a DOUBLE (Spark's implicit cast), numbers are
+//! unchanged
+ExprP BindAsRoundOperand(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "round", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	if (IsNull(type) || IsString(type)) {
+		return SparkCast(b, std::move(e), LogicalType::DOUBLE);
+	}
+	return e;
+}
+
 //! a timestamp; dates and strings convert like Spark's implicit casts
 ExprP BindAsTimestamp(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "as_timestamp", 1, 1);
@@ -3285,10 +3627,20 @@ ExprP BindSequence(FunctionBindExpressionInput &input) {
 		auto ascending = b.Compare(ExpressionType::COMPARE_LESSTHANOREQUALTO, start->Copy(), stop->Copy());
 		step = b.Case(std::move(ascending), b.Constant(Value::BIGINT(1)), b.Constant(Value::BIGINT(-1)));
 	}
+	auto start_long = b.Cast(std::move(start), LogicalType::BIGINT);
+	auto stop_long = b.Cast(std::move(stop), LogicalType::BIGINT);
+	ScalarFunction check(Identifier("spark_sequence_step"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::BIGINT},
+	                     LogicalType::BIGINT, SequenceStepKernel);
+	check.SetFallible();
+	vector<ExprP> check_args;
+	check_args.push_back(start_long->Copy());
+	check_args.push_back(stop_long->Copy());
+	check_args.push_back(std::move(step));
+	auto checked_step = b.Kernel(check, std::move(check_args));
 	vector<ExprP> args;
-	args.push_back(b.Cast(std::move(start), LogicalType::BIGINT));
-	args.push_back(b.Cast(std::move(stop), LogicalType::BIGINT));
-	args.push_back(std::move(step));
+	args.push_back(std::move(start_long));
+	args.push_back(std::move(stop_long));
+	args.push_back(std::move(checked_step));
 	return b.Cast(b.Call("generate_series", std::move(args)), LogicalType::LIST(result_type));
 }
 
@@ -3540,7 +3892,7 @@ ExprP BindAsNumber(FunctionBindExpressionInput &input) {
 	return e;
 }
 
-//! from_number(n, sample): back to an interval when the sample is one
+//! from_number(n, sample): back to an interval when the sample is one, DOUBLE otherwise
 ExprP BindFromNumber(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "from_number", 2, 2);
 	Builder b(input.context);
@@ -3553,7 +3905,11 @@ ExprP BindFromNumber(FunctionBindExpressionInput &input) {
 		}
 		return b.Spark("number_to_interval", b.Cast(std::move(n), LogicalType::DOUBLE), std::move(sample));
 	}
-	return n;
+	// Spark's median / percentile of numbers (decimals too) are DOUBLE
+	if (n->GetReturnType().id() == LogicalTypeId::LIST) {
+		return b.Cast(std::move(n), LogicalType::LIST(LogicalType::DOUBLE));
+	}
+	return b.Cast(std::move(n), LogicalType::DOUBLE);
 }
 
 //! try_avg: NULL when Spark's sum would overflow its type
@@ -3633,6 +3989,8 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"as_date", BindAsType<LogicalTypeId::DATE>},
 	    {"as_timestamp", BindAsTimestamp},
 	    {"as_double", BindAsType<LogicalTypeId::DOUBLE>},
+	    {"as_round_operand", BindAsRoundOperand},
+	    {"as_double_param", BindAsDoubleParam},
 	    {"as_long", BindAsType<LogicalTypeId::BIGINT>},
 	    {"as_int", BindAsType<LogicalTypeId::INTEGER>},
 	    {"as_string", BindAsType<LogicalTypeId::VARCHAR>},
