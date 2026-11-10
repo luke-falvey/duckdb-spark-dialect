@@ -1,0 +1,21 @@
+-- concat of binary inputs: binary (default) or string; literals, columns, NULLs, mixed with strings, nesting
+
+SELECT typeof(concat(X'01', X'02'));
+
+SELECT concat(X'4142', X'43');
+
+SELECT concat(X'4142', CAST(NULL AS BINARY));
+
+SELECT typeof(concat(X'4142', 'c'));
+
+SELECT concat(b1, b2) FROM VALUES (X'4142', X'43'), (X'44', CAST(NULL AS BINARY)) AS t(b1, b2);
+
+SELECT typeof(concat(b1, b2)) FROM VALUES (X'4142', X'43') AS t(b1, b2);
+
+SELECT concat(concat(X'41', X'42'), X'43');
+
+SELECT length(concat(X'4142', X'43'));
+
+SELECT concat(array(1), array(2));
+
+SELECT concat('a', 'b');

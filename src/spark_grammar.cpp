@@ -436,7 +436,10 @@ ExprPtr TransformPredicated(PEGTransformer &t, ParseResult &pr) {
 		bool negate = HasOptional(predicate.GetChild(0));
 		auto lower = Expr(t, predicate.GetChild(2));
 		auto upper = Expr(t, predicate.GetChild(4));
-		return MaybeNot(negate, make_uniq<BetweenExpression>(std::move(value), std::move(lower), std::move(upper)));
+		// like Spark: value >= lower AND value <= upper, each comparison with Spark's implicit casts
+		auto ge = SparkCall("cmp_ge", value->Copy(), std::move(lower));
+		auto le = SparkCall("cmp_le", std::move(value), std::move(upper));
+		return MaybeNot(negate, make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(ge), std::move(le)));
 	}
 	if (rule == "spinquery") {
 		bool negate = HasOptional(predicate.GetChild(0));
@@ -456,8 +459,8 @@ ExprPtr TransformPredicated(PEGTransformer &t, ParseResult &pr) {
 		for (auto &item : ListItems(predicate.GetChild(3))) {
 			children.push_back(Expr(t, item.get()));
 		}
-		return make_uniq<OperatorExpression>(negate ? ExpressionType::COMPARE_NOT_IN : ExpressionType::COMPARE_IN,
-		                                     std::move(children));
+		// the value and the list are brought to Spark's common type first (1 IN ('abc', 1) compares strings)
+		return MaybeNot(negate, SparkCall("in_list_value", std::move(children)));
 	}
 	if (rule == "sprlike") {
 		bool negate = HasOptional(predicate.GetChild(0));
@@ -1111,6 +1114,39 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		    {"locate", {2}},            {"factorial", {0}},         {"nth_value", {1}},         {"ntile", {0}},
 		    {"levenshtein", {2}},       {"lag", {1}},               {"lead", {1}},              {"make_timestamp", {0, 1, 2, 3, 4}},
 		    {"make_timestamp_ntz", {0, 1, 2, 3, 4}}, {"make_timestamp_ltz", {0, 1, 2, 3, 4}}};
+		// STRING parameters: Spark's implicit cast turns any atomic value into a string (upper(1) is '1'); DuckDB's
+		// string functions accept only strings. as_string leaves strings alone.
+		static const unordered_map<string, vector<idx_t>> STRING_PARAMETERS = {
+		    {"upper", {0}},        {"lower", {0}},         {"ucase", {0}},        {"lcase", {0}},          {"initcap", {0}},
+		    {"trim", {0}},         {"ltrim", {0}},         {"rtrim", {0}},        {"btrim", {0}},          {"replace", {0, 1, 2}},
+		    {"translate", {0, 1, 2}}, {"unhex", {0}},      {"luhn_check", {0}},   {"repeat", {0}},         {"instr", {0, 1}},
+		    {"locate", {0, 1}},    {"position", {0, 1}},   {"find_in_set", {0, 1}}, {"levenshtein", {0, 1}}, {"sentences", {0}},
+		    {"split_part", {0, 1}}, {"soundex", {0}},      {"ascii", {0}},
+		    {"date_format", {1}},  {"to_date", {1}},       {"to_timestamp", {1}}, {"from_unixtime", {1}},  {"unix_timestamp", {1}},
+		    {"to_unix_timestamp", {1}}, {"trunc", {1}},    {"date_trunc", {0}},   {"next_day", {1}},       {"regexp_extract", {0, 1}},
+		    {"regexp_extract_all", {0, 1}}, {"regexp_replace", {0, 1, 2}}, {"regexp_like", {0, 1}}, {"regexp", {0, 1}}, {"rlike", {0, 1}},
+		    {"regexp_count", {0, 1}}, {"to_binary", {0}}, {"try_to_binary", {0}}, {"url_decode", {0}}, {"url_encode", {0}}, {"to_number", {0}}, {"try_to_number", {0}}, {"format_string", {0}}, {"printf", {0}}, {"regexp_instr", {0, 1}},  {"regexp_substr", {0, 1}}, {"split", {0, 1}},
+		    {"substring_index", {0, 1}}};
+		auto string_entry = STRING_PARAMETERS.find(name);
+		if (string_entry != STRING_PARAMETERS.end()) {
+			auto &arguments = func.GetArgumentsMutable();
+			for (auto position : string_entry->second) {
+				if (position < arguments.size()) {
+					auto &argument = arguments[position].GetExpressionMutable();
+					argument = SparkCall("as_string", std::move(argument));
+				}
+			}
+		}
+		// DOUBLE parameters of the math functions: a string is converted (NULL when malformed), decimals widen
+		static const unordered_set<string> DOUBLE_FUNCTIONS = {
+		    "acos", "acosh", "asin", "asinh", "atan", "atanh", "cbrt", "cos", "cosh", "cot", "csc", "degrees", "exp", "expm1",
+		    "ln", "log10", "log1p", "log2", "radians", "rint", "sec", "sin", "sinh", "sqrt", "tan", "tanh"};
+		if (DOUBLE_FUNCTIONS.count(name)) {
+			for (auto &argument_entry : func.GetArgumentsMutable()) {
+				auto &argument = argument_entry.GetExpressionMutable();
+				argument = SparkCall("as_double", std::move(argument));
+			}
+		}
 		auto entry = INT_PARAMETERS.find(name);
 		if (entry != INT_PARAMETERS.end()) {
 			auto &arguments = func.GetArgumentsMutable();
@@ -1121,11 +1157,16 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 				auto &argument = arguments[position].GetExpressionMutable();
 				if (argument->GetExpressionClass() == ExpressionClass::CONSTANT) {
 					// small literals are INT already; only a literal with many digits can be out of range
-					if (argument->ToString().size() < 10) {
+					auto text = argument->ToString();
+					if (text.size() < 10 && text.find_first_not_of("-+0123456789") == string::npos) {
 						continue;
 					}
 				}
-				argument = SparkCall("narrow_int", std::move(argument));
+				if (name == "format_number") {
+					argument = SparkCall("narrow_int", std::move(argument), ConstantExpression::Boolean(true));
+				} else {
+					argument = SparkCall("narrow_int", std::move(argument));
+				}
 			}
 		}
 	}
@@ -1290,6 +1331,11 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		                      Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
 		return expr;
 	}
+	if (name == "coalesce" && func.GetArguments().size() >= 2) {
+		// the operands are brought to Spark's common type first (a string with a number is a string)
+		auto args = TakeArguments(func);
+		return SparkCall("coalesce_value", std::move(args));
+	}
 	if (name == "if" || name == "iff") {
 		auto args = TakeArguments(func);
 		if (args.size() != 3) {
@@ -1308,9 +1354,9 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		}
 		vector<ExprPtr> values;
 		for (idx_t i = 1; i < args.size(); i++) {
-			values.push_back(SparkCall("as_string", std::move(args[i])));
+			values.push_back(std::move(args[i]));
 		}
-		return SparkCall("elt", std::move(args[0]), DuckCall("list_value", std::move(values)));
+		return SparkCall("elt", std::move(args[0]), SparkCall("elt_list", std::move(values)));
 	}
 	if (name == "decode" && func.GetArguments().size() > 2) {
 		// decode(expr, search1, result1, ..., default): null-safe equality
@@ -1457,7 +1503,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		replacements.push_back(StructField("__spark_entry", "key"));
 		replacements.push_back(StructField("__spark_entry", "value"));
 		auto body = InlineLambda(args, 1, "map_filter", std::move(replacements));
-		return DuckCall("map_from_entries",
+		return SparkCall("map_from_entries_value",
 		                DuckCall("list_filter", DuckCall("map_entries", std::move(args[0])),
 		                         MakeLambda({"__spark_entry"}, std::move(body))));
 	}
@@ -1475,7 +1521,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 			fields.emplace_back("key", StructField("__spark_entry", "key"));
 			fields.emplace_back("value", std::move(body));
 		}
-		return DuckCall("map_from_entries",
+		return SparkCall("map_from_entries_value",
 		                DuckCall("list_transform", DuckCall("map_entries", std::move(args[0])),
 		                         MakeLambda({"__spark_entry"}, StructPack(std::move(fields)))));
 	}
@@ -1494,7 +1540,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		inputs.push_back(args[1]->Copy());
 		auto keys = SparkCall("array_distinct", DuckCall("list_concat", DuckCall("map_keys", std::move(args[0])),
 		                                                    DuckCall("map_keys", std::move(args[1]))));
-		return NullIfAnyNull(inputs, DuckCall("map_from_entries", DuckCall("list_transform", std::move(keys),
+		return NullIfAnyNull(inputs, SparkCall("map_from_entries_value", DuckCall("list_transform", std::move(keys),
 		                                                                   MakeLambda({"__spark_key"}, StructPack(std::move(fields))))));
 	}
 	if (name == "arrays_zip") {
@@ -1524,6 +1570,19 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 }
 
 ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
+	if (expr->GetExpressionClass() == ExpressionClass::OPERATOR && expr->GetExpressionType() == ExpressionType::OPERATOR_COALESCE &&
+	    expr->Cast<OperatorExpression>().GetChildren().size() >= 2) {
+		// COALESCE(a, b, ...): the operands are brought to Spark's common type first (a string with a number is a string)
+		vector<ExprPtr> operands;
+		string name = "coalesce(";
+		for (auto &child : expr->Cast<OperatorExpression>().GetChildrenMutable()) {
+			name += (operands.empty() ? "" : ", ") + child->ToString();
+			operands.push_back(std::move(child));
+		}
+		auto call = SparkCall("coalesce_value", std::move(operands));
+		call->SetAlias(Identifier(name + ")"));  // the column name Spark gives (an explicit AS replaces it)
+		return call;
+	}
 	if (expr->GetExpressionClass() == ExpressionClass::WINDOW) {
 		auto &window = expr->Cast<WindowExpression>();
 		auto name = StringUtil::Lower(window.FunctionName().GetIdentifierName());
@@ -1532,6 +1591,10 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 		    name == "row_number") {
 			// Spark accepts (and ignores) arguments here
 			window_args.clear();
+		}
+		if (name == "rank" || name == "dense_rank" || name == "row_number" || name == "ntile") {
+			// Spark's ranking functions return INT (DuckDB: BIGINT)
+			return make_uniq<CastExpression>(LogicalType::INTEGER, std::move(expr));
 		}
 		if ((name == "first_value" || name == "last_value" || name == "first" || name == "last" ||
 		     name == "nth_value") &&
@@ -1628,6 +1691,18 @@ ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto expr = Expr(t, alt);
 	if (!expr->GetAlias().empty()) {
 		RenameGeneratorColumns(*expr, expr->GetAlias().GetIdentifierName());
+	}
+	return expr;
+}
+
+//! GROUPING(...) is a BYTE in Spark (DuckDB: BIGINT); GROUPING_ID stays BIGINT
+ExprPtr TransformGroupingHook(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	auto &inner = AsList(list.GetChild(0));
+	bool is_grouping = StringUtil::CIEquals(Literal(inner.GetChild(0)), "GROUPING");
+	auto expr = Expr(t, list.GetChild(0));
+	if (is_grouping) {
+		return make_uniq<CastExpression>(LogicalType::TINYINT, std::move(expr));
 	}
 	return expr;
 }
@@ -1776,6 +1851,10 @@ ExprPtr TransformCaseHook(PEGTransformer &t, ParseResult &pr) {
 arena_ptr<TransformResultValue> FinalizeOrderByHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
 	auto node = t.Transform<OrderByNode>(list.GetChild(0));
+	if (node.type == OrderType::ORDER_DEFAULT) {
+		// independent of DuckDB's default_order setting
+		node.type = OrderType::ASCENDING;
+	}
 	if (node.null_order == OrderByNullType::ORDER_DEFAULT) {
 		node.null_order = node.type == OrderType::DESCENDING ? OrderByNullType::NULLS_LAST : OrderByNullType::NULLS_FIRST;
 	}
@@ -2203,6 +2282,14 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	g.AddRule("DuckAliasedExpression <- ColIdExpression / ExpressionAsCollabel / ExpressionOptIdentifier",
 	          aliased_rule->transform_process);
 	g.ReplaceRule("AliasedExpression <- SpAliasList / DuckAliasedExpression", ExprProcess<TransformAliasedHook>);
+
+	auto grouping_rule = g.GetRule("GroupingExpression");
+	if (!grouping_rule) {
+		throw InternalException("spark dialect: GroupingExpression rule not found");
+	}
+	g.AddRule("DuckGroupingExpression <- GroupingOrGroupingId Parens(List(Expression)?)",
+	          grouping_rule->transform_process);
+	g.ReplaceRule("GroupingExpression <- DuckGroupingExpression", ExprProcess<TransformGroupingHook>);
 
 	auto case_rule = g.GetRule("CaseExpression");
 	if (!case_rule) {

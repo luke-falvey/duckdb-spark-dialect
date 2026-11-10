@@ -8,33 +8,603 @@ Every expected result comes from Apache Spark 3.5.9 (`test/make_golden.py`).
 `SET current_dialect = 'spark'` (lenient: also accepts DuckDB-only SQL, reported as LENIENT):
 
 ```
-ddl_dml.sql                  PASS=65  LENIENT=0  FAIL=0  SKIP=0
-functions_examples.sql       PASS=868  LENIENT=0  FAIL=0  SKIP=0
-fuzz_regressions.sql         PASS=53  LENIENT=0  FAIL=0  SKIP=0
-literals_types.sql           PASS=45  LENIENT=0  FAIL=0  SKIP=0
-non_spark.sql                PASS=17  LENIENT=56  FAIL=0  SKIP=0
-operators.sql                PASS=106  LENIENT=0  FAIL=0  SKIP=0
-queries.sql                  PASS=131  LENIENT=0  FAIL=0  SKIP=0
-regressions.sql              PASS=18  LENIENT=0  FAIL=0  SKIP=0
-strict_valid.sql             PASS=65  LENIENT=0  FAIL=0  SKIP=0
-tpch_small.sql               PASS=22  LENIENT=0  FAIL=0  SKIP=0
-TOTAL                        PASS=1390  LENIENT=56  FAIL=0  SKIP=0
+ansi__ansi_runtime.sql                       PASS=109  LENIENT=0  PHASE=3  FAIL=0  XFAIL=0  XPASS=0
+ddl_dml.sql                                  PASS=65  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+functions_examples.sql                       PASS=805  LENIENT=0  PHASE=7  FAIL=0  XFAIL=56  XPASS=0
+fuzz_regressions.sql                         PASS=52  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+generated_names.sql                          PASS=5  LENIENT=0  PHASE=0  FAIL=0  XFAIL=15  XPASS=0
+limitations.sql                              PASS=225  LENIENT=7  PHASE=2  FAIL=0  XFAIL=3  XPASS=0
+literals_types.sql                           PASS=43  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+non_spark.sql                                PASS=16  LENIENT=57  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+operators.sql                                PASS=103  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+queries.sql                                  PASS=130  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+regressions.sql                              PASS=14  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_doubleQuotedIdentifiers.sql[ansi.doubleQuotedIdentifiers=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_doubleQuotedIdentifiers.sql[ansi.doubleQuotedIdentifiers=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__ansi_enabled.sql[ansi.enabled=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_enabled.sql[ansi.enabled=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__ansi_enforceReservedKeywords.sql[ansi.enforceReservedKeywords=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_enforceReservedKeywords.sql[ansi.enforceReservedKeywords=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_relationPrecedence.sql[ansi.relationPrecedence=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_relationPrecedence.sql[ansi.relationPrecedence=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__caseSensitive.sql[caseSensitive=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__caseSensitive.sql[caseSensitive=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__charAsVarchar.sql[charAsVarchar=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__charAsVarchar.sql[charAsVarchar=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__chunkBase64String_enabled.sql[chunkBase64String.enabled=true] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__chunkBase64String_enabled.sql[chunkBase64String.enabled=false] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__columnNameOfCorruptRecord.sql[columnNameOfCorruptRecord=_corrupt_record] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__columnNameOfCorruptRecord.sql[columnNameOfCorruptRecord=_bad] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__crossJoin_enabled.sql[crossJoin.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__crossJoin_enabled.sql[crossJoin.enabled=false] PASS=0  LENIENT=0  PHASE=1  FAIL=0  XFAIL=0  XPASS=0
+settings__decimalOperations_allowPrecisionLoss.sql[decimalOperations.allowPrecisionLoss=true] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__decimalOperations_allowPrecisionLoss.sql[decimalOperations.allowPrecisionLoss=false] PASS=7  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+settings__defaultColumn_enabled.sql[defaultColumn.enabled=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__defaultColumn_enabled.sql[defaultColumn.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__defaultColumn_useNullsForMissingDefaultValues.sql[defaultColumn.useNullsForMissingDefaultValues=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__defaultColumn_useNullsForMissingDefaultValues.sql[defaultColumn.useNullsForMissingDefaultValues=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__function_concatBinaryAsString.sql[function.concatBinaryAsString=false] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__function_concatBinaryAsString.sql[function.concatBinaryAsString=true] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__function_eltOutputAsString.sql[function.eltOutputAsString=false] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__function_eltOutputAsString.sql[function.eltOutputAsString=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByAliases.sql[groupByAliases=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByAliases.sql[groupByAliases=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByOrdinal.sql[groupByOrdinal=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByOrdinal.sql[groupByOrdinal=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=3  FAIL=0  XFAIL=11  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=3  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=3  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=3  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=3  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=3  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=3  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=13  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=13  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=0  FAIL=0  XFAIL=11  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=0  FAIL=0  XFAIL=11  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=3  FAIL=0  XFAIL=11  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=3  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=3  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=3  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=3  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=3  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=3  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=13  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=13  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=0  FAIL=0  XFAIL=11  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=0  FAIL=0  XFAIL=11  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=7  FAIL=0  XFAIL=7  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=7  FAIL=0  XFAIL=6  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=7  FAIL=0  XFAIL=6  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=7  FAIL=0  XFAIL=5  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=7  FAIL=0  XFAIL=5  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=7  FAIL=0  XFAIL=4  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=7  FAIL=0  XFAIL=4  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=4  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=4  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=4  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=4  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=4  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=4  FAIL=0  XFAIL=7  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=4  FAIL=0  XFAIL=7  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=7  FAIL=0  XFAIL=7  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=7  FAIL=0  XFAIL=6  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=7  FAIL=0  XFAIL=6  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=7  FAIL=0  XFAIL=5  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=7  FAIL=0  XFAIL=5  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=7  FAIL=0  XFAIL=4  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=7  FAIL=0  XFAIL=4  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=4  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=4  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=1  LENIENT=0  PHASE=4  FAIL=0  XFAIL=9  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=4  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=4  FAIL=0  XFAIL=8  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=3  LENIENT=0  PHASE=4  FAIL=0  XFAIL=7  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=3  LENIENT=0  PHASE=4  FAIL=0  XFAIL=7  XPASS=0
+settings__interactions_time.sql[session.timeZone=UTC_timestampType=TIMESTAMP_LTZ] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions_time.sql[session.timeZone=UTC_timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions_time.sql[session.timeZone=America-Los_Angeles_timestampType=TIMESTAMP_LTZ] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions_time.sql[session.timeZone=America-Los_Angeles_timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions_time.sql[session.timeZone=Asia-Kolkata_timestampType=TIMESTAMP_LTZ] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions_time.sql[session.timeZone=Asia-Kolkata_timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+settings__jsonGenerator_ignoreNullFields.sql[jsonGenerator.ignoreNullFields=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__jsonGenerator_ignoreNullFields.sql[jsonGenerator.ignoreNullFields=false] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__json_enablePartialResults.sql[json.enablePartialResults=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__json_enablePartialResults.sql[json.enablePartialResults=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__lateralColumnAlias_enableImplicitResolution.sql[lateralColumnAlias.enableImplicitResolution=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__lateralColumnAlias_enableImplicitResolution.sql[lateralColumnAlias.enableImplicitResolution=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowAutoGeneratedAliasForView.sql[legacy.allowAutoGeneratedAliasForView=false] PASS=0  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowAutoGeneratedAliasForView.sql[legacy.allowAutoGeneratedAliasForView=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowHashOnMapType.sql[legacy.allowHashOnMapType=false] PASS=0  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowHashOnMapType.sql[legacy.allowHashOnMapType=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowNegativeScaleOfDecimal.sql[legacy.allowNegativeScaleOfDecimal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowNegativeScaleOfDecimal.sql[legacy.allowNegativeScaleOfDecimal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowNullComparisonResultInArraySort.sql[legacy.allowNullComparisonResultInArraySort=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowNullComparisonResultInArraySort.sql[legacy.allowNullComparisonResultInArraySort=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowParameterlessCount.sql[legacy.allowParameterlessCount=false] PASS=0  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowParameterlessCount.sql[legacy.allowParameterlessCount=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowStarWithSingleTableIdentifierInCount.sql[legacy.allowStarWithSingleTableIdentifierInCount=false] PASS=0  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowStarWithSingleTableIdentifierInCount.sql[legacy.allowStarWithSingleTableIdentifierInCount=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowZeroIndexInFormatString.sql[legacy.allowZeroIndexInFormatString=false] PASS=0  LENIENT=0  PHASE=1  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowZeroIndexInFormatString.sql[legacy.allowZeroIndexInFormatString=true] PASS=0  LENIENT=0  PHASE=1  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_castComplexTypesToString_enabled.sql[legacy.castComplexTypesToString.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_castComplexTypesToString_enabled.sql[legacy.castComplexTypesToString.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_charVarcharAsString.sql[legacy.charVarcharAsString=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_charVarcharAsString.sql[legacy.charVarcharAsString=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_createEmptyCollectionUsingStringType.sql[legacy.createEmptyCollectionUsingStringType=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_createEmptyCollectionUsingStringType.sql[legacy.createEmptyCollectionUsingStringType=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_createHiveTableByDefault.sql[legacy.createHiveTableByDefault=true] PASS=0  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_createHiveTableByDefault.sql[legacy.createHiveTableByDefault=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_ctePrecedencePolicy.sql[legacy.ctePrecedencePolicy=EXCEPTION] PASS=0  LENIENT=2  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_ctePrecedencePolicy.sql[legacy.ctePrecedencePolicy=CORRECTED] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_ctePrecedencePolicy.sql[legacy.ctePrecedencePolicy=LEGACY] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_exponentLiteralAsDecimal_enabled.sql[legacy.exponentLiteralAsDecimal.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_exponentLiteralAsDecimal_enabled.sql[legacy.exponentLiteralAsDecimal.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_followThreeValuedLogicInArrayExists.sql[legacy.followThreeValuedLogicInArrayExists=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_followThreeValuedLogicInArrayExists.sql[legacy.followThreeValuedLogicInArrayExists=false] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_fromDayTimeString_enabled.sql[legacy.fromDayTimeString.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_fromDayTimeString_enabled.sql[legacy.fromDayTimeString.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_histogramNumericPropagateInputType.sql[legacy.histogramNumericPropagateInputType=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_histogramNumericPropagateInputType.sql[legacy.histogramNumericPropagateInputType=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_integerGroupingId.sql[legacy.integerGroupingId=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_integerGroupingId.sql[legacy.integerGroupingId=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_interval_enabled.sql[legacy.interval.enabled=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_interval_enabled.sql[legacy.interval.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_keepPartitionSpecAsStringLiteral.sql[legacy.keepPartitionSpecAsStringLiteral=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_keepPartitionSpecAsStringLiteral.sql[legacy.keepPartitionSpecAsStringLiteral=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_literal_pickMinimumPrecision.sql[legacy.literal.pickMinimumPrecision=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_literal_pickMinimumPrecision.sql[legacy.literal.pickMinimumPrecision=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_lpadRpadAlwaysReturnString.sql[legacy.lpadRpadAlwaysReturnString=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_lpadRpadAlwaysReturnString.sql[legacy.lpadRpadAlwaysReturnString=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_negativeIndexInArrayInsert.sql[legacy.negativeIndexInArrayInsert=false] PASS=15  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_negativeIndexInArrayInsert.sql[legacy.negativeIndexInArrayInsert=true] PASS=15  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_notReserveProperties.sql[legacy.notReserveProperties=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_notReserveProperties.sql[legacy.notReserveProperties=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_nullInEmptyListBehavior.sql[legacy.nullInEmptyListBehavior=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_nullInEmptyListBehavior.sql[legacy.nullInEmptyListBehavior=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_parseNullPartitionSpecAsStringLiteral.sql[legacy.parseNullPartitionSpecAsStringLiteral=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_parseNullPartitionSpecAsStringLiteral.sql[legacy.parseNullPartitionSpecAsStringLiteral=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_parser_havingWithoutGroupByAsWhere.sql[legacy.parser.havingWithoutGroupByAsWhere=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_parser_havingWithoutGroupByAsWhere.sql[legacy.parser.havingWithoutGroupByAsWhere=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_percentileDiscCalculation.sql[legacy.percentileDiscCalculation=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_percentileDiscCalculation.sql[legacy.percentileDiscCalculation=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_setCommandRejectsSparkCoreConfs.sql[legacy.setCommandRejectsSparkCoreConfs=true] PASS=0  LENIENT=0  PHASE=1  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_setCommandRejectsSparkCoreConfs.sql[legacy.setCommandRejectsSparkCoreConfs=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_setopsPrecedence_enabled.sql[legacy.setopsPrecedence.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_setopsPrecedence_enabled.sql[legacy.setopsPrecedence.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_sizeOfNull.sql[legacy.sizeOfNull=true] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_sizeOfNull.sql[legacy.sizeOfNull=false] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_statisticalAggregate.sql[legacy.statisticalAggregate=false] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_statisticalAggregate.sql[legacy.statisticalAggregate=true] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_storeAnalyzedPlanForView.sql[legacy.storeAnalyzedPlanForView=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_storeAnalyzedPlanForView.sql[legacy.storeAnalyzedPlanForView=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_timeParserPolicy.sql[legacy.timeParserPolicy=EXCEPTION] PASS=0  LENIENT=2  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_timeParserPolicy.sql[legacy.timeParserPolicy=CORRECTED] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_timeParserPolicy.sql[legacy.timeParserPolicy=LEGACY] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_typeCoercion_datetimeToString_enabled.sql[legacy.typeCoercion.datetimeToString.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_typeCoercion_datetimeToString_enabled.sql[legacy.typeCoercion.datetimeToString.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_useCurrentConfigsForView.sql[legacy.useCurrentConfigsForView=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_useCurrentConfigsForView.sql[legacy.useCurrentConfigsForView=true] PASS=0  LENIENT=0  PHASE=1  FAIL=0  XFAIL=1  XPASS=0
+settings__mapKeyDedupPolicy.sql[mapKeyDedupPolicy=EXCEPTION] PASS=29  LENIENT=3  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__mapKeyDedupPolicy.sql[mapKeyDedupPolicy=LAST_WIN] PASS=31  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__orderByOrdinal.sql[orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__orderByOrdinal.sql[orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__parser_escapedStringLiterals.sql[parser.escapedStringLiterals=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__parser_escapedStringLiterals.sql[parser.escapedStringLiterals=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__parser_quotedRegexColumnNames.sql[parser.quotedRegexColumnNames=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__parser_quotedRegexColumnNames.sql[parser.quotedRegexColumnNames=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__session_behaviour.sql              PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__session_timeZone.sql[session.timeZone=UTC] PASS=22  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__session_timeZone.sql[session.timeZone=America-Los_Angeles] PASS=17  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7  XPASS=0
+settings__session_timeZone.sql[session.timeZone=Asia-Kolkata] PASS=18  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+settings__session_timeZone.sql[session.timeZone=Australia-Lord_Howe] PASS=18  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+settings__session_timeZone.sql[session.timeZone=+05-30] PASS=21  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+settings__session_timeZone.sql[session.timeZone=-08-00] PASS=21  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+settings__set_command.sql                    PASS=60  LENIENT=0  PHASE=2  FAIL=0  XFAIL=2  XPASS=0
+settings__sources_partitionOverwriteMode.sql[sources.partitionOverwriteMode=STATIC] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__sources_partitionOverwriteMode.sql[sources.partitionOverwriteMode=DYNAMIC] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__stableDerivedColumnAlias_enabled.sql[stableDerivedColumnAlias.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__stableDerivedColumnAlias_enabled.sql[stableDerivedColumnAlias.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__storeAssignmentPolicy.sql[storeAssignmentPolicy=ANSI] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+settings__storeAssignmentPolicy.sql[storeAssignmentPolicy=LEGACY] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__storeAssignmentPolicy.sql[storeAssignmentPolicy=STRICT] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__time_zone_command.sql              PASS=32  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__timestampType.sql[timestampType=TIMESTAMP_LTZ] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__timestampType.sql[timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__variable_substitute.sql[variable.substitute=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__variable_substitute.sql[variable.substitute=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__view_maxNestedViewDepth.sql[view.maxNestedViewDepth=100] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__view_maxNestedViewDepth.sql[view.maxNestedViewDepth=1] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__array.sql                PASS=66  LENIENT=5  PHASE=1  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__ansi__cast.sql                 PASS=59  LENIENT=12  PHASE=0  FAIL=0  XFAIL=33  XPASS=0
+spark_corpus__ansi__conditional-functions.sql PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__date.sql                 PASS=55  LENIENT=16  PHASE=3  FAIL=0  XFAIL=27  XPASS=0
+spark_corpus__ansi__datetime-parsing-invalid.sql PASS=4  LENIENT=24  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__datetime-special.sql     PASS=2  LENIENT=2  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__decimalArithmeticOperations.sql PASS=10  LENIENT=0  PHASE=6  FAIL=0  XFAIL=5  XPASS=0
+spark_corpus__ansi__double-quoted-identifiers-disabled.sql PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__ansi__double-quoted-identifiers-enabled.sql PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+spark_corpus__ansi__higher-order-functions.sql PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=25  XPASS=0
+spark_corpus__ansi__interval.sql             PASS=72  LENIENT=45  PHASE=37  FAIL=0  XFAIL=130  XPASS=0
+spark_corpus__ansi__keywords.sql             PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__ansi__literals.sql             PASS=43  LENIENT=8  PHASE=2  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__ansi__map.sql                  PASS=9  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__math.sql                 PASS=59  LENIENT=3  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__parse-schema-string.sql  PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__string-functions.sql     PASS=168  LENIENT=7  PHASE=0  FAIL=0  XFAIL=19  XPASS=0
+spark_corpus__ansi__timestamp.sql            PASS=46  LENIENT=20  PHASE=3  FAIL=0  XFAIL=30  XPASS=0
+spark_corpus__ansi__try_aggregates.sql       PASS=15  LENIENT=3  PHASE=2  FAIL=0  XFAIL=12  XPASS=0
+spark_corpus__ansi__try_arithmetic.sql       PASS=41  LENIENT=1  PHASE=0  FAIL=0  XFAIL=27  XPASS=0
+spark_corpus__ansi__try_datetime_functions.sql PASS=5  LENIENT=1  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__try_element_at.sql       PASS=7  LENIENT=0  PHASE=1  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__cast.sql                       PASS=52  LENIENT=8  PHASE=0  FAIL=0  XFAIL=44  XPASS=0
+spark_corpus__charvarchar.sql                PASS=33  LENIENT=0  PHASE=0  FAIL=0  XFAIL=44  XPASS=0
+spark_corpus__datetime-formatting.sql        PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=30  XPASS=0
+spark_corpus__datetime-parsing.sql           PASS=20  LENIENT=5  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__datetime-special.sql           PASS=2  LENIENT=2  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__decimalArithmeticOperations.sql PASS=25  LENIENT=0  PHASE=0  FAIL=0  XFAIL=25  XPASS=0
+spark_corpus__interval.sql                   PASS=72  LENIENT=39  PHASE=33  FAIL=0  XFAIL=140  XPASS=0
+spark_corpus__literals.sql                   PASS=42  LENIENT=9  PHASE=2  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__timestampNTZ__datetime-special-ansi.sql PASS=0  LENIENT=0  PHASE=4  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__timestampNTZ__datetime-special.sql PASS=0  LENIENT=0  PHASE=4  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__timestampNTZ__timestamp-ansi.sql PASS=11  LENIENT=0  PHASE=20  FAIL=0  XFAIL=68  XPASS=0
+spark_corpus__timestampNTZ__timestamp.sql    PASS=15  LENIENT=0  PHASE=9  FAIL=0  XFAIL=75  XPASS=0
+spark_corpus__timezone.sql                   PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__try_cast.sql                   PASS=23  LENIENT=2  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__typeCoercion__native__arrayJoin.sql PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__binaryComparison.sql PASS=252  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+spark_corpus__typeCoercion__native__booleanEquality.sql PASS=72  LENIENT=0  PHASE=0  FAIL=0  XFAIL=24  XPASS=0
+spark_corpus__typeCoercion__native__caseWhenCoercion.sql PASS=134  LENIENT=10  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__concat.sql PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__dateTimeOperations.sql PASS=32  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7  XPASS=0
+spark_corpus__typeCoercion__native__decimalPrecision.sql PASS=1055  LENIENT=12  PHASE=16  FAIL=0  XFAIL=61  XPASS=0
+spark_corpus__typeCoercion__native__division.sql PASS=62  LENIENT=17  PHASE=63  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__typeCoercion__native__elt.sql  PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__ifCoercion.sql PASS=134  LENIENT=10  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__implicitTypeCasts.sql PASS=40  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+spark_corpus__typeCoercion__native__inConversion.sql PASS=268  LENIENT=20  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__mapZipWith.sql PASS=7  LENIENT=2  PHASE=1  FAIL=0  XFAIL=5  XPASS=0
+spark_corpus__typeCoercion__native__mapconcat.sql PASS=5  LENIENT=1  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+spark_corpus__typeCoercion__native__promoteStrings.sql PASS=293  LENIENT=5  PHASE=15  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__typeCoercion__native__stringCastAndExpressions.sql PASS=21  LENIENT=6  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__typeCoercion__native__widenSetOperationTypes.sql PASS=70  LENIENT=18  PHASE=52  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__typeCoercion__native__windowFrameCoercion.sql PASS=24  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+strict_valid.sql                             PASS=60  LENIENT=0  PHASE=0  FAIL=0  XFAIL=5  XPASS=0
+tpch_small.sql                               PASS=22  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+types__c10_datetime_arithmetic.sql           PASS=675  LENIENT=154  PHASE=92  FAIL=0  XFAIL=222  XPASS=0
+types__c11_boolean_contexts.sql              PASS=40  LENIENT=194  PHASE=264  FAIL=0  XFAIL=6  XPASS=0
+types__c12_aggregates_windows.sql            PASS=1983  LENIENT=92  PHASE=0  FAIL=0  XFAIL=323  XPASS=0
+types__c13_nested.sql                        PASS=347  LENIENT=128  PHASE=6  FAIL=0  XFAIL=39  XPASS=0
+types__c14_equality_ordering.sql             PASS=513  LENIENT=12  PHASE=92  FAIL=0  XFAIL=101  XPASS=0
+types__c1_casts.sql                          PASS=3581  LENIENT=3997  PHASE=28  FAIL=0  XFAIL=810  XPASS=0
+types__c2_string_rendering.sql               PASS=485  LENIENT=56  PHASE=0  FAIL=0  XFAIL=53  XPASS=0
+types__c3_arithmetic.sql                     PASS=2403  LENIENT=184  PHASE=532  FAIL=0  XFAIL=300  XPASS=0
+types__c4_comparison.sql                     PASS=3418  LENIENT=117  PHASE=1  FAIL=0  XFAIL=72  XPASS=0
+types__c5_common_type.sql                    PASS=6642  LENIENT=587  PHASE=1628  FAIL=0  XFAIL=532  XPASS=0
+types__c6_function_args.sql                  PASS=16067  LENIENT=2899  PHASE=2212  FAIL=0  XFAIL=812  XPASS=5
+types__c7_store_assignment.sql[storeAssignmentPolicy=ANSI] PASS=1405  LENIENT=164  PHASE=22  FAIL=0  XFAIL=21  XPASS=0
+types__c7_store_assignment.sql[storeAssignmentPolicy=LEGACY] PASS=840  LENIENT=0  PHASE=0  FAIL=0  XFAIL=772  XPASS=0
+types__c7_store_assignment.sql[storeAssignmentPolicy=STRICT] PASS=1308  LENIENT=0  PHASE=0  FAIL=0  XFAIL=304  XPASS=0
+types__c8_decimal_precision.sql              PASS=451  LENIENT=0  PHASE=0  FAIL=0  XFAIL=97  XPASS=0
+types__c9_literals.sql                       PASS=101  LENIENT=5  PHASE=4  FAIL=0  XFAIL=19  XPASS=0
+TOTAL                                        PASS=46181  LENIENT=8979  PHASE=5370  FAIL=0  XFAIL=6101  XPASS=5
 ```
 
 `SET current_dialect = 'spark_strict'` (a LENIENT result counts as a failure):
 
 ```
-ddl_dml.sql                  PASS=65  LENIENT=0  FAIL=0  SKIP=0
-functions_examples.sql       PASS=868  LENIENT=0  FAIL=0  SKIP=0
-fuzz_regressions.sql         PASS=53  LENIENT=0  FAIL=0  SKIP=0
-literals_types.sql           PASS=45  LENIENT=0  FAIL=0  SKIP=0
-non_spark.sql                PASS=73  LENIENT=0  FAIL=0  SKIP=0
-operators.sql                PASS=106  LENIENT=0  FAIL=0  SKIP=0
-queries.sql                  PASS=131  LENIENT=0  FAIL=0  SKIP=0
-regressions.sql              PASS=18  LENIENT=0  FAIL=0  SKIP=0
-strict_valid.sql             PASS=65  LENIENT=0  FAIL=0  SKIP=0
-tpch_small.sql               PASS=22  LENIENT=0  FAIL=0  SKIP=0
-TOTAL                        PASS=1446  LENIENT=0  FAIL=0  SKIP=0
+ansi__ansi_runtime.sql                       PASS=109  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+ddl_dml.sql                                  PASS=65  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+functions_examples.sql                       PASS=805  LENIENT=0  PHASE=0  FAIL=0  XFAIL=63  XPASS=0
+fuzz_regressions.sql                         PASS=52  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+generated_names.sql                          PASS=5  LENIENT=0  PHASE=0  FAIL=0  XFAIL=15  XPASS=0
+limitations.sql                              PASS=232  LENIENT=0  PHASE=0  FAIL=0  XFAIL=5  XPASS=0
+literals_types.sql                           PASS=43  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+non_spark.sql                                PASS=73  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+operators.sql                                PASS=103  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+queries.sql                                  PASS=130  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+regressions.sql                              PASS=14  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_doubleQuotedIdentifiers.sql[ansi.doubleQuotedIdentifiers=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_doubleQuotedIdentifiers.sql[ansi.doubleQuotedIdentifiers=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__ansi_enabled.sql[ansi.enabled=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_enabled.sql[ansi.enabled=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__ansi_enforceReservedKeywords.sql[ansi.enforceReservedKeywords=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_enforceReservedKeywords.sql[ansi.enforceReservedKeywords=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_relationPrecedence.sql[ansi.relationPrecedence=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__ansi_relationPrecedence.sql[ansi.relationPrecedence=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__caseSensitive.sql[caseSensitive=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__caseSensitive.sql[caseSensitive=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__charAsVarchar.sql[charAsVarchar=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__charAsVarchar.sql[charAsVarchar=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__chunkBase64String_enabled.sql[chunkBase64String.enabled=true] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__chunkBase64String_enabled.sql[chunkBase64String.enabled=false] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__columnNameOfCorruptRecord.sql[columnNameOfCorruptRecord=_corrupt_record] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__columnNameOfCorruptRecord.sql[columnNameOfCorruptRecord=_bad] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__crossJoin_enabled.sql[crossJoin.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__crossJoin_enabled.sql[crossJoin.enabled=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__decimalOperations_allowPrecisionLoss.sql[decimalOperations.allowPrecisionLoss=true] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__decimalOperations_allowPrecisionLoss.sql[decimalOperations.allowPrecisionLoss=false] PASS=7  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+settings__defaultColumn_enabled.sql[defaultColumn.enabled=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__defaultColumn_enabled.sql[defaultColumn.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__defaultColumn_useNullsForMissingDefaultValues.sql[defaultColumn.useNullsForMissingDefaultValues=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__defaultColumn_useNullsForMissingDefaultValues.sql[defaultColumn.useNullsForMissingDefaultValues=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__function_concatBinaryAsString.sql[function.concatBinaryAsString=false] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__function_concatBinaryAsString.sql[function.concatBinaryAsString=true] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__function_eltOutputAsString.sql[function.eltOutputAsString=false] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__function_eltOutputAsString.sql[function.eltOutputAsString=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByAliases.sql[groupByAliases=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByAliases.sql[groupByAliases=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__groupByOrdinal.sql[groupByOrdinal=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__groupByOrdinal.sql[groupByOrdinal=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=false_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=9  LENIENT=0  PHASE=0  FAIL=0  XFAIL=5  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=true_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=9  LENIENT=0  PHASE=0  FAIL=0  XFAIL=5  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=EXCEPTION_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=true] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=true_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=true_groupByAliases=false_orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=14  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=true_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=true] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions.sql[ansi.enabled=true_legacy.sizeOfNull=false_mapKeyDedupPolicy=LAST_WIN_groupByOrdinal=false_groupByAliases=false_orderByOrdinal=false] PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+settings__interactions_time.sql[session.timeZone=UTC_timestampType=TIMESTAMP_LTZ] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions_time.sql[session.timeZone=UTC_timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions_time.sql[session.timeZone=America-Los_Angeles_timestampType=TIMESTAMP_LTZ] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions_time.sql[session.timeZone=America-Los_Angeles_timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+settings__interactions_time.sql[session.timeZone=Asia-Kolkata_timestampType=TIMESTAMP_LTZ] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__interactions_time.sql[session.timeZone=Asia-Kolkata_timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+settings__jsonGenerator_ignoreNullFields.sql[jsonGenerator.ignoreNullFields=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__jsonGenerator_ignoreNullFields.sql[jsonGenerator.ignoreNullFields=false] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__json_enablePartialResults.sql[json.enablePartialResults=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__json_enablePartialResults.sql[json.enablePartialResults=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__lateralColumnAlias_enableImplicitResolution.sql[lateralColumnAlias.enableImplicitResolution=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__lateralColumnAlias_enableImplicitResolution.sql[lateralColumnAlias.enableImplicitResolution=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowAutoGeneratedAliasForView.sql[legacy.allowAutoGeneratedAliasForView=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowAutoGeneratedAliasForView.sql[legacy.allowAutoGeneratedAliasForView=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowHashOnMapType.sql[legacy.allowHashOnMapType=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowHashOnMapType.sql[legacy.allowHashOnMapType=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowNegativeScaleOfDecimal.sql[legacy.allowNegativeScaleOfDecimal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowNegativeScaleOfDecimal.sql[legacy.allowNegativeScaleOfDecimal=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowNullComparisonResultInArraySort.sql[legacy.allowNullComparisonResultInArraySort=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_allowNullComparisonResultInArraySort.sql[legacy.allowNullComparisonResultInArraySort=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowParameterlessCount.sql[legacy.allowParameterlessCount=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowParameterlessCount.sql[legacy.allowParameterlessCount=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowStarWithSingleTableIdentifierInCount.sql[legacy.allowStarWithSingleTableIdentifierInCount=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowStarWithSingleTableIdentifierInCount.sql[legacy.allowStarWithSingleTableIdentifierInCount=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowZeroIndexInFormatString.sql[legacy.allowZeroIndexInFormatString=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_allowZeroIndexInFormatString.sql[legacy.allowZeroIndexInFormatString=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_castComplexTypesToString_enabled.sql[legacy.castComplexTypesToString.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_castComplexTypesToString_enabled.sql[legacy.castComplexTypesToString.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_charVarcharAsString.sql[legacy.charVarcharAsString=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_charVarcharAsString.sql[legacy.charVarcharAsString=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_createEmptyCollectionUsingStringType.sql[legacy.createEmptyCollectionUsingStringType=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_createEmptyCollectionUsingStringType.sql[legacy.createEmptyCollectionUsingStringType=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_createHiveTableByDefault.sql[legacy.createHiveTableByDefault=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_createHiveTableByDefault.sql[legacy.createHiveTableByDefault=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_ctePrecedencePolicy.sql[legacy.ctePrecedencePolicy=EXCEPTION] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_ctePrecedencePolicy.sql[legacy.ctePrecedencePolicy=CORRECTED] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_ctePrecedencePolicy.sql[legacy.ctePrecedencePolicy=LEGACY] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_exponentLiteralAsDecimal_enabled.sql[legacy.exponentLiteralAsDecimal.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_exponentLiteralAsDecimal_enabled.sql[legacy.exponentLiteralAsDecimal.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_followThreeValuedLogicInArrayExists.sql[legacy.followThreeValuedLogicInArrayExists=true] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_followThreeValuedLogicInArrayExists.sql[legacy.followThreeValuedLogicInArrayExists=false] PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_fromDayTimeString_enabled.sql[legacy.fromDayTimeString.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_fromDayTimeString_enabled.sql[legacy.fromDayTimeString.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_histogramNumericPropagateInputType.sql[legacy.histogramNumericPropagateInputType=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_histogramNumericPropagateInputType.sql[legacy.histogramNumericPropagateInputType=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_integerGroupingId.sql[legacy.integerGroupingId=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_integerGroupingId.sql[legacy.integerGroupingId=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_interval_enabled.sql[legacy.interval.enabled=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_interval_enabled.sql[legacy.interval.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_keepPartitionSpecAsStringLiteral.sql[legacy.keepPartitionSpecAsStringLiteral=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_keepPartitionSpecAsStringLiteral.sql[legacy.keepPartitionSpecAsStringLiteral=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_literal_pickMinimumPrecision.sql[legacy.literal.pickMinimumPrecision=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_literal_pickMinimumPrecision.sql[legacy.literal.pickMinimumPrecision=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_lpadRpadAlwaysReturnString.sql[legacy.lpadRpadAlwaysReturnString=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_lpadRpadAlwaysReturnString.sql[legacy.lpadRpadAlwaysReturnString=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_negativeIndexInArrayInsert.sql[legacy.negativeIndexInArrayInsert=false] PASS=15  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_negativeIndexInArrayInsert.sql[legacy.negativeIndexInArrayInsert=true] PASS=15  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_notReserveProperties.sql[legacy.notReserveProperties=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_notReserveProperties.sql[legacy.notReserveProperties=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_nullInEmptyListBehavior.sql[legacy.nullInEmptyListBehavior=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_nullInEmptyListBehavior.sql[legacy.nullInEmptyListBehavior=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_parseNullPartitionSpecAsStringLiteral.sql[legacy.parseNullPartitionSpecAsStringLiteral=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_parseNullPartitionSpecAsStringLiteral.sql[legacy.parseNullPartitionSpecAsStringLiteral=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_parser_havingWithoutGroupByAsWhere.sql[legacy.parser.havingWithoutGroupByAsWhere=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_parser_havingWithoutGroupByAsWhere.sql[legacy.parser.havingWithoutGroupByAsWhere=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_percentileDiscCalculation.sql[legacy.percentileDiscCalculation=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_percentileDiscCalculation.sql[legacy.percentileDiscCalculation=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_setCommandRejectsSparkCoreConfs.sql[legacy.setCommandRejectsSparkCoreConfs=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_setCommandRejectsSparkCoreConfs.sql[legacy.setCommandRejectsSparkCoreConfs=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_setopsPrecedence_enabled.sql[legacy.setopsPrecedence.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_setopsPrecedence_enabled.sql[legacy.setopsPrecedence.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_sizeOfNull.sql[legacy.sizeOfNull=true] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_sizeOfNull.sql[legacy.sizeOfNull=false] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_statisticalAggregate.sql[legacy.statisticalAggregate=false] PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_statisticalAggregate.sql[legacy.statisticalAggregate=true] PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_storeAnalyzedPlanForView.sql[legacy.storeAnalyzedPlanForView=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_storeAnalyzedPlanForView.sql[legacy.storeAnalyzedPlanForView=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_timeParserPolicy.sql[legacy.timeParserPolicy=EXCEPTION] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_timeParserPolicy.sql[legacy.timeParserPolicy=CORRECTED] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_timeParserPolicy.sql[legacy.timeParserPolicy=LEGACY] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__legacy_typeCoercion_datetimeToString_enabled.sql[legacy.typeCoercion.datetimeToString.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__legacy_typeCoercion_datetimeToString_enabled.sql[legacy.typeCoercion.datetimeToString.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_useCurrentConfigsForView.sql[legacy.useCurrentConfigsForView=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__legacy_useCurrentConfigsForView.sql[legacy.useCurrentConfigsForView=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__mapKeyDedupPolicy.sql[mapKeyDedupPolicy=EXCEPTION] PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=21  XPASS=0
+settings__mapKeyDedupPolicy.sql[mapKeyDedupPolicy=LAST_WIN] PASS=27  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+settings__orderByOrdinal.sql[orderByOrdinal=true] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__orderByOrdinal.sql[orderByOrdinal=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__parser_escapedStringLiterals.sql[parser.escapedStringLiterals=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__parser_escapedStringLiterals.sql[parser.escapedStringLiterals=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__parser_quotedRegexColumnNames.sql[parser.quotedRegexColumnNames=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__parser_quotedRegexColumnNames.sql[parser.quotedRegexColumnNames=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__session_behaviour.sql              PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__session_timeZone.sql[session.timeZone=UTC] PASS=22  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__session_timeZone.sql[session.timeZone=America-Los_Angeles] PASS=17  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7  XPASS=0
+settings__session_timeZone.sql[session.timeZone=Asia-Kolkata] PASS=18  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+settings__session_timeZone.sql[session.timeZone=Australia-Lord_Howe] PASS=18  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+settings__session_timeZone.sql[session.timeZone=+05-30] PASS=21  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+settings__session_timeZone.sql[session.timeZone=-08-00] PASS=21  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+settings__set_command.sql                    PASS=58  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+settings__sources_partitionOverwriteMode.sql[sources.partitionOverwriteMode=STATIC] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__sources_partitionOverwriteMode.sql[sources.partitionOverwriteMode=DYNAMIC] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__stableDerivedColumnAlias_enabled.sql[stableDerivedColumnAlias.enabled=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__stableDerivedColumnAlias_enabled.sql[stableDerivedColumnAlias.enabled=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__storeAssignmentPolicy.sql[storeAssignmentPolicy=ANSI] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+settings__storeAssignmentPolicy.sql[storeAssignmentPolicy=LEGACY] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__storeAssignmentPolicy.sql[storeAssignmentPolicy=STRICT] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+settings__time_zone_command.sql              PASS=32  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__timestampType.sql[timestampType=TIMESTAMP_LTZ] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__timestampType.sql[timestampType=TIMESTAMP_NTZ] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__variable_substitute.sql[variable.substitute=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__variable_substitute.sql[variable.substitute=false] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+settings__view_maxNestedViewDepth.sql[view.maxNestedViewDepth=100] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+settings__view_maxNestedViewDepth.sql[view.maxNestedViewDepth=1] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__array.sql                PASS=66  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__ansi__cast.sql                 PASS=59  LENIENT=0  PHASE=0  FAIL=0  XFAIL=45  XPASS=0
+spark_corpus__ansi__conditional-functions.sql PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__date.sql                 PASS=55  LENIENT=0  PHASE=0  FAIL=0  XFAIL=46  XPASS=0
+spark_corpus__ansi__datetime-parsing-invalid.sql PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=24  XPASS=0
+spark_corpus__ansi__datetime-special.sql     PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__ansi__decimalArithmeticOperations.sql PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=11  XPASS=0
+spark_corpus__ansi__double-quoted-identifiers-disabled.sql PASS=13  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__ansi__double-quoted-identifiers-enabled.sql PASS=12  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+spark_corpus__ansi__higher-order-functions.sql PASS=10  LENIENT=0  PHASE=0  FAIL=0  XFAIL=25  XPASS=0
+spark_corpus__ansi__interval.sql             PASS=72  LENIENT=0  PHASE=0  FAIL=0  XFAIL=212  XPASS=0
+spark_corpus__ansi__keywords.sql             PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__ansi__literals.sql             PASS=43  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+spark_corpus__ansi__map.sql                  PASS=9  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+spark_corpus__ansi__math.sql                 PASS=59  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+spark_corpus__ansi__parse-schema-string.sql  PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__ansi__string-functions.sql     PASS=169  LENIENT=0  PHASE=0  FAIL=0  XFAIL=25  XPASS=0
+spark_corpus__ansi__timestamp.sql            PASS=46  LENIENT=0  PHASE=0  FAIL=0  XFAIL=53  XPASS=0
+spark_corpus__ansi__try_aggregates.sql       PASS=15  LENIENT=0  PHASE=0  FAIL=0  XFAIL=17  XPASS=0
+spark_corpus__ansi__try_arithmetic.sql       PASS=41  LENIENT=0  PHASE=0  FAIL=0  XFAIL=28  XPASS=0
+spark_corpus__ansi__try_datetime_functions.sql PASS=5  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+spark_corpus__ansi__try_element_at.sql       PASS=7  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
+spark_corpus__cast.sql                       PASS=52  LENIENT=0  PHASE=0  FAIL=0  XFAIL=52  XPASS=0
+spark_corpus__charvarchar.sql                PASS=33  LENIENT=0  PHASE=0  FAIL=0  XFAIL=44  XPASS=0
+spark_corpus__datetime-formatting.sql        PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=30  XPASS=0
+spark_corpus__datetime-parsing.sql           PASS=20  LENIENT=0  PHASE=0  FAIL=0  XFAIL=5  XPASS=0
+spark_corpus__datetime-special.sql           PASS=2  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__decimalArithmeticOperations.sql PASS=25  LENIENT=0  PHASE=0  FAIL=0  XFAIL=25  XPASS=0
+spark_corpus__interval.sql                   PASS=72  LENIENT=0  PHASE=0  FAIL=0  XFAIL=212  XPASS=0
+spark_corpus__literals.sql                   PASS=42  LENIENT=0  PHASE=0  FAIL=0  XFAIL=13  XPASS=0
+spark_corpus__timestampNTZ__datetime-special-ansi.sql PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__timestampNTZ__datetime-special.sql PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+spark_corpus__timestampNTZ__timestamp-ansi.sql PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=88  XPASS=0
+spark_corpus__timestampNTZ__timestamp.sql    PASS=15  LENIENT=0  PHASE=0  FAIL=0  XFAIL=84  XPASS=0
+spark_corpus__timezone.sql                   PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+spark_corpus__try_cast.sql                   PASS=23  LENIENT=0  PHASE=0  FAIL=0  XFAIL=6  XPASS=0
+spark_corpus__typeCoercion__native__arrayJoin.sql PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__binaryComparison.sql PASS=252  LENIENT=0  PHASE=0  FAIL=0  XFAIL=12  XPASS=0
+spark_corpus__typeCoercion__native__booleanEquality.sql PASS=72  LENIENT=0  PHASE=0  FAIL=0  XFAIL=24  XPASS=0
+spark_corpus__typeCoercion__native__caseWhenCoercion.sql PASS=134  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__typeCoercion__native__concat.sql PASS=11  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__dateTimeOperations.sql PASS=32  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7  XPASS=0
+spark_corpus__typeCoercion__native__decimalPrecision.sql PASS=1055  LENIENT=0  PHASE=0  FAIL=0  XFAIL=89  XPASS=0
+spark_corpus__typeCoercion__native__division.sql PASS=62  LENIENT=0  PHASE=0  FAIL=0  XFAIL=82  XPASS=0
+spark_corpus__typeCoercion__native__elt.sql  PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+spark_corpus__typeCoercion__native__ifCoercion.sql PASS=134  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__typeCoercion__native__implicitTypeCasts.sql PASS=40  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
+spark_corpus__typeCoercion__native__inConversion.sql PASS=268  LENIENT=0  PHASE=0  FAIL=0  XFAIL=20  XPASS=0
+spark_corpus__typeCoercion__native__mapZipWith.sql PASS=7  LENIENT=0  PHASE=0  FAIL=0  XFAIL=8  XPASS=0
+spark_corpus__typeCoercion__native__mapconcat.sql PASS=5  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
+spark_corpus__typeCoercion__native__promoteStrings.sql PASS=293  LENIENT=0  PHASE=0  FAIL=0  XFAIL=22  XPASS=0
+spark_corpus__typeCoercion__native__stringCastAndExpressions.sql PASS=21  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__typeCoercion__native__widenSetOperationTypes.sql PASS=70  LENIENT=0  PHASE=0  FAIL=0  XFAIL=74  XPASS=0
+spark_corpus__typeCoercion__native__windowFrameCoercion.sql PASS=24  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+strict_valid.sql                             PASS=60  LENIENT=0  PHASE=0  FAIL=0  XFAIL=5  XPASS=0
+tpch_small.sql                               PASS=22  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
+types__c10_datetime_arithmetic.sql           PASS=379  LENIENT=0  PHASE=0  FAIL=0  XFAIL=764  XPASS=0
+types__c11_boolean_contexts.sql              PASS=40  LENIENT=0  PHASE=0  FAIL=0  XFAIL=464  XPASS=0
+types__c12_aggregates_windows.sql            PASS=1212  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1186  XPASS=0
+types__c13_nested.sql                        PASS=139  LENIENT=0  PHASE=0  FAIL=0  XFAIL=381  XPASS=0
+types__c14_equality_ordering.sql             PASS=467  LENIENT=0  PHASE=0  FAIL=0  XFAIL=251  XPASS=0
+types__c1_casts.sql                          PASS=3581  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4835  XPASS=0
+types__c2_string_rendering.sql               PASS=485  LENIENT=0  PHASE=0  FAIL=0  XFAIL=109  XPASS=0
+types__c3_arithmetic.sql                     PASS=1645  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1774  XPASS=0
+types__c4_comparison.sql                     PASS=1442  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2166  XPASS=0
+types__c5_common_type.sql                    PASS=2309  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7080  XPASS=0
+types__c6_function_args.sql                  PASS=12603  LENIENT=0  PHASE=0  FAIL=0  XFAIL=9392  XPASS=0
+types__c7_store_assignment.sql[storeAssignmentPolicy=ANSI] PASS=423  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1189  XPASS=0
+types__c7_store_assignment.sql[storeAssignmentPolicy=LEGACY] PASS=90  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1522  XPASS=0
+types__c7_store_assignment.sql[storeAssignmentPolicy=STRICT] PASS=44  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1568  XPASS=0
+types__c8_decimal_precision.sql              PASS=451  LENIENT=0  PHASE=0  FAIL=0  XFAIL=97  XPASS=0
+types__c9_literals.sql                       PASS=95  LENIENT=0  PHASE=0  FAIL=0  XFAIL=34  XPASS=0
+TOTAL                                        PASS=31317  LENIENT=0  PHASE=0  FAIL=0  XFAIL=35320  XPASS=0
 ```
 
 ## Built-in functions (438 in Spark 3.5)
@@ -43,7 +613,106 @@ TOTAL                        PASS=1446  LENIENT=0  FAIL=0  SKIP=0
 - **0** have at least one failing example: 
 - **17** have no documentation examples (operators and cast functions), covered by `test/cases/operators.sql` and `test/cases/literals_types.sql`: `!=`, `<>`, `between`, `bigint`, `binary`, `boolean`, `case`, `date`, `decimal`, `double`, `float`, `int`, `smallint`, `string`, `timestamp`, `tinyint`, `||`
 
-56 cases that Spark rejects are accepted by the lenient `spark` dialect (DuckDB-only syntax); `spark_strict` rejects them all.
+8979 cases that Spark rejects are accepted by the lenient `spark` dialect (DuckDB-only syntax); `spark_strict` rejects them all.
 
 ## Remaining failures
 
+- `PHASE ansi__ansi_runtime.sql:22 `
+  - sql: SELECT try_element_at(array(1, 2), 5), try_element_at(array(1, 2), 0)
+  - error phase: spark runtime, duckdb analysis (InvalidInputException); Invalid Input Error: [INVALID_INDEX_OF_ZERO] The index 0 is invalid. An index shall be either < 0 or
+  - 
+
+## Spark settings
+
+Classes: 49 client, 4 command, 206 execution, 66 semantic, 26 static, 115 storage, 12 unobservable.
+478 settings in `test/settings/inventory.toml`; `semantic` ones change results and have a case file (`test/cases/settings/`, one run per legal value).
+
+| key | class | tier | status | cases | pass | xfail |
+|---|---|---|---|---|---|---|
+| `spark.sql.allowNamedFunctionArguments` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.ansi.doubleQuotedIdentifiers` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.ansi.enabled` | semantic | 1 | emulated | 4 | 3 | 1 |
+| `spark.sql.ansi.enforceReservedKeywords` | semantic | 3 | rejected | 2 | 2 | 0 |
+| `spark.sql.ansi.relationPrecedence` | semantic | 3 | rejected | 2 | 2 | 0 |
+| `spark.sql.caseSensitive` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.charAsVarchar` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.chunkBase64String.enabled` | semantic | 2 | emulated | 24 | 24 | 0 |
+| `spark.sql.columnNameOfCorruptRecord` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.crossJoin.enabled` | semantic | 3 | rejected | 2 | 0 | 1 |
+| `spark.sql.decimalOperations.allowPrecisionLoss` | semantic | 2 | emulated | 22 | 18 | 4 |
+| `spark.sql.defaultColumn.enabled` | semantic | 3 | rejected | 2 | 2 | 0 |
+| `spark.sql.defaultColumn.useNullsForMissingDefaultValues` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.function.concatBinaryAsString` | semantic | 2 | emulated | 22 | 22 | 0 |
+| `spark.sql.function.eltOutputAsString` | semantic | 2 | emulated | 26 | 26 | 0 |
+| `spark.sql.groupByAliases` | semantic | 3 | rejected | 2 | 2 | 0 |
+| `spark.sql.groupByOrdinal` | semantic | 3 | rejected | 2 | 2 | 0 |
+| `spark.sql.json.enablePartialResults` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.jsonGenerator.ignoreNullFields` | semantic | 2 | emulated | 26 | 26 | 0 |
+| `spark.sql.lateralColumnAlias.enableImplicitResolution` | semantic | 3 | rejected | 2 | 2 | 0 |
+| `spark.sql.legacy.allowAutoGeneratedAliasForView` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.allowHashOnMapType` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.allowNegativeScaleOfDecimal` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.legacy.allowNullComparisonResultInArraySort` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.allowParameterlessCount` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.allowStarWithSingleTableIdentifierInCount` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.allowZeroIndexInFormatString` | semantic | 3 | rejected | 2 | 0 | 0 |
+| `spark.sql.legacy.castComplexTypesToString.enabled` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.charVarcharAsString` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.legacy.createEmptyCollectionUsingStringType` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.createHiveTableByDefault` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.ctePrecedencePolicy` | semantic | 3 | rejected | 6 | 2 | 4 |
+| `spark.sql.legacy.exponentLiteralAsDecimal.enabled` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.followThreeValuedLogicInArrayExists` | semantic | 2 | emulated | 26 | 26 | 0 |
+| `spark.sql.legacy.fromDayTimeString.enabled` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.histogramNumericPropagateInputType` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.integerGroupingId` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.interval.enabled` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.legacy.keepPartitionSpecAsStringLiteral` | semantic | 3 | rejected | 3 | 0 | 3 |
+| `spark.sql.legacy.literal.pickMinimumPrecision` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.lpadRpadAlwaysReturnString` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.negativeIndexInArrayInsert` | semantic | 2 | emulated | 30 | 30 | 0 |
+| `spark.sql.legacy.notReserveProperties` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.nullInEmptyListBehavior` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.legacy.parseNullPartitionSpecAsStringLiteral` | semantic | 3 | rejected | 3 | 0 | 3 |
+| `spark.sql.legacy.parser.havingWithoutGroupByAsWhere` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.percentileDiscCalculation` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.legacy.setCommandRejectsSparkCoreConfs` | semantic | 3 | emulated | 2 | 1 | 0 |
+| `spark.sql.legacy.setopsPrecedence.enabled` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.sizeOfNull` | semantic | 2 | emulated | 22 | 22 | 0 |
+| `spark.sql.legacy.statisticalAggregate` | semantic | 2 | emulated | 22 | 21 | 1 |
+| `spark.sql.legacy.storeAnalyzedPlanForView` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.timeParserPolicy` | semantic | 3 | rejected | 6 | 2 | 4 |
+| `spark.sql.legacy.typeCoercion.datetimeToString.enabled` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.legacy.useCurrentConfigsForView` | semantic | 3 | rejected | 4 | 1 | 2 |
+| `spark.sql.mapKeyDedupPolicy` | semantic | 1 | emulated | 66 | 63 | 3 |
+| `spark.sql.orderByOrdinal` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.parser.escapedStringLiterals` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.parser.quotedRegexColumnNames` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.session.timeZone` | semantic | 1 | emulated | 144 | 117 | 27 |
+| `spark.sql.sources.partitionOverwriteMode` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.stableDerivedColumnAlias.enabled` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.storeAssignmentPolicy` | semantic | 3 | rejected | 8 | 1 | 7 |
+| `spark.sql.timestampType` | semantic | 3 | rejected | 2 | 1 | 1 |
+| `spark.sql.variable.substitute` | semantic | 3 | rejected | 2 | 0 | 2 |
+| `spark.sql.view.maxNestedViewDepth` | semantic | 3 | rejected | 2 | 2 | 0 |
+
+## Type conversion matrices
+
+| matrix | cells | pass | lenient | phase | xfail by id |
+|---|---|---|---|---|---|
+| `c10_datetime_arithmetic` | 1143 | 675 | 154 | 92 | types-interval: 188, types-ntz: 9, types-open-c10: 25 |
+| `c11_boolean_contexts` | 504 | 40 | 194 | 264 | types-open-c11: 6 |
+| `c12_aggregates_windows` | 2398 | 1983 | 92 | 0 | types-interval: 187, types-ntz: 20, types-open-c12: 116 |
+| `c13_nested` | 520 | 347 | 128 | 6 | types-open-c13: 39 |
+| `c14_equality_ordering` | 718 | 513 | 12 | 92 | types-interval: 16, types-ntz: 4, types-open-c14: 81 |
+| `c1_casts` | 8416 | 3581 | 3997 | 28 | types-interval: 624, types-ntz: 83, types-open-c1: 103 |
+| `c2_string_rendering` | 594 | 485 | 56 | 0 | types-interval: 36, types-ntz: 2, types-open-c2: 15 |
+| `c3_arithmetic` | 3419 | 2403 | 184 | 532 | types-interval: 188, types-ntz: 5, types-open-c3: 107 |
+| `c4_comparison` | 3608 | 3418 | 117 | 1 | types-interval: 16, types-ntz: 2, types-open-c4: 54 |
+| `c5_common_type` | 9389 | 6642 | 587 | 1628 | types-interval: 214, types-ntz: 34, types-open-c5: 284 |
+| `c6_function_args` | 21995 | 16067 | 2899 | 2212 | types-interval: 285, types-ntz: 104, types-open-c6: 393, types-struct-field-names: 5, types-to-number: 25 |
+| `c7_store_assignment` | 4836 | 3553 | 164 | 22 | conf-rejected: 1076, types-open-c7: 21 |
+| `c8_decimal_precision` | 548 | 451 | 0 | 0 | types-open-c8: 97 |
+| `c9_literals` | 129 | 101 | 5 | 4 | types-interval: 16, types-ntz: 2, types-open-c9: 1 |
+
+Error class agreement in `spark_strict` (report only): 727 of 25358 compared cases.

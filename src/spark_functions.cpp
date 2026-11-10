@@ -24,6 +24,7 @@
 #include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/common/vector/string_vector.hpp"
 #include "duckdb/common/types/time.hpp"
+#include "duckdb/common/value_operations/value_operations.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 
 #include <charconv>
@@ -1104,8 +1105,15 @@ bool ParseSparkTimestamp(const string &trimmed, timestamp_t &out) {
 	if (trimmed.empty()) {
 		return false;
 	}
-	if (Timestamp::TryConvertTimestamp(trimmed.c_str(), trimmed.size(), out, true) == TimestampCastResult::SUCCESS) {
-		return true;
+	{
+		// a zone designator (`Z`, `+05:30`) is applied: the result is then the instant as a naive UTC timestamp, which
+		// the cast's bound expression converts to the session zone (see StringZoneKind); a zone name is left unapplied
+		bool has_offset = false;
+		string_t tz("", 0);
+		if (Timestamp::TryConvertTimestampTZ(trimmed.c_str(), trimmed.size(), out, true, has_offset, tz) ==
+		    TimestampCastResult::SUCCESS) {
+			return true;
+		}
 	}
 	auto sep = trimmed.find_first_of(" T");
 	auto date_part = sep == string::npos ? trimmed : trimmed.substr(0, sep);
@@ -1122,6 +1130,42 @@ bool ParseSparkTimestamp(const string &trimmed, timestamp_t &out) {
 		}
 	}
 	return Timestamp::TryFromDatetime(date, time, out);
+}
+
+//! 0: no zone designator in the string, 1: an offset (`Z`, `+05:30`; the parsed value is then a UTC instant),
+//! 2: a zone name (`America/New_York`; the parsed value is the wall clock time in that zone)
+int32_t StringZoneKind(const string &trimmed, string &name) {
+	bool has_offset = false;
+	string_t tz("", 0);
+	timestamp_t ts;
+	if (Timestamp::TryConvertTimestampTZ(trimmed.c_str(), trimmed.size(), ts, true, has_offset, tz) !=
+	    TimestampCastResult::SUCCESS) {
+		return 0;
+	}
+	if (tz.GetSize() > 0) {
+		name = tz.GetString();
+		return 2;
+	}
+	return has_offset ? 1 : 0;
+}
+
+void StringZoneKindKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, int32_t>(args.data[0], result, args.size(), [](string_t s) {
+		auto str = s.GetString();
+		StringUtil::Trim(str);
+		string name;
+		return StringZoneKind(str, name);
+	});
+}
+
+void StringZoneNameKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t s) {
+		auto str = s.GetString();
+		StringUtil::Trim(str);
+		string name;
+		StringZoneKind(str, name);
+		return StringVector::AddString(result, name);
+	});
 }
 
 void StringToTimestampKernel(DataChunk &args, ExpressionState &, Vector &result) {
@@ -1401,6 +1445,27 @@ ExprP ToSparkString(Builder &b, ExprP e) {
 //===----------------------------------------------------------------------===//
 // CAST
 //===----------------------------------------------------------------------===//
+//! The wall clock TIMESTAMP of the Spark TIMESTAMP type as an instant in the session time zone (unchanged under UTC)
+ExprP WallToInstant(Builder &b, ExprP e) {
+	Value zone;
+	if (b.context.TryGetCurrentSetting(Identifier("TimeZone"), zone) && !zone.IsNull()) {
+		auto name = zone.ToString();
+		if (name != "UTC" && name != "Etc/UTC" && name != "GMT") {
+			return b.Call("timezone", b.Constant(Value(name)), std::move(e));
+		}
+	}
+	return e;
+}
+
+bool SessionZoneIsUtc(Builder &b) {
+	Value zone;
+	if (b.context.TryGetCurrentSetting(Identifier("TimeZone"), zone) && !zone.IsNull()) {
+		auto name = zone.ToString();
+		return name == "UTC" || name == "Etc/UTC" || name == "GMT";
+	}
+	return true;
+}
+
 ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	auto source = Normalize(e->GetReturnType());
 	if (source == target) {
@@ -1434,6 +1499,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.Kernel(NarrowFunction(LogicalType::BIGINT, target), std::move(as_long));
 		}
 		if (source.id() == LogicalTypeId::TIMESTAMP || source.id() == LogicalTypeId::TIMESTAMP_TZ) {
+			if (source.id() == LogicalTypeId::TIMESTAMP) {
+				e = WallToInstant(b, std::move(e));
+			}
 			auto seconds = b.Call("floor", b.Call("epoch", std::move(e)));
 			auto as_long = b.Cast(std::move(seconds), LogicalType::BIGINT, true);
 			if (target.id() == LogicalTypeId::BIGINT) {
@@ -1450,6 +1518,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.Cast(b.Call("trim", std::move(e)), target, true);
 		}
 		if (source.id() == LogicalTypeId::TIMESTAMP || source.id() == LogicalTypeId::TIMESTAMP_TZ) {
+			if (source.id() == LogicalTypeId::TIMESTAMP) {
+				e = WallToInstant(b, std::move(e));
+			}
 			return b.Cast(b.Call("epoch", std::move(e)), target, true);
 		}
 		if (source.id() == LogicalTypeId::DATE) {
@@ -1468,6 +1539,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.NullOf(target);
 		}
 		if (source.id() == LogicalTypeId::TIMESTAMP || source.id() == LogicalTypeId::TIMESTAMP_TZ) {
+			if (source.id() == LogicalTypeId::TIMESTAMP) {
+				e = WallToInstant(b, std::move(e));
+			}
 			return b.Cast(b.Call("epoch", std::move(e)), target, true);
 		}
 	}
@@ -1493,16 +1567,42 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	}
 	if (target.id() == LogicalTypeId::TIMESTAMP) {
 		if (IsString(source)) {
-			return b.Kernel(ScalarFunction(Identifier("spark_string_to_timestamp"), {LogicalType::VARCHAR},
-			                               LogicalType::TIMESTAMP, StringToTimestampKernel),
-			                std::move(e));
+			auto wall = [&](ExprP arg) {
+				return b.Kernel(ScalarFunction(Identifier("spark_string_to_timestamp"), {LogicalType::VARCHAR},
+				                               LogicalType::TIMESTAMP, StringToTimestampKernel),
+				                std::move(arg));
+			};
+			// a zone designator in the string (offset or zone name) is applied: the result is the wall clock time of
+			// the instant in the session time zone
+			auto kind = b.Kernel(ScalarFunction(Identifier("spark_string_zone_kind"), {LogicalType::VARCHAR},
+			                                    LogicalType::INTEGER, StringZoneKindKernel),
+			                     e->Copy());
+			auto name = b.Kernel(ScalarFunction(Identifier("spark_string_zone_name"), {LogicalType::VARCHAR},
+			                                    LogicalType::VARCHAR, StringZoneNameKernel),
+			                     e->Copy());
+			auto offset_case = b.Cast(b.Call("timezone", b.Constant(Value("UTC")), wall(e->Copy())), LogicalType::TIMESTAMP);
+			auto named_case = b.Cast(b.Call("timezone", std::move(name), wall(e->Copy())), LogicalType::TIMESTAMP, true);
+			auto is_kind = [&](int32_t k) {
+				return b.Compare(ExpressionType::COMPARE_EQUAL, kind->Copy(), b.Constant(Value::INTEGER(k)));
+			};
+			return b.Case(is_kind(0), wall(e->Copy()),
+			              b.Case(is_kind(1), std::move(offset_case), std::move(named_case)));
+		}
+		if (IsIntegral(source) && SessionZoneIsUtc(b)) {
+			// seconds since the epoch as the wall clock of a UTC session; the TIMESTAMPTZ path below depends on the
+			// ICU calendar setting
+			auto micros = b.Op("*", b.Cast(std::move(e), LogicalType::HUGEINT), b.Constant(Value::HUGEINT(1000000)));
+			return b.Call("make_timestamp", b.Cast(std::move(micros), LogicalType::BIGINT, true));
 		}
 		if (IsNumeric(source)) {
 			auto tz = b.Call("to_timestamp", b.Cast(std::move(e), LogicalType::DOUBLE));
 			return b.Cast(std::move(tz), target, true);
 		}
 		if (source.id() == LogicalTypeId::BOOLEAN) {
-			return b.NullOf(target);
+			// true is one microsecond after the epoch, false the epoch itself
+			auto micros = b.Case(e->Copy(), b.Constant(Value::BIGINT(1)), b.Constant(Value::BIGINT(0)));
+			auto ts = b.Call("make_timestamp", std::move(micros));
+			return b.Case(b.IsNull(std::move(e)), b.NullOf(target), std::move(ts));
 		}
 	}
 	if (target.id() == LogicalTypeId::BLOB && IsString(source)) {
@@ -1575,9 +1675,13 @@ ExprP NumericOperand(Builder &b, ExprP e) {
 }
 
 //! Spark's DecimalType.adjustPrecisionScale (allowPrecisionLoss = true)
-LogicalType AdjustDecimal(int precision, int scale) {
+LogicalType AdjustDecimal(int precision, int scale, bool allow_precision_loss = true) {
 	if (precision <= 38) {
 		return LogicalType::DECIMAL(uint8_t(precision), uint8_t(scale));
+	}
+	if (!allow_precision_loss) {
+		// DecimalType.bounded: keep the scale, cap the precision (overflow becomes NULL)
+		return LogicalType::DECIMAL(38, uint8_t(MinValue(scale, 38)));
 	}
 	int int_digits = precision - scale;
 	int min_scale = MinValue(scale, 6);
@@ -1612,6 +1716,10 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 	Builder b(input.context);
 	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
 	auto right_decimal = DecimalOperandType(*input.children[1], ArgType(input, 1));
+	if (IsNull(Normalize(input.children[0]->GetReturnType())) && IsNull(Normalize(input.children[1]->GetReturnType()))) {
+		// NULL + NULL: both untyped operands are DOUBLE in Spark
+		return b.NullOf(LogicalType::DOUBLE);
+	}
 	auto left = NumericOperand(b, Arg(input, 0));
 	auto right = NumericOperand(b, Arg(input, 1));
 	auto lt = Normalize(left->GetReturnType());
@@ -1647,6 +1755,10 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 			return b.Cast(b.Op("-", std::move(left), std::move(right)), LogicalType::DATE);
 		}
 	}
+	if ((IsDecimal(lt) && IsFloating(rt)) || (IsFloating(lt) && IsDecimal(rt))) {
+		// Spark: decimal with FLOAT or DOUBLE is DOUBLE (DuckDB: FLOAT)
+		return b.Op(duck_op, b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+	}
 	bool decimal_math = (IsDecimal(lt) || IsDecimal(rt)) && (IsDecimal(lt) || IsIntegral(lt) || IsLargeIntegral(lt)) &&
 	                    (IsDecimal(rt) || IsIntegral(rt) || IsLargeIntegral(rt));
 	if (decimal_math) {
@@ -1663,7 +1775,7 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 			scale = MaxValue(s1, s2);
 			precision = MaxValue(p1 - s1, p2 - s2) + scale + 1;
 		}
-		auto result_type = AdjustDecimal(precision, scale);
+		auto result_type = AdjustDecimal(precision, scale, SparkConfBool(input.context, "spark.sql.decimalOperations.allowPrecisionLoss"));
 		ExprP left_copy, right_copy;
 		if (ansi) {
 			left_copy = left->Copy();
@@ -2056,11 +2168,14 @@ ExprP BindTryMultiply(FunctionBindExpressionInput &input) {
 }
 
 //! Spark decimal division result type: DecimalPrecision rules with allowPrecisionLoss = true
-LogicalType DecimalDivideType(const LogicalType &l, const LogicalType &r) {
+LogicalType DecimalDivideType(const LogicalType &l, const LogicalType &r, bool allow_precision_loss = true) {
 	int p1 = DecimalType::GetWidth(l), s1 = DecimalType::GetScale(l);
 	int p2 = DecimalType::GetWidth(r), s2 = DecimalType::GetScale(r);
 	int scale = MaxValue(6, s1 + p2 + 1);
 	int precision = p1 - s1 + s2 + scale;
+	if (precision > 38 && !allow_precision_loss) {
+		return LogicalType::DECIMAL(38, uint8_t(MinValue(scale, 38)));
+	}
 	if (precision > 38) {
 		int int_digits = precision - scale;
 		int min_scale = MinValue(scale, 6);
@@ -2104,7 +2219,8 @@ ExprP BindDivideImpl(FunctionBindExpressionInput &input) {
 		right = AnsiNonZero(b, std::move(right), left->Copy());
 	}
 	if ((IsDecimal(lt) || IsDecimal(rt)) && !IsFloating(lt) && !IsFloating(rt)) {
-		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal);
+		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal,
+		                                     SparkConfBool(input.context, "spark.sql.decimalOperations.allowPrecisionLoss"));
 		auto quotient = b.Kernel(ScalarFunction(Identifier("spark_divide"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
 		                                        LogicalType::DOUBLE, DoubleDivideKernel),
 		                         b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
@@ -2148,6 +2264,8 @@ ExprP BindDiv(FunctionBindExpressionInput &input) {
 ExprP BindRemainder(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "%", 2, 2);
 	Builder b(input.context);
+	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
+	auto right_decimal = DecimalOperandType(*input.children[1], ArgType(input, 1));
 	auto left = NumericOperand(b, Arg(input, 0));
 	auto right = NumericOperand(b, Arg(input, 1));
 	auto lt = Normalize(left->GetReturnType());
@@ -2176,17 +2294,29 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 		                b.Cast(std::move(left), type), b.Cast(std::move(right), type));
 	}
 	if (IsFloating(lt) || IsFloating(rt)) {
-		return b.Kernel(ScalarFunction(Identifier("spark_remainder"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
-		                               LogicalType::DOUBLE, DoubleRemainderKernel),
-		                b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+		// FLOAT with FLOAT or an integer stays FLOAT in Spark; DOUBLE or a decimal makes it DOUBLE
+		bool stays_float = (lt.id() == LogicalTypeId::FLOAT || IsIntegral(lt)) && (rt.id() == LogicalTypeId::FLOAT || IsIntegral(rt));
+		auto result = b.Kernel(ScalarFunction(Identifier("spark_remainder"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
+		                                      LogicalType::DOUBLE, DoubleRemainderKernel),
+		                       b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+		return stays_float ? b.Cast(std::move(result), LogicalType::FLOAT) : std::move(result);
 	}
 	// integers mixed with decimals; anything else (intervals, ...) is a type error as in Spark
 	if (!(IsDecimal(lt) || IsIntegral(lt)) || !(IsDecimal(rt) || IsIntegral(rt))) {
 		throw BinderException("[DATATYPE_MISMATCH] %% requires numeric operands, got %s and %s", SparkTypeName(lt),
 		                      SparkTypeName(rt));
 	}
-	// decimals: NULL when dividing by zero
-	return b.Op("%", std::move(left), ZeroToNull(b, std::move(right)));
+	// decimals: NULL when dividing by zero; the type is Spark's DecimalPrecision rule for `%`:
+	// scale max(s1, s2), precision min(p1 - s1, p2 - s2) + scale, reduced to 38 digits
+	auto ld = IsDecimal(lt) ? lt : left_decimal;
+	auto rd = IsDecimal(rt) ? rt : right_decimal;
+	int s1 = DecimalType::GetScale(ld), s2 = DecimalType::GetScale(rd);
+	int scale = MaxValue(s1, s2);
+	int precision = MinValue(DecimalType::GetWidth(ld) - s1, DecimalType::GetWidth(rd) - s2) + scale;
+	auto result_type = AdjustDecimal(precision, scale);
+	auto common = LogicalType::DECIMAL(38, uint8_t(scale));
+	auto remainder = b.Op("%", b.Cast(std::move(left), common), ZeroToNull(b, b.Cast(std::move(right), common)));
+	return b.Cast(std::move(remainder), result_type);
 }
 
 ExprP BindNegative(FunctionBindExpressionInput &input) {
@@ -2275,11 +2405,16 @@ ExprP BindZeroKey(FunctionBindExpressionInput &input) {
 
 //! narrow_int(x): a BIGINT (or wider) argument wraps to INT like Spark's implicit cast; other types are unchanged
 ExprP BindNarrowInt(FunctionBindExpressionInput &input) {
-	CheckArgs(input, "narrow_int", 1, 1);
+	CheckArgs(input, "narrow_int", 1, 2);
 	Builder b(input.context);
 	auto value = Arg(input, 0);
 	auto type = Normalize(value->GetReturnType());
-	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT) {
+	if (IsString(type) && input.children.size() == 1) {
+		// a string argument is read as an INT (NULL when malformed); with a second argument it may be a format and stays
+		return SparkCast(b, std::move(value), LogicalType::INTEGER);
+	}
+	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT || IsFloating(type) || IsDecimal(type)) {
+		// Spark's implicit cast to INT: wraps a BIGINT, truncates a fraction (a string argument may be a format: unchanged)
 		return SparkCast(b, std::move(value), LogicalType::INTEGER);
 	}
 	return value;
@@ -2428,6 +2563,10 @@ ExprP BindConcat(FunctionBindExpressionInput &input) {
 		all_lists = all_lists && (type.id() == LogicalTypeId::LIST || IsNull(type));
 		all_blobs = all_blobs && (type.id() == LogicalTypeId::BLOB || IsNull(type));
 	}
+	// spark.sql.function.concatBinaryAsString: binary inputs concatenate as strings
+	if (all_blobs && SparkConfBool(input.context, "spark.sql.function.concatBinaryAsString")) {
+		all_blobs = false;
+	}
 	vector<ExprP> args;
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
@@ -2523,16 +2662,174 @@ ExprP BindTypeOf(FunctionBindExpressionInput &input) {
 	return b.Constant(Value(SparkTypeName(input.children[0]->GetReturnType())));
 }
 
+LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const LogicalType &b_p);
+
+//! The operands cast to their common type, found pairwise from the left like Spark's findWiderTypeForTwo
+void CastToCommonType(Builder &b, vector<ExprP> &args) {
+	LogicalType common = LogicalType::SQLNULL;
+	for (auto &arg : args) {
+		common = SparkWiderType(b.context, common, arg->GetReturnType());
+	}
+	if (IsNull(common)) {
+		return;
+	}
+	for (auto &arg : args) {
+		if (arg->GetReturnType() != common) {
+			arg = b.Cast(std::move(arg), common);
+		}
+	}
+}
+
+//! value IN (items...) after the common type of all operands
+ExprP BindInListValue(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	vector<ExprP> args;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		args.push_back(Arg(input, i));
+	}
+	bool nested = false;
+	for (auto &arg : args) {
+		auto id = Normalize(arg->GetReturnType()).id();
+		nested = nested || id == LogicalTypeId::STRUCT;  // struct fields keep DuckDB's by-name rules
+	}
+	if (!nested) {
+		CastToCommonType(b, args);
+	}
+	auto result = make_uniq<BoundOperatorExpression>(ExpressionType::COMPARE_IN, LogicalType::BOOLEAN);
+	for (auto &arg : args) {
+		result->GetChildrenMutable().push_back(std::move(arg));
+	}
+	return std::move(result);
+}
+
+ExprP BindCoalesceValue(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	vector<ExprP> args;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		args.push_back(Arg(input, i));
+	}
+	CastToCommonType(b, args);
+	return b.Coalesce(std::move(args));
+}
+
 ExprP BindArray(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	vector<ExprP> args;
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
 	}
+	CastToCommonType(b, args);
 	if (args.empty()) {
 		return b.Constant(Value::LIST(LogicalType::SQLNULL, {}));
 	}
 	return b.Call("list_value", std::move(args));
+}
+
+// spark.sql.mapKeyDedupPolicy=LAST_WIN: the 1-based positions of the entries a map keeps, in the order of the first
+// occurrence of every key (LAST = false: the position of the first entry of the key, LAST = true: of its last one)
+template <bool LAST, bool ENTRIES = false>
+void MapDedupIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	idx_t count = args.size();
+	vector<vector<Value>> out(count);
+	vector<bool> nulls(count, false);
+	for (idx_t row = 0; row < count; row++) {
+		auto list = args.data[0].GetValue(row);
+		if (list.IsNull()) {
+			nulls[row] = true;
+			continue;
+		}
+		auto &items = ListValue::GetChildren(list);
+		vector<Value> keys;
+		for (auto &item : items) {
+			keys.push_back(ENTRIES ? (item.IsNull() ? item : StructValue::GetChildren(item)[0]) : item);
+		}
+		vector<idx_t> first, last;
+		for (idx_t i = 0; i < keys.size(); i++) {
+			idx_t found = first.size();
+			for (idx_t j = 0; j < first.size(); j++) {
+				if (ValueOperations::NotDistinctFrom(keys[first[j]], keys[i])) {
+					found = j;
+					break;
+				}
+			}
+			if (found == first.size()) {
+				first.push_back(i);
+				last.push_back(i);
+			} else {
+				last[found] = i;
+			}
+		}
+		for (idx_t j = 0; j < first.size(); j++) {
+			out[row].push_back(Value::BIGINT(int64_t((LAST ? last[j] : first[j]) + 1)));
+		}
+	}
+	for (idx_t row = 0; row < count; row++) {
+		result.SetValue(row, nulls[row] ? Value(LogicalType::LIST(LogicalType::BIGINT))
+		                               : Value::LIST(LogicalType::BIGINT, out[row]));
+	}
+}
+
+// map_from_entries(entries) and the other builders of a map from a list of {key, value} structs
+ExprP BindMapFromEntries(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "map_from_entries", 1, 1);
+	Builder b(input.context);
+	auto entries = Arg(input, 0);
+	if (SparkConfEquals(input.context, "spark.sql.mapKeyDedupPolicy", "LAST_WIN") &&
+	    entries->GetReturnType().id() == LogicalTypeId::LIST &&
+	    ListType::GetChildType(entries->GetReturnType()).id() == LogicalTypeId::STRUCT) {
+		ScalarFunction last_fn(Identifier("map_dedup_entries"), {entries->GetReturnType()},
+		                       LogicalType::LIST(LogicalType::BIGINT), MapDedupIndexKernel<true, true>);
+		auto last = b.Kernel(last_fn, entries->Copy());
+		entries = b.Call("list_select", std::move(entries), std::move(last));
+	}
+	return b.Call("map_from_entries", std::move(entries));
+}
+
+// elt_list(values...): the candidates of elt(); binary stays binary unless spark.sql.function.eltOutputAsString
+ExprP BindEltList(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	bool all_binary = !input.children.empty();
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		all_binary = all_binary && Normalize(ArgType(input, i)).id() == LogicalTypeId::BLOB;
+	}
+	all_binary = all_binary && !SparkConfBool(input.context, "spark.sql.function.eltOutputAsString");
+	vector<ExprP> args;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		auto arg = Arg(input, i);
+		args.push_back(all_binary ? std::move(arg) : b.Spark("as_string", std::move(arg)));
+	}
+	return b.Call("list_value", std::move(args));
+}
+
+// conf_bool('spark.sql.key'): the value of a boolean setting, as a constant at bind time (macros use it to branch)
+ExprP BindConfBool(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "conf_bool", 1, 1);
+	auto &child = *input.children[0];
+	if (child.GetExpressionClass() != ExpressionClass::BOUND_CONSTANT) {
+		throw BinderException("conf_bool: the key must be a constant");
+	}
+	auto key = child.Cast<BoundConstantExpression>().GetValue().ToString();
+	return make_uniq<BoundConstantExpression>(Value::BOOLEAN(SparkConfBool(input.context, key)));
+}
+
+// map_concat: a NULL map makes the result NULL (DuckDB treats it as empty)
+ExprP BindMapConcat(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	vector<ExprP> args;
+	ExprP any_null;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		auto arg = Arg(input, i);
+		auto is_null = b.IsNull(arg->Copy());
+		any_null = any_null ? b.Or(std::move(any_null), std::move(is_null)) : std::move(is_null);
+		args.push_back(std::move(arg));
+	}
+	if (args.empty()) {
+		vector<ExprP> none;
+		return b.Call("map", std::move(none));
+	}
+	auto result = b.Call("map_concat", std::move(args));
+	auto type = result->GetReturnType();
+	return b.Case(std::move(any_null), b.NullOf(type), std::move(result));
 }
 
 ExprP BindMapFromArrays(FunctionBindExpressionInput &input) {
@@ -2545,6 +2842,19 @@ ExprP BindMapFromArrays(FunctionBindExpressionInput &input) {
 		// MAP(): an empty map
 		vector<ExprP> none;
 		return b.Call("map", std::move(none));
+	}
+	if (SparkConfEquals(input.context, "spark.sql.mapKeyDedupPolicy", "LAST_WIN") &&
+	    keys->GetReturnType().id() == LogicalTypeId::LIST) {
+		auto list_type = LogicalType::LIST(LogicalType::BIGINT);
+		ScalarFunction first_fn(Identifier("map_dedup_first"), {keys->GetReturnType()}, list_type,
+		                        MapDedupIndexKernel<false>);
+		ScalarFunction last_fn(Identifier("map_dedup_last"), {keys->GetReturnType()}, list_type,
+		                       MapDedupIndexKernel<true>);
+		auto first = b.Kernel(first_fn, keys->Copy());
+		auto last = b.Kernel(last_fn, keys->Copy());
+		auto new_keys = b.Call("list_select", std::move(keys), std::move(first));
+		auto new_values = b.Call("list_select", std::move(values), std::move(last));
+		return b.Call("map", std::move(new_keys), std::move(new_values));
 	}
 	return b.Call("map", std::move(keys), std::move(values));
 }
@@ -2806,7 +3116,8 @@ ExprP BindSize(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto e = Arg(input, 0);
 	auto type = Normalize(e->GetReturnType());
-	bool ansi = AnsiEnabled(input.context);
+	bool legacy = SparkConfBool(input.context, "spark.sql.legacy.sizeOfNull");
+	bool ansi = AnsiEnabled(input.context) || !legacy;
 	if (IsNull(type)) {
 		return b.Constant(ansi ? Value(LogicalType::INTEGER) : Value::INTEGER(-1));
 	}
@@ -3016,6 +3327,23 @@ LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const
 	if (IsDatetime(a) && IsDatetime(b)) {
 		return LogicalType::TIMESTAMP;
 	}
+	// nested types widen element by element (array<int> with array<string> is array<string>)
+	if (a.id() == LogicalTypeId::LIST && b.id() == LogicalTypeId::LIST) {
+		return LogicalType::LIST(SparkWiderType(context, ListType::GetChildType(a), ListType::GetChildType(b)));
+	}
+	if (a.id() == LogicalTypeId::MAP && b.id() == LogicalTypeId::MAP) {
+		return LogicalType::MAP(SparkWiderType(context, MapType::KeyType(a), MapType::KeyType(b)),
+		                        SparkWiderType(context, MapType::ValueType(a), MapType::ValueType(b)));
+	}
+	if (a.id() == LogicalTypeId::STRUCT && b.id() == LogicalTypeId::STRUCT &&
+	    StructType::GetChildCount(a) == StructType::GetChildCount(b)) {
+		child_list_t<LogicalType> fields;
+		for (idx_t i = 0; i < StructType::GetChildCount(a); i++) {
+			fields.emplace_back(StructType::GetChildName(a, i),
+			                    SparkWiderType(context, StructType::GetChildType(a, i), StructType::GetChildType(b, i)));
+		}
+		return LogicalType::STRUCT(std::move(fields));
+	}
 	bool a_atomic = IsNumeric(a) || IsDatetime(a) || a.id() == LogicalTypeId::BOOLEAN;
 	bool b_atomic = IsNumeric(b) || IsDatetime(b) || b.id() == LogicalTypeId::BOOLEAN;
 	if ((IsString(a) && b_atomic) || (IsString(b) && a_atomic)) {
@@ -3126,6 +3454,39 @@ ExprP BindSign(FunctionBindExpressionInput &input) {
 
 //! floor / ceil with one argument: BIGINT for integral and floating input (Java's (long) of Math.floor, so NaN
 //! is 0 and huge values saturate), DECIMAL(p - s + 1, 0) for decimals
+//! date_part / datepart / extract(field FROM source): the field must be a foldable string (like in Spark), which makes
+//! the result type known at bind time: INT for calendar fields, DECIMAL(8,6) for the seconds
+ExprP BindDatePart(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "date_part", 2, 2);
+	Builder b(input.context);
+	if (!input.children[0]->IsFoldable()) {
+		throw BinderException("[NON_FOLDABLE_INPUT] The input field must be a foldable string expression");
+	}
+	auto field = StringUtil::Upper(ExpressionExecutor::EvaluateScalar(input.context, *input.children[0]).ToString());
+	auto source = Arg(input, 1);
+	static const unordered_map<string, string> CALENDAR = {
+	    {"YEAR", "year"}, {"Y", "year"}, {"YEARS", "year"}, {"YR", "year"}, {"YRS", "year"}, {"YEAROFWEEK", "isoyear"},
+	    {"QUARTER", "quarter"}, {"QTR", "quarter"}, {"MONTH", "month"}, {"MON", "month"}, {"MONS", "month"},
+	    {"MONTHS", "month"}, {"WEEK", "weekofyear"}, {"W", "weekofyear"}, {"WEEKS", "weekofyear"}, {"DAY", "day"},
+	    {"D", "day"}, {"DAYS", "day"}, {"DAYOFWEEK_ISO", "isodow"}, {"DOW_ISO", "isodow"}, {"DOY", "dayofyear"},
+	    {"HOUR", "hour"}, {"H", "hour"}, {"HOURS", "hour"}, {"HR", "hour"}, {"HRS", "hour"}, {"MINUTE", "minute"},
+	    {"M", "minute"}, {"MIN", "minute"}, {"MINS", "minute"}, {"MINUTES", "minute"}};
+	static const unordered_set<string> SECONDS = {"SECOND", "S", "SEC", "SECONDS", "SECS"};
+	auto found = CALENDAR.find(field);
+	if (found != CALENDAR.end()) {
+		return b.Cast(b.Call(found->second, std::move(source)), LogicalType::INTEGER);
+	}
+	if (field == "DAYOFWEEK" || field == "DOW") {
+		return b.Cast(b.Op("+", b.Call("dayofweek", std::move(source)), b.Constant(Value::BIGINT(1))), LogicalType::INTEGER);
+	}
+	if (SECONDS.count(field)) {
+		auto micros = b.Cast(b.Call("microsecond", std::move(source)), LogicalType::DECIMAL(14, 0));
+		auto seconds = b.Op("/", std::move(micros), b.Constant(Value::BIGINT(1000000)));
+		return b.Cast(std::move(seconds), LogicalType::DECIMAL(8, 6));
+	}
+	throw BinderException("[INVALID_EXTRACT_FIELD] Cannot extract %s from the source", field);
+}
+
 template <bool CEIL>
 ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
 	CheckArgs(input, CEIL ? "ceil" : "floor", 1, 1);
@@ -3136,7 +3497,13 @@ ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
 		return b.Cast(std::move(e), LogicalType::BIGINT);
 	}
 	if (IsDecimal(type)) {
-		return b.Call(CEIL ? "ceil" : "floor", std::move(e));
+		// Spark: scale 0 keeps the type, otherwise DECIMAL(p - s + 1, 0)
+		int scale = DecimalType::GetScale(type);
+		if (scale == 0) {
+			return e;
+		}
+		int digits = MinValue(38, DecimalType::GetWidth(type) - scale + 1);
+		return b.Cast(b.Call(CEIL ? "ceil" : "floor", std::move(e)), LogicalType::DECIMAL(uint8_t(digits), 0));
 	}
 	return b.Kernel(ScalarFunction(Identifier(CEIL ? "spark_ceil_to_long" : "spark_floor_to_long"), {LogicalType::DOUBLE},
 	                               LogicalType::BIGINT, FloorCeilToLongKernel<CEIL>),
@@ -3272,6 +3639,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"as_boolean", BindAsType<LogicalTypeId::BOOLEAN>},
 	    {"as_binary", BindAsBinary},
 	    {"size", BindSize},
+	    {"date_part_value", BindDatePart},
 	    {"cardinality", BindSize},
 	    {"reverse", BindReverse},
 	    {"length", BindLength},
@@ -3309,7 +3677,14 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"ceil_value", BindFloorCeil<true>},
 	    {"typeof", BindTypeOf},
 	    {"array", BindArray},
+    {"coalesce_value", BindCoalesceValue},
+    {"in_list_value", BindInListValue},
 	    {"map_from_arrays", BindMapFromArrays},
+    {"map_concat", BindMapConcat},
+    {"conf_bool", BindConfBool},
+    {"elt_list", BindEltList},
+    {"map_from_entries_value", BindMapFromEntries},
+    {"map_from_entries", BindMapFromEntries},
 	    {"inline_rows", BindInlineRows},
 	    {"inline_outer_rows", BindInlineOuterRows},
 	};

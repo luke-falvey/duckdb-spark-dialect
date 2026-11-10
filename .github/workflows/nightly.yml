@@ -130,6 +130,12 @@ jobs:
           SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
         run: python test/fuzz/differential.py --seed "$SEED" --budget 10000 --depth 4 --out test/fuzz/out/differential
 
+      - name: Differential fuzzing under random settings (plan E.4)
+        continue-on-error: true
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: python test/fuzz/differential.py --seed "$SEED" --budget 20000 --depth 4 --conf-fuzz --out test/fuzz/out/conf-fuzz
+
       - name: Dialect isolation
         continue-on-error: true
         env:
@@ -147,6 +153,53 @@ jobs:
           name: nightly-fuzz
           path: test/fuzz/out/
           if-no-files-found: ignore
+
+  configurations:
+    name: Case files under the other typing settings (workstream D)
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-release
+          path: release
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" "pyspark==$PYSPARK_VERSION" pandas pytz
+
+      - name: Record and compare under the time zone and decimal settings
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: |
+          for spec in "tz spark.sql.session.timeZone=America/Los_Angeles" "apl spark.sql.decimalOperations.allowPrecisionLoss=false"; do
+            set -- $spec
+            files=""
+            for g in base types-casts types-operators types-common types-rest; do files="$files $(python scripts/case_group.py $g --config $1)"; done
+            python test/make_golden.py --config "$2" $files
+            for d in spark spark_strict; do python test/run_duckdb.py --dialect $d --config "$2" $files; done
+          done
+
+      - name: Signatures of the function-argument sweep, recorded again
+        continue-on-error: true
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/release/extension/spark_dialect/spark_dialect.duckdb_extension
+        run: |
+          python test/fuzz/args_sweep.py --types --emit
+          python test/make_golden.py test/cases/types/c6_function_args.sql
+          python test/fuzz/args_sweep.py --types --record
+          git diff --stat -- test/golden/signatures.json.gz test/cases/types/c6_function_args.sql
 
   bench:
     name: Benchmarks

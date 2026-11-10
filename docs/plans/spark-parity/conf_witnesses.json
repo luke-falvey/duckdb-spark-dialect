@@ -1,0 +1,1955 @@
+[
+ {
+  "key": "spark.sql.allowNamedFunctionArguments",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT mask('AbCD123-@$#', lowerChar => 'q')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<mask(AbCD123-@$#, X, q, n, NULL):string>",
+   "rows": "[[('str', 'XqXXnnn-@$#')]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[NAMED_PARAMETER_SUPPORT_DISABLED] Cannot call function `mask` because named argument references are not enabled here. In this case, the named argument reference was `lowerChar`. Set \"spark.sql.allowN",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.ansi.doubleQuotedIdentifiers",
+  "value": "true",
+  "requires": {
+   "spark.sql.ansi.enabled": "true"
+  },
+  "statements": [
+   "SELECT \"a\" FROM VALUES (1) t(a)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:string>",
+   "rows": "[[('str', 'a')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.ansi.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT CAST('a' AS INT), 2147483647 + 1"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<CAST(a AS INT):int,(2147483647 + 1):int>",
+   "rows": "[[None, ('num', Decimal('-2147483648'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[CAST_INVALID_INPUT] The value 'a' of the type \"STRING\" cannot be cast to \"INT\" because it is malformed. Correct the value as per the syntax, or change its target type. Use `try_cast` to tolerate malf",
+   "phase": "runtime"
+  }
+ },
+ {
+  "key": "spark.sql.ansi.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT '1' + 1, typeof('1' + 1), typeof('2' > 1), typeof(coalesce('1', 2))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<(1 + 1):double,typeof((1 + 1)):string,typeof((2 > 1)):string,typeof(coalesce(1, 2)):string>",
+   "rows": "[[('float', 2.0), ('str', 'double'), ('str', 'boolean'), ('str', 'string')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<(1 + 1):bigint,typeof((1 + 1)):string,typeof((2 > 1)):string,typeof(coalesce(1, 2)):string>",
+   "rows": "[[('num', Decimal('2')), ('str', 'bigint'), ('str', 'boolean'), ('str', 'bigint')]]"
+  }
+ },
+ {
+  "key": "spark.sql.ansi.enforceReservedKeywords",
+  "value": "true",
+  "requires": {
+   "spark.sql.ansi.enabled": "true"
+  },
+  "statements": [
+   "SELECT 1 AS order"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<order:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'order'.(line 1, pos 12)",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.ansi.relationPrecedence",
+  "value": "true",
+  "requires": {
+   "spark.sql.ansi.enabled": "true"
+  },
+  "statements": [
+   "SELECT * FROM VALUES (1) a(x), VALUES (2) b(y) JOIN VALUES (3) c(z) ON a.x < c.z"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<x:int,y:int,z:int>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('2')), ('num', Decimal('3'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name `a`.`x` cannot be resolved. Did you mean one of the following? [`b`.`y`, `c`.`z`].; line 1 pos 71;",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.caseSensitive",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT A FROM VALUES (1) t(a)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<A:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name `A` cannot be resolved. Did you mean one of the following? [`a`].; line 1 pos 7;",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.charAsVarchar",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_c (c CHAR(5)) USING parquet",
+   "INSERT INTO w_c VALUES ('ab')",
+   "SELECT length(c), typeof(c) FROM w_c"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<length(c):int,typeof(c):string>",
+   "rows": "[[('num', Decimal('5')), ('str', 'string')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<length(c):int,typeof(c):string>",
+   "rows": "[[('num', Decimal('2')), ('str', 'string')]]"
+  }
+ },
+ {
+  "key": "spark.sql.chunkBase64String.enabled",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT base64(repeat('a', 100))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<base64(repeat(a, 100)):string>",
+   "rows": "[[('str', 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh\\r\\nYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<base64(repeat(a, 100)):string>",
+   "rows": "[[('str', 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==')]]"
+  }
+ },
+ {
+  "key": "spark.sql.codegen.wholeStage",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT 2147483647 + x FROM VALUES (1) t(x)"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<(2147483647 + x):int>",
+   "rows": "[[('num', Decimal('-2147483648'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<(2147483647 + x):int>",
+   "rows": "[[('num', Decimal('-2147483648'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.columnNameOfCorruptRecord",
+  "value": "_bad",
+  "requires": {},
+  "statements": [
+   "SELECT from_json('{bad', 'a INT, _bad STRING')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<from_json({bad):struct<a:int,_bad:string>>",
+   "rows": "[[('struct', [None, None])]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<from_json({bad):struct<a:int,_bad:string>>",
+   "rows": "[[('struct', [None, ('str', '{bad')])]]"
+  }
+ },
+ {
+  "key": "spark.sql.crossJoin.enabled",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT * FROM VALUES (1) a(x) JOIN VALUES (2) b(y)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<x:int,y:int>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('2'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "Detected implicit cartesian product for INNER join between logical plans",
+   "phase": "runtime"
+  }
+ },
+ {
+  "key": "spark.sql.decimalOperations.allowPrecisionLoss",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(CAST(1 AS DECIMAL(38,18)) * CAST(1 AS DECIMAL(38,18))), CAST(1 AS DECIMAL(38,18)) * CAST(1 AS DECIMAL(38,18)), typeof(CAST(1 AS DECIMAL(38,10)) / CAST(3 AS DECIMAL(38,10)))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof((CAST(1 AS DECIMAL(38,18)) * CAST(1 AS DECIMAL(38,18)))):string,(CAST(1 AS DECIMAL(38,18)) * CAST(1 AS DECIMAL(38,18))):decimal(38,6),typeof((CAST(1 AS DECIMAL(38,10)) / CAST(3 AS DECIMAL(38,10)))):string>",
+   "rows": "[[('str', 'decimal(38,6)'), ('num', Decimal('1')), ('str', 'decimal(38,6)')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof((CAST(1 AS DECIMAL(38,18)) * CAST(1 AS DECIMAL(38,18)))):string,(CAST(1 AS DECIMAL(38,18)) * CAST(1 AS DECIMAL(38,18))):decimal(38,36),typeof((CAST(1 AS DECIMAL(38,10)) / CAST(3 AS DECIMAL(38,10)))):string>",
+   "rows": "[[('str', 'decimal(38,36)'), ('num', Decimal('1')), ('str', 'decimal(38,18)')]]"
+  }
+ },
+ {
+  "key": "spark.sql.defaultCatalog",
+  "value": "spark_catalog",
+  "requires": {},
+  "statements": [
+   "SELECT current_catalog(), current_database()"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<current_catalog():string,current_database():string>",
+   "rows": "[[('str', 'spark_catalog'), ('str', 'default')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<current_catalog():string,current_database():string>",
+   "rows": "[[('str', 'spark_catalog'), ('str', 'default')]]"
+  }
+ },
+ {
+  "key": "spark.sql.defaultColumn.enabled",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_d2 (a INT, b INT DEFAULT 7) USING parquet",
+   "INSERT INTO w_d2 (a) VALUES (1)",
+   "SELECT * FROM w_d2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int,b:int>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('7'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[UNSUPPORTED_DEFAULT_VALUE.WITH_SUGGESTION] DEFAULT column values is not supported. Enable it by setting \"spark.sql.defaultColumn.enabled\" to \"true\".(line 1, pos 26)",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.defaultColumn.useNullsForMissingDefaultValues",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_d (a INT, b INT) USING parquet",
+   "INSERT INTO w_d (a) VALUES (1)",
+   "SELECT * FROM w_d"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int,b:int>",
+   "rows": "[[('num', Decimal('1')), None]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[INCOMPATIBLE_DATA_FOR_TABLE.CANNOT_FIND_DATA] Cannot write incompatible data for the table `spark_catalog`.`default`.`w_d`: Cannot find data for the output column `b`.",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.error.messageFormat",
+  "value": "MINIMAL",
+  "requires": {},
+  "statements": [
+   "SELECT nope"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITHOUT_SUGGESTION] A column or function parameter with name `nope` cannot be resolved. ; line 1 pos 7;",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITHOUT_SUGGESTION] A column or function parameter with name `nope` cannot be resolved. ; line 1 pos 7;",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.function.concatBinaryAsString",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(concat(X'01', X'02'))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(concat(X'01', X'02')):string>",
+   "rows": "[[('str', 'binary')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(concat(X'01', X'02')):string>",
+   "rows": "[[('str', 'string')]]"
+  }
+ },
+ {
+  "key": "spark.sql.function.eltOutputAsString",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(elt(1, X'01'))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(elt(1, X'01')):string>",
+   "rows": "[[('str', 'binary')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(elt(1, X'01')):string>",
+   "rows": "[[('str', 'string')]]"
+  }
+ },
+ {
+  "key": "spark.sql.groupByAliases",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT x AS k, count(*) FROM VALUES (1) t(x) GROUP BY k"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<k:int,count(1):bigint>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name `k` cannot be resolved. Did you mean one of the following? [`x`].; line 1 pos 54;",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.groupByOrdinal",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT x, count(*) FROM VALUES (1),(2) t(x) GROUP BY 1"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<x:int,count(1):bigint>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('1'))], [('num', Decimal('2')), ('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[MISSING_AGGREGATION] The non-aggregating expression \"x\" is based on columns which are not participating in the GROUP BY clause.",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.json.enablePartialResults",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT from_json('{\"a\":{\"x\":1,\"y\":\"q\"}, \"b\": 2}', 'a struct<x:int,y:int>, b int')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<from_json({\"a\":{\"x\":1,\"y\":\"q\"}, \"b\": 2}):struct<a:struct<x:int,y:int>,b:int>>",
+   "rows": "[[('struct', [('struct', [('num', Decimal('1')), None]), ('num', Decimal('2'))])]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<from_json({\"a\":{\"x\":1,\"y\":\"q\"}, \"b\": 2}):struct<a:struct<x:int,y:int>,b:int>>",
+   "rows": "[[('struct', [None, None])]]"
+  }
+ },
+ {
+  "key": "spark.sql.jsonGenerator.ignoreNullFields",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT to_json(named_struct('a', 1, 'b', CAST(NULL AS INT)))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<to_json(named_struct(a, 1, b, CAST(NULL AS INT))):string>",
+   "rows": "[[('str', '{\"a\":1}')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<to_json(named_struct(a, 1, b, CAST(NULL AS INT))):string>",
+   "rows": "[[('str', '{\"a\":1,\"b\":null}')]]"
+  }
+ },
+ {
+  "key": "spark.sql.lateralColumnAlias.enableImplicitResolution",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT 1 AS a, a + 1"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int,(lateralAliasReference(a) + 1):int>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('2'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITHOUT_SUGGESTION] A column or function parameter with name `a` cannot be resolved. ; line 1 pos 15;",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowAutoGeneratedAliasForView",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE VIEW w_v AS SELECT 1 + 1",
+   "SELECT * FROM w_v"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[CREATE_PERMANENT_VIEW_WITHOUT_ALIAS] Not allowed to create the permanent view `spark_catalog`.`default`.`w_v` without explicitly assigning an alias for the expression \"(1 + 1)\".",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<(1 + 1):int>",
+   "rows": "[[('num', Decimal('2'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowHashOnMapType",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT hash(map(1, 2))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[DATATYPE_MISMATCH.HASH_MAP_TYPE] Cannot resolve \"hash(map(1, 2))\" due to data type mismatch: Input to the function `hash` cannot contain elements of the \"MAP\" type. In Spark, same maps may have diffe",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<hash(map(1, 2)):int>",
+   "rows": "[[('num', Decimal('-222940379'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowNegativeScaleOfDecimal",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(1E10BD)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(10000000000):string>",
+   "rows": "[[('str', 'decimal(11,0)')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(1E+10):string>",
+   "rows": "[[('str', 'decimal(1,-10)')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowNullComparisonResultInArraySort",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT array_sort(array(2, 1), (l, r) -> CAST(NULL AS INT))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "An error occurred while calling o25196.collectToPython.",
+   "phase": "runtime"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<array_sort(array(2, 1), lambdafunction(CAST(NULL AS INT), namedlambdavariable(), namedlambdavariable())):array<int>>",
+   "rows": "[[('list', [('num', Decimal('2')), ('num', Decimal('1'))])]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowParameterlessCount",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT count() FROM VALUES (1) t(x)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[WRONG_NUM_ARGS.WITH_SUGGESTION] The `count` requires  >= 1 parameters but the actual number is 0. If you have to call this function with 0 parameters, set the legacy configuration \"spark.sql.legacy.a",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<count():bigint>",
+   "rows": "[[('num', Decimal('0'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowStarWithSingleTableIdentifierInCount",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT count(t.*) FROM VALUES (1, NULL) t(x, y)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "count(t.*) is not allowed. Please use count(*) or expand the columns manually, e.g. count(col1, col2).",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<count(x, y):bigint>",
+   "rows": "[[('num', Decimal('0'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowTempViewCreationWithMultipleNameparts",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.allowZeroIndexInFormatString",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT format_string('%0$s', 'a')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[INVALID_PARAMETER_VALUE.ZERO_INDEX] The value of parameter(s) `strfmt` in `format_string` is invalid: expects %1$, %2$ and so on, but got %0$.; line 1 pos 7",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "Illegal format argument index = 0",
+   "phase": "runtime"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.castComplexTypesToString.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT CAST(map(1, NULL) AS STRING), CAST(struct(1, NULL) AS STRING), CAST(array(1, NULL) AS STRING)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<CAST(map(1, NULL) AS STRING):string,CAST(struct(1, NULL) AS STRING):string,CAST(array(1, NULL) AS STRING):string>",
+   "rows": "[[('str', '{1 -> null}'), ('str', '{1, null}'), ('str', '[1, null]')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<CAST(map(1, NULL) AS STRING):string,CAST(struct(1, NULL) AS STRING):string,CAST(array(1, NULL) AS STRING):string>",
+   "rows": "[[('str', '[1 ->]'), ('str', '[1,]'), ('str', '[1,]')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.charVarcharAsString",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_cv (c CHAR(5), v VARCHAR(2)) USING parquet",
+   "INSERT INTO w_cv VALUES ('ab', 'abcdef')",
+   "SELECT length(c), v FROM w_cv"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[EXCEED_LIMIT_LENGTH] Exceeds char/varchar type length limitation: 2.",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<length(c):int,v:string>",
+   "rows": "[[('num', Decimal('2')), ('str', 'abcdef')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.createEmptyCollectionUsingStringType",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(array()), typeof(map())"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(array()):string,typeof(map()):string>",
+   "rows": "[[('str', 'array<void>'), ('str', 'map<void,void>')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(array()):string,typeof(map()):string>",
+   "rows": "[[('str', 'array<string>'), ('str', 'map<string,string>')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.createHiveTableByDefault",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_h (a INT)",
+   "INSERT INTO w_h VALUES (1)",
+   "SELECT * FROM w_h"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[NOT_SUPPORTED_COMMAND_WITHOUT_HIVE_SUPPORT] CREATE Hive TABLE (AS SELECT) is not supported, if you want to enable it, please set \"spark.sql.catalogImplementation\" to \"hive\".;",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.ctePrecedencePolicy",
+  "value": "CORRECTED",
+  "requires": {},
+  "statements": [
+   "WITH t AS (SELECT 1 AS x), t2 AS (WITH t AS (SELECT 2 AS x) SELECT * FROM t) SELECT * FROM t2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[AMBIGUOUS_ALIAS_IN_NESTED_CTE] Name `t` is ambiguous in nested CTE.",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<x:int>",
+   "rows": "[[('num', Decimal('2'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.ctePrecedencePolicy",
+  "value": "LEGACY",
+  "requires": {},
+  "statements": [
+   "WITH t AS (SELECT 1 AS x), t2 AS (WITH t AS (SELECT 2 AS x) SELECT * FROM t) SELECT * FROM t2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[AMBIGUOUS_ALIAS_IN_NESTED_CTE] Name `t` is ambiguous in nested CTE.",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<x:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.doLooseUpcast",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.exponentLiteralAsDecimal.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(1E2), 1E2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(100.0):string,100.0:double>",
+   "rows": "[[('str', 'double'), ('float', 100.0)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(100):string,100:decimal(3,0)>",
+   "rows": "[[('str', 'decimal(3,0)'), ('num', Decimal('1E+2'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.followThreeValuedLogicInArrayExists",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT exists(array(1, NULL), x -> x > 5)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<exists(array(1, NULL), lambdafunction((namedlambdavariable() > 5), namedlambdavariable())):boolean>",
+   "rows": "[[None]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<exists(array(1, NULL), lambdafunction((namedlambdavariable() > 5), namedlambdavariable())):boolean>",
+   "rows": "[[('bool', False)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.fromDayTimeString.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT INTERVAL '20 15:40:32.99899999' DAY TO HOUR"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "Interval string does not match day-time format of `[+|-]d h`, `INTERVAL [+|-]'[+|-]d h' DAY TO HOUR` when cast to interval day to hour: 20 15:40:32.99899999, set spark.sql.legacy.fromDayTimeString.ena",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<INTERVAL '20 15' DAY TO HOUR:interval day to hour>",
+   "rows": "[[('interval', datetime.timedelta(days=20, seconds=54000))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.groupingIdWithAppendedUserGroupBy",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT a, b, c, grouping_id() FROM VALUES (1, 2, 3) t(a, b, c) GROUP BY a, GROUPING SETS ((b, c), (c)) ORDER BY 4",
+   "SELECT a, b, c, grouping_id(a, b, c), grouping__id FROM VALUES (1, 2, 3) t(a, b, c) GROUP BY c, GROUPING SETS ((a, b), (a)) ORDER BY 4"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[GROUPING_ID_COLUMN_MISMATCH] Columns of grouping_id (a#N,b#N,c#N) does not match grouping columns (c#N,a#N,b#N).",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[GROUPING_ID_COLUMN_MISMATCH] Columns of grouping_id (a#N,b#N,c#N) does not match grouping columns (c#N,a#N,b#N).",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.histogramNumericPropagateInputType",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(histogram_numeric(x, 2)) FROM VALUES (1), (2) t(x)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(histogram_numeric(x, 2)):string>",
+   "rows": "[[('str', 'array<struct<x:int,y:double>>')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(histogram_numeric(x, 2)):string>",
+   "rows": "[[('str', 'array<struct<x:double,y:double>>')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.inSubqueryNullability",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT x IN (SELECT y FROM VALUES (1), (NULL) u(y)) FROM VALUES (1), (2) t(x) ORDER BY x"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<(x IN (listquery())):boolean>",
+   "rows": "[[('bool', True)], [('bool', False)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<(x IN (listquery())):boolean>",
+   "rows": "[[('bool', True)], [('bool', False)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.integerGroupingId",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(grouping_id()) FROM VALUES (1) t(a) GROUP BY ROLLUP(a)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(grouping_id()):string>",
+   "rows": "[[('str', 'bigint')], [('str', 'bigint')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(grouping_id()):string>",
+   "rows": "[[('str', 'int')], [('str', 'int')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.interval.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(INTERVAL 1 DAY), typeof(DATE '2024-01-02' - DATE '2024-01-01'), typeof(TIMESTAMP '2024-01-02 00:00:00' - TIMESTAMP '2024-01-01 00:00:00')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(INTERVAL '1' DAY):string,typeof((DATE '2024-01-02' - DATE '2024-01-01')):string,typeof((TIMESTAMP '2024-01-02 00:00:00' - TIMESTAMP '2024-01-01 00:00:00')):string>",
+   "rows": "[[('str', 'interval day'), ('str', 'interval day'), ('str', 'interval day to second')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(INTERVAL '1 days'):string,typeof((DATE '2024-01-02' - DATE '2024-01-01')):string,typeof((TIMESTAMP '2024-01-02 00:00:00' - TIMESTAMP '2024-01-01 00:00:00')):string>",
+   "rows": "[[('str', 'interval'), ('str', 'interval'), ('str', 'interval')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.json.allowEmptyString.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT from_json('{\"a\":\"\"}', 'a INT')"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<from_json({\"a\":\"\"}):struct<a:int>>",
+   "rows": "[[('struct', [None])]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<from_json({\"a\":\"\"}):struct<a:int>>",
+   "rows": "[[('struct', [None])]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.keepCommandOutputSchema",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SHOW DATABASES"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<namespace:string>",
+   "rows": "[[('str', 'default')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<databaseName:string>",
+   "rows": "[[('str', 'default')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.keepPartitionSpecAsStringLiteral",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_k (a INT, p STRING) USING parquet PARTITIONED BY (p)",
+   "INSERT INTO w_k PARTITION (p = 05) VALUES (1)",
+   "SELECT p FROM w_k"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<p:string>",
+   "rows": "[[('str', '5')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<p:string>",
+   "rows": "[[('str', '05')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.literal.pickMinimumPrecision",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(CAST(1 AS DECIMAL(10,2)) * 3), typeof(CAST(1 AS DECIMAL(10,2)) + 3)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof((CAST(1 AS DECIMAL(10,2)) * 3)):string,typeof((CAST(1 AS DECIMAL(10,2)) + 3)):string>",
+   "rows": "[[('str', 'decimal(12,2)'), ('str', 'decimal(11,2)')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof((CAST(1 AS DECIMAL(10,2)) * 3)):string,typeof((CAST(1 AS DECIMAL(10,2)) + 3)):string>",
+   "rows": "[[('str', 'decimal(21,2)'), ('str', 'decimal(13,2)')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.lpadRpadAlwaysReturnString",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(lpad(X'01', 3, X'00'))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(lpad(X'01', 3, X'00')):string>",
+   "rows": "[[('str', 'binary')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(lpad(X'01', 3, X'00')):string>",
+   "rows": "[[('str', 'string')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.negativeIndexInArrayInsert",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT array_insert(array(1, 2, 3), -1, 9)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<array_insert(array(1, 2, 3), -1, 9):array<int>>",
+   "rows": "[[('list', [('num', Decimal('1')), ('num', Decimal('2')), ('num', Decimal('3')), ('num', Decimal('9'))])]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<array_insert(array(1, 2, 3), -1, 9):array<int>>",
+   "rows": "[[('list', [('num', Decimal('1')), ('num', Decimal('2')), ('num', Decimal('9')), ('num', Decimal('3'))])]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.noCharPaddingInPredicate",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_n (c CHAR(5)) USING parquet",
+   "INSERT INTO w_n VALUES ('ab')",
+   "SELECT length(c), c = 'ab', c = 'ab   ' FROM w_n"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<length(c):int,(c = ab):boolean,(c = ab   ):boolean>",
+   "rows": "[[('num', Decimal('5')), ('bool', True), ('bool', True)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<length(c):int,(c = ab):boolean,(c = ab   ):boolean>",
+   "rows": "[[('num', Decimal('5')), ('bool', True), ('bool', True)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.notReserveProperties",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_np (a INT) USING parquet TBLPROPERTIES ('provider' = 'x')",
+   "SELECT 1"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[UNSUPPORTED_FEATURE.SET_TABLE_PROPERTY] The feature is not supported: provider is a reserved table property, please use the USING clause to specify it.(line 1, pos 40)",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.nullInEmptyListBehavior",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT CAST(NULL AS INT) IN (SELECT x FROM VALUES (1) t(x) WHERE false)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<(CAST(NULL AS INT) IN (listquery())):boolean>",
+   "rows": "[[None]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<(CAST(NULL AS INT) IN (listquery())):boolean>",
+   "rows": "[[('bool', False)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.parseNullPartitionSpecAsStringLiteral",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_k2 (a INT, p STRING) USING parquet PARTITIONED BY (p)",
+   "INSERT INTO w_k2 PARTITION (p = null) VALUES (1)",
+   "SELECT p, p IS NULL FROM w_k2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<p:string,(p IS NULL):boolean>",
+   "rows": "[[None, ('bool', True)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<p:string,(p IS NULL):boolean>",
+   "rows": "[[('str', 'null'), ('bool', False)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.parser.havingWithoutGroupByAsWhere",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT sum(x) FROM VALUES (1), (2) t(x) HAVING sum(x) > 2",
+   "SELECT x FROM VALUES (1), (2) t(x) HAVING x > 1"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[MISSING_GROUP_BY] The query does not include a GROUP BY clause. Add GROUP BY or turn it into the window functions using OVER clauses.; line 1 pos 0;",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<x:int>",
+   "rows": "[[('num', Decimal('2'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.percentileDiscCalculation",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT percentile_disc(0.1) WITHIN GROUP (ORDER BY x), percentile_disc(0.3) WITHIN GROUP (ORDER BY x), percentile_disc(0.7) WITHIN GROUP (ORDER BY x), percentile_disc(0.9) WITHIN GROUP (ORDER BY x), percentile_disc(0.0) WITHIN GROUP (ORDER BY x) FROM VALUES (0), (1), (2), (3), (4), (5), (6) t(x)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<percentile_disc(0.1) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.3) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.7) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.9) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.0) WITHIN GROUP (ORDER BY x):double>",
+   "rows": "[[('float', 0.0), ('float', 2.0), ('float', 4.0), ('float', 6.0), ('float', 0.0)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<percentile_disc(0.1) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.3) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.7) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.9) WITHIN GROUP (ORDER BY x):double,percentile_disc(0.0) WITHIN GROUP (ORDER BY x):double>",
+   "rows": "[[('float', 0.0), ('float', 1.0), ('float', 4.0), ('float', 5.0), ('float', 0.0)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.respectNullabilityInTextDatasetConversion",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.setCommandRejectsSparkCoreConfs",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SET spark.task.cpus=2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[CANNOT_MODIFY_CONFIG] Cannot modify the value of the Spark config: \"spark.task.cpus\".",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<key:string,value:string>",
+   "rows": "[[('str', 'spark.task.cpus'), ('str', '2')]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.setopsPrecedence.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1 UNION SELECT 2 INTERSECT SELECT 3"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.sizeOfNull",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT size(CAST(NULL AS ARRAY<INT>))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<size(NULL):int>",
+   "rows": "[[('num', Decimal('-1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<size(NULL):int>",
+   "rows": "[[None]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.statisticalAggregate",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT var_samp(x), stddev_samp(x), corr(x, x) FROM VALUES (1) t(x)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<var_samp(x):double,stddev_samp(x):double,corr(x, x):double>",
+   "rows": "[[None, None, None]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<var_samp(x):double,stddev_samp(x):double,corr(x, x):double>",
+   "rows": "[[('nan',), ('nan',), ('nan',)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.storeAnalyzedPlanForView",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TEMPORARY VIEW w_base AS SELECT 1 AS a",
+   "CREATE TEMPORARY VIEW w_tv AS SELECT a FROM w_base",
+   "CREATE OR REPLACE TEMPORARY VIEW w_base AS SELECT 2 AS a",
+   "SELECT * FROM w_tv"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('2'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.timeParserPolicy",
+  "value": "CORRECTED",
+  "requires": {},
+  "statements": [
+   "SELECT to_date('2020-01-27T20:06:11.847', 'yyyy-MM-dd HH'), to_timestamp('2020-1-1 1', 'yyyy-MM-dd HH'), to_date('01/31/2020xyz', 'MM/dd/yyyy')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[INCONSISTENT_BEHAVIOR_CROSS_VERSION.PARSE_DATETIME_BY_NEW_PARSER] You may get a different result due to the upgrading to Spark >= 3.0:",
+   "phase": "runtime"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<to_date(2020-01-27T20:06:11.847, yyyy-MM-dd HH):date,to_timestamp(2020-1-1 1, yyyy-MM-dd HH):timestamp,to_date(01/31/2020xyz, MM/dd/yyyy):date>",
+   "rows": "[[None, None, None]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.timeParserPolicy",
+  "value": "LEGACY",
+  "requires": {},
+  "statements": [
+   "SELECT to_date('2020-01-27T20:06:11.847', 'yyyy-MM-dd HH'), to_timestamp('2020-1-1 1', 'yyyy-MM-dd HH'), to_date('01/31/2020xyz', 'MM/dd/yyyy')"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[INCONSISTENT_BEHAVIOR_CROSS_VERSION.PARSE_DATETIME_BY_NEW_PARSER] You may get a different result due to the upgrading to Spark >= 3.0:",
+   "phase": "runtime"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<to_date(2020-01-27T20:06:11.847, yyyy-MM-dd HH):date,to_timestamp(2020-1-1 1, yyyy-MM-dd HH):timestamp,to_date(01/31/2020xyz, MM/dd/yyyy):date>",
+   "rows": "[[None, ('ts', datetime.datetime(2020, 1, 1, 1, 0)), ('date', datetime.date(2020, 1, 31))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.typeCoercion.datetimeToString.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT DATE '2020-01-10' > '2020-1-9', TIMESTAMP '2020-01-10 00:00:00' = '2020-01-10'"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<(DATE '2020-01-10' > 2020-1-9):boolean,(TIMESTAMP '2020-01-10 00:00:00' = 2020-01-10):boolean>",
+   "rows": "[[('bool', True), ('bool', True)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<(DATE '2020-01-10' > 2020-1-9):boolean,(TIMESTAMP '2020-01-10 00:00:00' = 2020-01-10):boolean>",
+   "rows": "[[('bool', False), ('bool', True)]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.useCurrentConfigsForView",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.useV1Command",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SHOW TABLES"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<namespace:string,tableName:string,isTemporary:boolean>",
+   "rows": "[]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<namespace:string,tableName:string,isTemporary:boolean>",
+   "rows": "[]"
+  }
+ },
+ {
+  "key": "spark.sql.legacy.v1IdentifierNoCatalog",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.mapKeyDedupPolicy",
+  "value": "LAST_WIN",
+  "requires": {},
+  "statements": [
+   "SELECT map(1, 'a', 1, 'b'), map_from_arrays(array(1, 1), array(1, 2)), str_to_map('a:1,a:2'), map_concat(map(1, 1), map(1, 2))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[DUPLICATED_MAP_KEY] Duplicate map key 1 was found, please check the input data. If you want to remove the duplicated keys, you can set \"spark.sql.mapKeyDedupPolicy\" to \"LAST_WIN\" so that the key inse",
+   "phase": "runtime"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<map(1, a, 1, b):map<int,string>,map_from_arrays(array(1, 1), array(1, 2)):map<int,int>,str_to_map(a:1,a:2, ,, :):map<string,string>,map_concat(map(1, 1), map(1, 2)):map<int,int>>",
+   "rows": "[[('map', [(('num', Decimal('1')), ('str', 'b'))]), ('map', [(('num', Decimal('1')), ('num', Decimal('2')))]), ('map', [(('str', 'a'), ('str', '2'))]), ('map', [(('num', Decimal('1')), ('num', Decimal('2')))])]]"
+  }
+ },
+ {
+  "key": "spark.sql.maxMetadataStringLength",
+  "value": "5",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.optimizer.excludedRules",
+  "value": "org.apache.spark.sql.catalyst.optimizer.ConstantFolding",
+  "requires": {},
+  "statements": [
+   "SELECT size(map(CAST(NULL AS STRING), 1))"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<size(map(CAST(NULL AS STRING), 1)):int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "An error occurred while calling o67810.collectToPython.",
+   "phase": "runtime"
+  }
+ },
+ {
+  "key": "spark.sql.orderByOrdinal",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT x, -x FROM VALUES (2),(1),(3) t(x) ORDER BY 2"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<x:int,(- x):int>",
+   "rows": "[[('num', Decimal('3')), ('num', Decimal('-3'))], [('num', Decimal('2')), ('num', Decimal('-2'))], [('num', Decimal('1')), ('num', Decimal('-1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<x:int,(- x):int>",
+   "rows": "[[('num', Decimal('2')), ('num', Decimal('-2'))], [('num', Decimal('1')), ('num', Decimal('-1'))], [('num', Decimal('3')), ('num', Decimal('-3'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.parser.escapedStringLiterals",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 'a\\nb', length('\\n'), 'a' RLIKE '\\\\w'"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a\nb:string,length(\n):int,RLIKE(a, \\w):boolean>",
+   "rows": "[[('str', 'a\\nb'), ('num', Decimal('1')), ('bool', True)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a\\nb:string,length(\\n):int,RLIKE(a, \\\\w):boolean>",
+   "rows": "[[('str', 'a\\\\nb'), ('num', Decimal('2')), ('bool', False)]]"
+  }
+ },
+ {
+  "key": "spark.sql.parser.quotedRegexColumnNames",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT `(a)?+.+` FROM VALUES (1, 2, 3) t(a, b, c)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name `(a)?+.+` cannot be resolved. Did you mean one of the following? [`a`, `b`, `c`].; line 1 pos 7;",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<b:int,c:int>",
+   "rows": "[[('num', Decimal('2')), ('num', Decimal('3'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.pivotMaxValues",
+  "value": "1",
+  "requires": {},
+  "statements": [
+   "SELECT * FROM (SELECT * FROM VALUES (1, 'a'), (2, 'b') t(v, k)) PIVOT (sum(v) FOR k IN ('a', 'b'))"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:bigint,b:bigint>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('2'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:bigint,b:bigint>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('2'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.readSideCharPadding",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_r (c CHAR(5)) USING parquet",
+   "INSERT INTO w_r VALUES ('ab')",
+   "SELECT length(c), c = 'ab', c = 'ab   ' FROM w_r"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<length(c):int,(c = ab):boolean,(c = ab   ):boolean>",
+   "rows": "[[('num', Decimal('5')), ('bool', True), ('bool', True)]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<length(c):int,(c = ab):boolean,(c = ab   ):boolean>",
+   "rows": "[[('num', Decimal('5')), ('bool', True), ('bool', True)]]"
+  }
+ },
+ {
+  "key": "spark.sql.retainGroupColumns",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SELECT x, count(*) FROM VALUES (1) t(x) GROUP BY x"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<x:int,count(1):bigint>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<x:int,count(1):bigint>",
+   "rows": "[[('num', Decimal('1')), ('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.session.timeZone",
+  "value": "+05:30",
+  "requires": {},
+  "statements": [
+   "SELECT CAST(timestamp_seconds(0) AS STRING), current_timezone()"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<CAST(timestamp_seconds(0) AS STRING):string,current_timezone():string>",
+   "rows": "[[('str', '1970-01-01 00:00:00'), ('str', 'UTC')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<CAST(timestamp_seconds(0) AS STRING):string,current_timezone():string>",
+   "rows": "[[('str', '1970-01-01 05:30:00'), ('str', '+05:30')]]"
+  }
+ },
+ {
+  "key": "spark.sql.session.timeZone",
+  "value": "America/Los_Angeles",
+  "requires": {},
+  "statements": [
+   "SELECT CAST(TIMESTAMP '2024-07-01 00:00:00 UTC' AS STRING), hour(from_unixtime(0)), CAST(CAST('2024-03-10 02:30:00' AS TIMESTAMP) AS STRING), unix_timestamp('2024-01-01 00:00:00'), date_format(timestamp_seconds(0), 'yyyy-MM-dd HH:mm z'), CAST(timestamp_seconds(0) AS DATE)"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<CAST(TIMESTAMP '2024-07-01 00:00:00' AS STRING):string,hour(from_unixtime(0, yyyy-MM-dd HH:mm:ss)):int,CAST(CAST(2024-03-10 02:30:00 AS TIMESTAMP) AS STRING):string,unix_timestamp(2024-01-01 00:00:00, yyyy-MM-dd HH:mm:ss):bigint,date_format(timestamp_seconds(0), yyyy-MM-dd HH:mm z):string,CAST(timestamp_seconds(0) AS DATE):date>",
+   "rows": "[[('str', '2024-07-01 00:00:00'), ('num', Decimal('0')), ('str', '2024-03-10 02:30:00'), ('num', Decimal('1704067200')), ('str', '1970-01-01 00:00 UTC'), ('date', datetime.date(1970, 1, 1))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<CAST(TIMESTAMP '2024-06-30 17:00:00' AS STRING):string,hour(from_unixtime(0, yyyy-MM-dd HH:mm:ss)):int,CAST(CAST(2024-03-10 02:30:00 AS TIMESTAMP) AS STRING):string,unix_timestamp(2024-01-01 00:00:00, yyyy-MM-dd HH:mm:ss):bigint,date_format(timestamp_seconds(0), yyyy-MM-dd HH:mm z):string,CAST(timestamp_seconds(0) AS DATE):date>",
+   "rows": "[[('str', '2024-06-30 17:00:00'), ('num', Decimal('16')), ('str', '2024-03-10 03:30:00'), ('num', Decimal('1704096000')), ('str', '1969-12-31 16:00 PST'), ('date', datetime.date(1969, 12, 31))]]"
+  }
+ },
+ {
+  "key": "spark.sql.shuffle.partitions",
+  "value": "7",
+  "requires": {},
+  "statements": [
+   "SELECT count(DISTINCT spark_partition_id()) FROM (SELECT /*+ REPARTITION */ id FROM range(100))",
+   "SET spark.sql.shuffle.partitions"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[AGGREGATE_FUNCTION_WITH_NONDETERMINISTIC_EXPRESSION] Non-deterministic expression \"count(DISTINCT SPARK_PARTITION_ID())\" should not appear in the arguments of an aggregate function.; line 1 pos 22;",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[AGGREGATE_FUNCTION_WITH_NONDETERMINISTIC_EXPRESSION] Non-deterministic expression \"count(DISTINCT SPARK_PARTITION_ID())\" should not appear in the arguments of an aggregate function.; line 1 pos 22;",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.sources.default",
+  "value": "json",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_j USING json AS SELECT 1 AS a",
+   "SELECT * FROM w_j"
+  ],
+  "differs": false,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.sources.partitionOverwriteMode",
+  "value": "DYNAMIC",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_p (a INT, p INT) USING parquet PARTITIONED BY (p)",
+   "INSERT INTO w_p VALUES (1, 1), (2, 2)",
+   "INSERT OVERWRITE w_p VALUES (3, 1)",
+   "SELECT * FROM w_p ORDER BY a"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int,p:int>",
+   "rows": "[[('num', Decimal('3')), ('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:int,p:int>",
+   "rows": "[[('num', Decimal('2')), ('num', Decimal('2'))], [('num', Decimal('3')), ('num', Decimal('1'))]]"
+  }
+ },
+ {
+  "key": "spark.sql.stableDerivedColumnAlias.enabled",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SELECT 1  +  1, 'a'  ||  'b'"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<(1 + 1):int,concat(a, b):string>",
+   "rows": "[[('num', Decimal('2')), ('str', 'ab')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<1+1:int,'a'||'b':string>",
+   "rows": "[[('num', Decimal('2')), ('str', 'ab')]]"
+  }
+ },
+ {
+  "key": "spark.sql.storeAssignmentPolicy",
+  "value": "LEGACY",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_s (a INT, d DATE) USING parquet",
+   "INSERT INTO w_s VALUES ('abc', '2020-01-01')",
+   "INSERT INTO w_s VALUES (3000000000L, NULL)",
+   "INSERT INTO w_s VALUES (1.9D, NULL)",
+   "SELECT * FROM w_s ORDER BY a"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": false,
+   "error": "[INCOMPATIBLE_DATA_FOR_TABLE.CANNOT_SAFELY_CAST] Cannot write incompatible data for the table `spark_catalog`.`default`.`w_s`: Cannot safely cast `a` \"STRING\" to \"INT\".",
+   "phase": "analysis"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<a:int,d:date>",
+   "rows": "[[None, ('date', datetime.date(2020, 1, 1))], [('num', Decimal('-1294967296')), None], [('num', Decimal('1')), None]]"
+  }
+ },
+ {
+  "key": "spark.sql.storeAssignmentPolicy",
+  "value": "STRICT",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_s3 (a INT) USING parquet",
+   "INSERT INTO w_s3 VALUES (1L)",
+   "SELECT * FROM w_s3"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "[INCOMPATIBLE_DATA_FOR_TABLE.CANNOT_SAFELY_CAST] Cannot write incompatible data for the table `spark_catalog`.`default`.`w_s3`: Cannot safely cast `a` \"BIGINT\" to \"INT\".",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.timestampType",
+  "value": "TIMESTAMP_NTZ",
+  "requires": {},
+  "statements": [
+   "SELECT typeof(TIMESTAMP '2024-01-01 00:00:00'), typeof(CAST('2024-01-01' AS TIMESTAMP)), typeof(to_timestamp('2024-01-01')), typeof(current_timestamp())"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<typeof(TIMESTAMP '2024-01-01 00:00:00'):string,typeof(CAST(2024-01-01 AS TIMESTAMP)):string,typeof(to_timestamp(2024-01-01)):string,typeof(current_timestamp()):string>",
+   "rows": "[[('str', 'timestamp'), ('str', 'timestamp'), ('str', 'timestamp'), ('str', 'timestamp')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<typeof(TIMESTAMP_NTZ '2024-01-01 00:00:00'):string,typeof(CAST(2024-01-01 AS TIMESTAMP_NTZ)):string,typeof(to_timestamp(2024-01-01)):string,typeof(current_timestamp()):string>",
+   "rows": "[[('str', 'timestamp_ntz'), ('str', 'timestamp_ntz'), ('str', 'timestamp_ntz'), ('str', 'timestamp')]]"
+  }
+ },
+ {
+  "key": "spark.sql.variable.substitute",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "SET w.var=5",
+   "SELECT '${w.var}'"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<5:string>",
+   "rows": "[[('str', '5')]]"
+  },
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<${w.var}:string>",
+   "rows": "[[('str', '${w.var}')]]"
+  }
+ },
+ {
+  "key": "spark.sql.view.maxNestedViewDepth",
+  "value": "1",
+  "requires": {},
+  "statements": [
+   "CREATE VIEW w_v1 AS SELECT 1 AS a",
+   "CREATE VIEW w_v2 AS SELECT a FROM w_v1",
+   "CREATE VIEW w_v3 AS SELECT a FROM w_v2",
+   "SELECT * FROM w_v3"
+  ],
+  "differs": true,
+  "set_error": null,
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<a:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": {
+   "ok": false,
+   "error": "The depth of view `spark_catalog`.`default`.`w_v1` exceeds the maximum view resolution depth (1). Analysis is aborted to avoid errors. Increase the value of spark.sql.view.maxNestedViewDepth to work a",
+   "phase": "analysis"
+  }
+ },
+ {
+  "key": "spark.sql.warehouse.dir",
+  "value": "/tmp/x",
+  "requires": {},
+  "statements": [
+   "SELECT 1"
+  ],
+  "differs": true,
+  "set_error": "Cannot modify the value of a static config: spark.sql.warehouse.dir.",
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<1:int>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "spark_flipped": null
+ },
+ {
+  "key": "spark.sql.legacy.useCurrentConfigsForView",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SET spark.sql.ansi.enabled=false",
+   "CREATE OR REPLACE VIEW w_ucv AS SELECT CAST('a' AS INT) AS c",
+   "SET spark.sql.ansi.enabled=true",
+   "SELECT * FROM w_ucv"
+  ],
+  "cleanup": [
+   "SET spark.sql.ansi.enabled=false",
+   "DROP VIEW IF EXISTS w_ucv"
+  ],
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<c:int>",
+   "rows": "[[None]]"
+  },
+  "set_error": null,
+  "spark_flipped": {
+   "ok": false,
+   "error": "[CAST_INVALID_INPUT] The value 'a' of the type \"STRING\" cannot be cast to \"INT\" because it is malformed. Correct the value as per the syntax, or change its target type. Use `try_cast` to tolerate malf",
+   "phase": "runtime"
+  },
+  "differs": true
+ },
+ {
+  "key": "spark.sql.legacy.noCharPaddingInPredicate",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_np (c CHAR(5)) USING parquet",
+   "INSERT INTO w_np VALUES ('ab')",
+   "SELECT count(*) FROM w_np WHERE c = 'ab   '"
+  ],
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<count(1):bigint>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "set_error": null,
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<count(1):bigint>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "differs": false
+ },
+ {
+  "key": "spark.sql.readSideCharPadding",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_rp (c CHAR(5)) USING parquet",
+   "INSERT INTO w_rp VALUES ('ab')",
+   "SELECT length(c) FROM w_rp"
+  ],
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<length(c):int>",
+   "rows": "[[('num', Decimal('5'))]]"
+  },
+  "set_error": null,
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<length(c):int>",
+   "rows": "[[('num', Decimal('5'))]]"
+  },
+  "differs": false
+ }
+]

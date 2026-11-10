@@ -29,13 +29,6 @@ total orders and match."""
 example = "SELECT array_sort(array(3, 1, 2, 7, 4), (l, r) -> -1)"
 
 [[difference]]
-signature = "strict_lenient|[[]DATATYPE_MISMATCH.NULL_TYPE]*"
-reason = """spark_strict rejects an untyped NULL literal argument of array_contains, array_position, map_contains_key,
-array_append and element_at (a parse-time check, as DuckDB types the NULL later). A NULL that only becomes untyped through
-an expression (coalesce(NULL, NULL), a column of NULLs) is still accepted: the types are only known when DuckDB binds."""
-example = "SELECT array_contains(array(1), coalesce(NULL, NULL))"
-
-[[difference]]
 signature = "duck_error|Out of Range Error: Date out of range*"
 reason = """Date arithmetic beyond DuckDB's date range (about year 5,881,580) raises an error; Spark evaluates the comparison
 differently: its int day count wraps around silently (and its optimizer may never evaluate the out-of-range side).
@@ -47,3 +40,24 @@ signature = "duck_error|Invalid Input Error: Map keys can not be NULL*"
 reason = """Spark raises NULL_MAP_KEY only when a map with a NULL key is materialized; when the optimizer removes the
 map (size(map(NULL, 1)) is folded to 1) the query succeeds. DuckDB always rejects the NULL key."""
 example = "SELECT size(map(CAST(NULL AS STRING), 1))"
+
+# ---- found by the type-aware fuzzers (plan E.3 - E.5: new column types, mixed kinds, types and phases compared) ----
+
+[[difference]]
+signature = "lenient_runtime|year N is out of range"
+reason = "Timestamp arithmetic past year 9999: Spark raises a run-time error, DuckDB represents the timestamp."
+example = "SELECT tn + INTERVAL 90 MINUTE FROM VALUES (TIMESTAMP_NTZ '9999-12-31 23:59:59') AS t(tn)"
+
+
+[[difference]]
+signature = "strict_lenient|?DATATYPE_MISMATCH.BINARY_OP_DIFF_TYPES?*"
+reason = """spark_strict still accepts operand type combinations that Spark's analyzer rejects (a boolean compared with a
+number, a string divided by a number, ...): the generator now mixes kinds on purpose. The matrices C3 and C4 list every
+pair (xfail ids types-open-c3 / types-open-c4)."""
+example = "SELECT 1 <= true"
+
+[[difference]]
+signature = "mismatch|*right*|null_vs_value"
+sql = '(?i)\bright\s*\('
+reason = "right(x, n) over a LATERAL VIEW row without a generated row: NULL versus the empty string in the outer-joined column."
+example = "SELECT right(NULL, -1) FROM VALUES (map(1, 2)) AS t(m) LATERAL VIEW explode(m) e AS mk, x"

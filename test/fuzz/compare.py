@@ -17,10 +17,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import corpus  # noqa: E402,F401
-from harness import results_equal, values_equal  # noqa: E402
+from harness import results_equal, types_equal, values_equal  # noqa: E402
 
 FAILING = {"mismatch", "duck_error", "strict_reject", "strict_lenient", "strict_mismatch", "crash", "timeout",
            "internal"}
+# compared since plan E.5 but reported only: the type and error-phase gaps are the xfail ids of the case matrices
+REPORT_ONLY = {"type_mismatch", "phase_mismatch"}
 KNOWN_FILE = Path(__file__).resolve().parent / "known_differences.toml"
 
 # Spark error messages that are run-time failures even though they surface from spark.sql()
@@ -70,9 +72,19 @@ def classify_one(spark, duck, ordered):
         if not duck.ok:
             return "duck_error", None
         if results_equal(spark.rows, duck.rows, ordered):
+            # workstream A: the column types are part of the result
+            spark_types = (spark.extra or {}).get("types")
+            duck_types = (duck.extra or {}).get("spark_types")
+            if spark_types and duck_types and not types_equal(spark_types, duck_types):
+                return "type_mismatch", "types:" + ",".join(f"{a}/{b}" for a, b in zip(spark_types, duck_types) if a != b)[:80]
             return "pass", None
         return "mismatch", describe_difference(spark.rows, duck.rows)
     if not duck.ok:
+        # both fail: Spark's analysis errors are DuckDB's bind errors, run-time errors are execution errors
+        spark_phase = spark.phase
+        duck_phase = {"bind": "analysis", "exec": "runtime"}.get((duck.extra or {}).get("stage"))
+        if spark_phase and duck_phase and spark_phase != duck_phase:
+            return "phase_mismatch", f"phase:{spark_phase}/{duck_phase}"
         return "pass", None
     return ("lenient", None) if spark_static_error(spark) else ("lenient_runtime", None)
 

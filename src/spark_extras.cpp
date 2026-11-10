@@ -1326,6 +1326,10 @@ void AppendJsonString(string &out, const string &s) {
 	AppendJsonString(out, s.data(), s.size());
 }
 
+//! spark.sql.jsonGenerator.ignoreNullFields = false: the date format argument carries a leading \x01 and struct fields
+//! that are NULL are written as null (set by ToJsonKernel for the duration of a chunk)
+thread_local bool json_keep_null_fields = false;
+
 void AppendJson(string &out, const Value &v, const string &ts_format, const string &date_format) {
 	if (v.IsNull()) {
 		out += "null";
@@ -1339,7 +1343,7 @@ void AppendJson(string &out, const Value &v, const string &ts_format, const stri
 		auto &fields = StructType::GetChildTypes(type);
 		bool first = true;
 		for (idx_t i = 0; i < children.size(); i++) {
-			if (children[i].IsNull()) {
+			if (children[i].IsNull() && !json_keep_null_fields) {
 				continue;
 			}
 			if (!first) {
@@ -1509,7 +1513,14 @@ void ToJsonSimpleStruct(Vector &input, idx_t count, Vector &result) {
 
 void ToJsonKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	result.SetVectorType(VectorType::FLAT_VECTOR);
-	{
+	bool keep_nulls = false;
+	if (args.size() > 0) {
+		auto first_format = args.data[2].GetValue(0);
+		keep_nulls = !first_format.IsNull() && !StringValue::Get(first_format).empty() &&
+		             StringValue::Get(first_format)[0] == '\x01';
+	}
+	json_keep_null_fields = keep_nulls;
+	if (!keep_nulls) {
 		auto &type = args.data[0].GetType();
 		bool simple = type.id() == LogicalTypeId::STRUCT && !StructType::GetChildTypes(type).empty();
 		if (simple) {
@@ -1545,6 +1556,9 @@ void ToJsonKernel(DataChunk &args, ExpressionState &, Vector &result) {
 		}
 		if (i2 != last2) {
 			date_format = formats2[i2].GetString();
+			if (!date_format.empty() && date_format[0] == '\x01') {
+				date_format.erase(0, 1);
+			}
 			last2 = i2;
 		}
 		text.clear();

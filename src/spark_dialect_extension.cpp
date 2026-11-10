@@ -29,6 +29,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	RegisterSparkExtras(loader);
 	RegisterSparkIntervals(loader);
 	RegisterSparkCasts(loader);
+	RegisterSparkConf(loader);
 	RegisterSparkMacros(loader);
 	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
 	// SET spark.sql.ansi.enabled = true/false (rewritten to this setting by the tokenizer)

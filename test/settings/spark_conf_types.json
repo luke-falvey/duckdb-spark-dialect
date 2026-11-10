@@ -1,0 +1,3874 @@
+{
+ "spark.sql.adaptive.advisoryPartitionSizeInBytes": {
+  "choices": [],
+  "default": "<value of spark.sql.adaptive.shuffle.targetPostShuffleInputSize>",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.applyFinalStageShuffleOptimizations": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.applyFinalStageShuffleOptimizations should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.autoBroadcastJoinThreshold": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.coalescePartitions.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.coalescePartitions.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.coalescePartitions.initialPartitionNum": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.adaptive.coalescePartitions.initialPartitionNum should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.coalescePartitions.minPartitionNum": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.adaptive.coalescePartitions.minPartitionNum should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.coalescePartitions.minPartitionSize": {
+  "choices": [],
+  "default": "1MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.coalescePartitions.parallelismFirst": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.coalescePartitions.parallelismFirst should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.customCostEvaluatorClass": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.fetchShuffleBlocksInBatch": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.fetchShuffleBlocksInBatch should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.forceApply": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.forceApply should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.forceOptimizeSkewedJoin": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.forceOptimizeSkewedJoin should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.localShuffleReader.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.localShuffleReader.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.logLevel": {
+  "choices": [
+   "DEBUG",
+   "ERROR",
+   "TRACE",
+   "WARN",
+   "INFO"
+  ],
+  "default": "debug",
+  "kind": "enum",
+  "message": "The value of spark.sql.adaptive.logLevel should be one of DEBUG, ERROR, TRACE, WARN, INFO, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.maxShuffledHashJoinLocalMapThreshold": {
+  "choices": [],
+  "default": "0b",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin": {
+  "choices": [],
+  "default": "0.2",
+  "kind": "double",
+  "message": "spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin should be double, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.optimizeSkewsInRebalancePartitions.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.optimizeSkewsInRebalancePartitions.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.optimizer.excludedRules": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.rebalancePartitionsSmallPartitionFactor": {
+  "choices": [],
+  "default": "0.2",
+  "kind": "double",
+  "message": "spark.sql.adaptive.rebalancePartitionsSmallPartitionFactor should be double, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.shuffle.targetPostShuffleInputSize": {
+  "choices": [],
+  "default": "64MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.adaptive.skewJoin.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.adaptive.skewJoin.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.skewJoin.skewedPartitionFactor": {
+  "choices": [],
+  "default": "5.0",
+  "kind": "double",
+  "message": "spark.sql.adaptive.skewJoin.skewedPartitionFactor should be double, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes": {
+  "choices": [],
+  "default": "256MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.addPartitionInBatch.size": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.addPartitionInBatch.size should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.allowNamedFunctionArguments": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.allowNamedFunctionArguments should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.analyzer.canonicalization.multiCommutativeOpMemoryOptThreshold": {
+  "choices": [],
+  "default": "3",
+  "kind": "int",
+  "message": "spark.sql.analyzer.canonicalization.multiCommutativeOpMemoryOptThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.analyzer.failAmbiguousSelfJoin": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.analyzer.failAmbiguousSelfJoin should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.analyzer.maxIterations": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.analyzer.maxIterations should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.ansi.doubleQuotedIdentifiers": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.ansi.doubleQuotedIdentifiers should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.ansi.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.ansi.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.ansi.enforceReservedKeywords": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.ansi.enforceReservedKeywords should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.ansi.relationPrecedence": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.ansi.relationPrecedence should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.autoBroadcastJoinThreshold": {
+  "choices": [],
+  "default": "10MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.avro.compression.codec": {
+  "choices": [
+   "bzip2",
+   "deflate",
+   "uncompressed",
+   "xz",
+   "snappy",
+   "zstandard"
+  ],
+  "default": "snappy",
+  "kind": "enum",
+  "message": "The value of spark.sql.avro.compression.codec should be one of bzip2, deflate, uncompressed, xz, snappy, zstandard, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.avro.datetimeRebaseModeInRead": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.avro.datetimeRebaseModeInRead should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.avro.datetimeRebaseModeInWrite": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.avro.datetimeRebaseModeInWrite should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.avro.deflate.level": {
+  "choices": [],
+  "default": "-1",
+  "kind": "int",
+  "message": "spark.sql.avro.deflate.level should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.avro.filterPushdown.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.avro.filterPushdown.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.broadcastExchange.maxThreadThreshold": {
+  "choices": [],
+  "default": "128",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.broadcastTimeout": {
+  "choices": [],
+  "default": "300",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.bucketing.coalesceBucketsInJoin.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.bucketing.coalesceBucketsInJoin.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.bucketing.coalesceBucketsInJoin.maxBucketRatio": {
+  "choices": [],
+  "default": "4",
+  "kind": "int",
+  "message": "spark.sql.bucketing.coalesceBucketsInJoin.maxBucketRatio should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cache.serializer": {
+  "choices": [],
+  "default": "org.apache.spark.sql.execution.columnar.DefaultCachedBatchSerializer",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.cartesianProductExec.buffer.in.memory.threshold": {
+  "choices": [],
+  "default": "4096",
+  "kind": "int",
+  "message": "spark.sql.cartesianProductExec.buffer.in.memory.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.cartesianProductExec.buffer.spill.threshold": {
+  "choices": [],
+  "default": "2147483647",
+  "kind": "int",
+  "message": "spark.sql.cartesianProductExec.buffer.spill.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.caseSensitive": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.caseSensitive should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.catalog.spark_catalog": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.catalog.spark_catalog.defaultDatabase": {
+  "choices": [],
+  "default": "default",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.catalogImplementation": {
+  "choices": [],
+  "default": "in-memory",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.cbo.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.cbo.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cbo.joinReorder.card.weight": {
+  "choices": [],
+  "default": "0.7",
+  "kind": "double",
+  "message": "spark.sql.cbo.joinReorder.card.weight should be double, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.cbo.joinReorder.dp.star.filter": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.cbo.joinReorder.dp.star.filter should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cbo.joinReorder.dp.threshold": {
+  "choices": [],
+  "default": "12",
+  "kind": "int",
+  "message": "spark.sql.cbo.joinReorder.dp.threshold should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cbo.joinReorder.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.cbo.joinReorder.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cbo.planStats.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.cbo.planStats.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cbo.starJoinFTRatio": {
+  "choices": [],
+  "default": "0.9",
+  "kind": "double",
+  "message": "spark.sql.cbo.starJoinFTRatio should be double, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.cbo.starSchemaDetection": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.cbo.starSchemaDetection should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.charAsVarchar": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.charAsVarchar should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.chunkBase64String.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.chunkBase64String.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.cli.print.header": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.cli.print.header should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.codegen.aggregate.fastHashMap.capacityBit": {
+  "choices": [],
+  "default": "16",
+  "kind": "int",
+  "message": "spark.sql.codegen.aggregate.fastHashMap.capacityBit should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.aggregate.map.twolevel.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.aggregate.map.twolevel.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.aggregate.map.twolevel.partialOnly": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.aggregate.map.twolevel.partialOnly should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.aggregate.map.vectorized.enable": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.aggregate.map.vectorized.enable should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.aggregate.sortAggregate.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.aggregate.sortAggregate.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.aggregate.splitAggregateFunc.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.aggregate.splitAggregateFunc.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.cache.maxEntries": {
+  "choices": [],
+  "default": "100",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.codegen.comments": {
+  "choices": [],
+  "default": "false",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.codegen.factoryMode": {
+  "choices": [
+   "CODEGEN_ONLY",
+   "FALLBACK",
+   "NO_CODEGEN"
+  ],
+  "default": "FALLBACK",
+  "kind": "enum",
+  "message": "The value of spark.sql.codegen.factoryMode should be one of CODEGEN_ONLY, FALLBACK, NO_CODEGEN, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.fallback": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.fallback should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.hugeMethodLimit": {
+  "choices": [],
+  "default": "65535",
+  "kind": "int",
+  "message": "spark.sql.codegen.hugeMethodLimit should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.join.buildSideOuterShuffledHashJoin.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.join.buildSideOuterShuffledHashJoin.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.join.existenceSortMergeJoin.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.join.existenceSortMergeJoin.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.join.fullOuterShuffledHashJoin.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.join.fullOuterShuffledHashJoin.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.join.fullOuterSortMergeJoin.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.join.fullOuterSortMergeJoin.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.logging.maxLines": {
+  "choices": [],
+  "default": "1000",
+  "kind": "int",
+  "message": "spark.sql.codegen.logging.maxLines should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.maxFields": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.codegen.maxFields should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.methodSplitThreshold": {
+  "choices": [],
+  "default": "1024",
+  "kind": "int",
+  "message": "spark.sql.codegen.methodSplitThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.splitConsumeFuncByOperator": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.splitConsumeFuncByOperator should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.useIdInClassName": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.useIdInClassName should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.codegen.wholeStage": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.codegen.wholeStage should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.columnNameOfCorruptRecord": {
+  "choices": [],
+  "default": "_corrupt_record",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.columnVector.offheap.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.columnVector.offheap.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.constraintPropagation.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.constraintPropagation.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.crossJoin.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.crossJoin.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.csv.filterPushdown.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.csv.filterPushdown.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.csv.parser.columnPruning.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.csv.parser.columnPruning.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.csv.parser.inputBufferSize": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.csv.parser.inputBufferSize should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.datetime.java8API.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.datetime.java8API.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.debug": {
+  "choices": [],
+  "default": "false",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.debug.maxToStringFields": {
+  "choices": [],
+  "default": "25",
+  "kind": "int",
+  "message": "spark.sql.debug.maxToStringFields should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.decimalOperations.allowPrecisionLoss": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.decimalOperations.allowPrecisionLoss should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.defaultCatalog": {
+  "choices": [],
+  "default": "spark_catalog",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.defaultColumn.allowedProviders": {
+  "choices": [],
+  "default": "csv,json,orc,parquet",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.defaultColumn.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.defaultColumn.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.defaultColumn.useNullsForMissingDefaultValues": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.defaultColumn.useNullsForMissingDefaultValues should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.defaultSizeInBytes": {
+  "choices": [],
+  "default": "9223372036854775807b",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.defaultUrlStreamHandlerFactory.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.error.messageFormat": {
+  "choices": [
+   "MINIMAL",
+   "PRETTY",
+   "STANDARD"
+  ],
+  "default": "PRETTY",
+  "kind": "enum",
+  "message": "The value of spark.sql.error.messageFormat should be one of MINIMAL, PRETTY, STANDARD, but was @@INVALID@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.event.truncate.length": {
+  "choices": [],
+  "default": "2147483647",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.exchange.reuse": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.exchange.reuse should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.arrow.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.fallback.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.fallback.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.localRelationThreshold": {
+  "choices": [],
+  "default": "48MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.maxRecordsPerBatch": {
+  "choices": [],
+  "default": "10000",
+  "kind": "int",
+  "message": "spark.sql.execution.arrow.maxRecordsPerBatch should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.pyspark.enabled": {
+  "choices": [],
+  "default": "<value of spark.sql.execution.arrow.enabled>",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.pyspark.fallback.enabled": {
+  "choices": [],
+  "default": "<value of spark.sql.execution.arrow.fallback.enabled>",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.fallback.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.pyspark.selfDestruct.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.pyspark.selfDestruct.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.sparkr.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.sparkr.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.arrow.useLargeVarTypes": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.arrow.useLargeVarTypes should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.broadcastHashJoin.outputPartitioningExpandLimit": {
+  "choices": [],
+  "default": "8",
+  "kind": "int",
+  "message": "spark.sql.execution.broadcastHashJoin.outputPartitioningExpandLimit should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.fastFailOnFileFormatOutput": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.fastFailOnFileFormatOutput should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.pandas.convertToArrowArraySafely": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.pandas.convertToArrowArraySafely should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.pandas.structHandlingMode": {
+  "choices": [
+   "legacy",
+   "row",
+   "dict"
+  ],
+  "default": "legacy",
+  "kind": "enum",
+  "message": "The value of spark.sql.execution.pandas.structHandlingMode should be one of legacy, row, dict, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.pandas.udf.buffer.size": {
+  "choices": [],
+  "default": "<value of spark.buffer.size>",
+  "kind": "int",
+  "message": "spark.buffer.size should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.pyspark.python": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.pyspark.udf.simplifiedTraceback.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.pyspark.udf.simplifiedTraceback.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.pythonUDF.arrow.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.pythonUDF.arrow.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.pythonUDTF.arrow.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.pythonUDTF.arrow.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.rangeExchange.sampleSizePerPartition": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.execution.rangeExchange.sampleSizePerPartition should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.removeRedundantProjects": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.removeRedundantProjects should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.removeRedundantSorts": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.removeRedundantSorts should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.replaceHashWithSortAgg": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.replaceHashWithSortAgg should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.reuseSubquery": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.reuseSubquery should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.sortBeforeRepartition": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.sortBeforeRepartition should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.topKSortFallbackThreshold": {
+  "choices": [],
+  "default": "2147483632",
+  "kind": "int",
+  "message": "spark.sql.execution.topKSortFallbackThreshold should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.execution.useObjectHashAggregateExec": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.execution.useObjectHashAggregateExec should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.execution.usePartitionEvaluator": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.execution.usePartitionEvaluator should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.extensions": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.files.ignoreCorruptFiles": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.files.ignoreCorruptFiles should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.files.ignoreMissingFiles": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.files.ignoreMissingFiles should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.files.maxPartitionBytes": {
+  "choices": [],
+  "default": "128MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.files.maxPartitionNum": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.files.maxPartitionNum should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.files.maxRecordsPerFile": {
+  "choices": [],
+  "default": "0",
+  "kind": "long",
+  "message": "spark.sql.files.maxRecordsPerFile should be long, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.files.minPartitionNum": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.files.minPartitionNum should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.files.openCostInBytes": {
+  "choices": [],
+  "default": "4MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.filesourceTableRelationCacheSize": {
+  "choices": [],
+  "default": "1000",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.function.concatBinaryAsString": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.function.concatBinaryAsString should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.function.eltOutputAsString": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.function.eltOutputAsString should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.globalTempDatabase": {
+  "choices": [],
+  "default": "global_temp",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.groupByAliases": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.groupByAliases should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.groupByOrdinal": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.groupByOrdinal should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.advancedPartitionPredicatePushdown.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.hive.advancedPartitionPredicatePushdown.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.caseSensitiveInferenceMode": {
+  "choices": [
+   "INFER_AND_SAVE",
+   "INFER_ONLY",
+   "NEVER_INFER"
+  ],
+  "default": "NEVER_INFER",
+  "kind": "enum",
+  "message": "The value of spark.sql.hive.caseSensitiveInferenceMode should be one of INFER_AND_SAVE, INFER_ONLY, NEVER_INFER, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.convertCTAS": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.hive.convertCTAS should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.convertInsertingPartitionedTable": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.convertMetastoreCtas": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.convertMetastoreInsertDir": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.convertMetastoreOrc": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.convertMetastoreParquet": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.convertMetastoreParquet.mergeSchema": {
+  "choices": [],
+  "default": "false",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.dropPartitionByName.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.hive.dropPartitionByName.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.filesourcePartitionFileCacheSize": {
+  "choices": [],
+  "default": "262144000",
+  "kind": "long",
+  "message": "spark.sql.hive.filesourcePartitionFileCacheSize should be long, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.gatherFastStats": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.hive.gatherFastStats should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.manageFilesourcePartitions": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.hive.manageFilesourcePartitions should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastore.barrierPrefixes": {
+  "choices": [],
+  "default": "",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastore.jars": {
+  "choices": [],
+  "default": "builtin",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastore.jars.path": {
+  "choices": [],
+  "default": "",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastore.sharedPrefixes": {
+  "choices": [],
+  "default": "com.mysql.jdbc,org.postgresql,com.microsoft.sqlserver,oracle.jdbc",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastore.version": {
+  "choices": [],
+  "default": "2.3.9",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastorePartitionPruning": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.hive.metastorePartitionPruning should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastorePartitionPruningFallbackOnException": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.hive.metastorePartitionPruningFallbackOnException should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastorePartitionPruningFastFallback": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.hive.metastorePartitionPruningFastFallback should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.metastorePartitionPruningInSetThreshold": {
+  "choices": [],
+  "default": "1000",
+  "kind": "int",
+  "message": "spark.sql.hive.metastorePartitionPruningInSetThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.tablePropertyLengthThreshold": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.hive.tablePropertyLengthThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.thriftServer.async": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.thriftServer.singleSession": {
+  "choices": [],
+  "default": "false",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.hive.useDelegateForSymlinkTextInputFormat": {
+  "choices": [],
+  "default": "true",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.hive.verifyPartitionPath": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.hive.verifyPartitionPath should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.hive.version": {
+  "choices": [],
+  "default": "2.3.9",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.inMemoryColumnarStorage.batchSize": {
+  "choices": [],
+  "default": "10000",
+  "kind": "int",
+  "message": "spark.sql.inMemoryColumnarStorage.batchSize should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.inMemoryColumnarStorage.compressed": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.inMemoryColumnarStorage.compressed should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.inMemoryColumnarStorage.enableVectorizedReader": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.inMemoryColumnarStorage.enableVectorizedReader should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.inMemoryColumnarStorage.partitionPruning": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.inMemoryColumnarStorage.partitionPruning should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.inMemoryTableScanStatistics.enable": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.inMemoryTableScanStatistics.enable should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.join.preferSortMergeJoin": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.join.preferSortMergeJoin should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.json.enablePartialResults": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.json.enablePartialResults should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.json.filterPushdown.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.json.filterPushdown.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.jsonGenerator.ignoreNullFields": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.jsonGenerator.ignoreNullFields should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.jsonGenerator.writeNullIfWithDefaultValue": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.jsonGenerator.writeNullIfWithDefaultValue should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.lateralColumnAlias.enableImplicitResolution": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.lateralColumnAlias.enableImplicitResolution should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.leafNodeDefaultParallelism": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "int",
+  "message": "spark.sql.leafNodeDefaultParallelism should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.legacy.addSingleFileInAddFile": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.addSingleFileInAddFile should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowAutoGeneratedAliasForView": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowAutoGeneratedAliasForView should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowEmptySchemaWrite": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowEmptySchemaWrite should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowHashOnMapType": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowHashOnMapType should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowNegativeScaleOfDecimal": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowNegativeScaleOfDecimal should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowNonEmptyLocationInCTAS": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowNonEmptyLocationInCTAS should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowNullComparisonResultInArraySort": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowNullComparisonResultInArraySort should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowParameterlessCount": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowParameterlessCount should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowStarWithSingleTableIdentifierInCount": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowStarWithSingleTableIdentifierInCount should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowTempViewCreationWithMultipleNameparts": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowTempViewCreationWithMultipleNameparts should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowUntypedScalaUDF": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowUntypedScalaUDF should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.allowZeroIndexInFormatString": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.allowZeroIndexInFormatString should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.avro.allowIncompatibleSchema": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.avro.allowIncompatibleSchema should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.bucketedTableScan.outputOrdering": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.bucketedTableScan.outputOrdering should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.castComplexTypesToString.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.castComplexTypesToString.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.charVarcharAsString": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.charVarcharAsString should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.createEmptyCollectionUsingStringType": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.createEmptyCollectionUsingStringType should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.createHiveTableByDefault": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.createHiveTableByDefault should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.csv.enableDateTimeParsingFallback": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.csv.enableDateTimeParsingFallback should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.ctePrecedencePolicy": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.legacy.ctePrecedencePolicy should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.dataFrameWriterV2IgnorePathOption": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.dataFrameWriterV2IgnorePathOption should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.dataset.nameNonStructGroupingKeyAsValue": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.dataset.nameNonStructGroupingKeyAsValue should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.doLooseUpcast": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.doLooseUpcast should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.emptyCurrentDBInCli": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.emptyCurrentDBInCli should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.execution.pandas.groupedMap.assignColumnsByName": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.execution.pandas.groupedMap.assignColumnsByName should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.exponentLiteralAsDecimal.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.exponentLiteralAsDecimal.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.extraOptionsBehavior.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.extraOptionsBehavior.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.followThreeValuedLogicInArrayExists": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.followThreeValuedLogicInArrayExists should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.fromDayTimeString.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.fromDayTimeString.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.groupingIdWithAppendedUserGroupBy": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.groupingIdWithAppendedUserGroupBy should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.histogramNumericPropagateInputType": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.histogramNumericPropagateInputType should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.inSubqueryNullability": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.inSubqueryNullability should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.integerGroupingId": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.integerGroupingId should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.interval.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.interval.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.json.allowEmptyString.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.json.allowEmptyString.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.json.enableDateTimeParsingFallback": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.json.enableDateTimeParsingFallback should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.keepCommandOutputSchema": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.keepCommandOutputSchema should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.keepPartitionSpecAsStringLiteral": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.keepPartitionSpecAsStringLiteral should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.literal.pickMinimumPrecision": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.literal.pickMinimumPrecision should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.lpadRpadAlwaysReturnString": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.lpadRpadAlwaysReturnString should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.mssqlserver.numericMapping.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.mssqlserver.numericMapping.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.negativeIndexInArrayInsert": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.negativeIndexInArrayInsert should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.noCharPaddingInPredicate": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.noCharPaddingInPredicate should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.notReserveProperties": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.notReserveProperties should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.nullInEmptyListBehavior": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.nullInEmptyListBehavior should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.nullValueWrittenAsQuotedEmptyStringCsv": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.nullValueWrittenAsQuotedEmptyStringCsv should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.parquet.nanosAsLong": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.parquet.nanosAsLong should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.parseNullPartitionSpecAsStringLiteral": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.parseNullPartitionSpecAsStringLiteral should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.parser.havingWithoutGroupByAsWhere": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.parser.havingWithoutGroupByAsWhere should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.pathOptionBehavior.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.pathOptionBehavior.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.percentileDiscCalculation": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.percentileDiscCalculation should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.replaceDatabricksSparkAvro.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.replaceDatabricksSparkAvro.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.respectNullabilityInTextDatasetConversion": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.respectNullabilityInTextDatasetConversion should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.sessionInitWithConfigDefaults": {
+  "choices": [],
+  "default": "false",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.legacy.setCommandRejectsSparkCoreConfs": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.setCommandRejectsSparkCoreConfs should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.setopsPrecedence.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.setopsPrecedence.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.sizeOfNull": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.sizeOfNull should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.skipTypeValidationOnAlterPartition": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.skipTypeValidationOnAlterPartition should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.statisticalAggregate": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.statisticalAggregate should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.storeAnalyzedPlanForView": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.storeAnalyzedPlanForView should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.timeParserPolicy": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.legacy.timeParserPolicy should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.typeCoercion.datetimeToString.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.typeCoercion.datetimeToString.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.useCurrentConfigsForView": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.useCurrentConfigsForView should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.useV1Command": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.useV1Command should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.legacy.v1IdentifierNoCatalog": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.legacy.v1IdentifierNoCatalog should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.limit.initialNumPartitions": {
+  "choices": [],
+  "default": "1",
+  "kind": "int",
+  "message": "spark.sql.limit.initialNumPartitions should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.limit.scaleUpFactor": {
+  "choices": [],
+  "default": "4",
+  "kind": "int",
+  "message": "spark.sql.limit.scaleUpFactor should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.mapKeyDedupPolicy": {
+  "choices": [
+   "EXCEPTION",
+   "LAST_WIN"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.mapKeyDedupPolicy should be one of EXCEPTION, LAST_WIN, but was @@INVALID@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.maven.additionalRemoteRepositories": {
+  "choices": [],
+  "default": "https://maven-central.storage-download.googleapis.com/maven2/",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.maxConcurrentOutputFileWriters": {
+  "choices": [],
+  "default": "0",
+  "kind": "int",
+  "message": "spark.sql.maxConcurrentOutputFileWriters should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.maxMetadataStringLength": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.maxMetadataStringLength should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.maxPlanStringLength": {
+  "choices": [],
+  "default": "2147483632",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.maxSinglePartitionBytes": {
+  "choices": [],
+  "default": "9223372036854775807b",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.metadataCacheTTLSeconds": {
+  "choices": [],
+  "default": "-1000ms",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.objectHashAggregate.sortBased.fallbackThreshold": {
+  "choices": [],
+  "default": "128",
+  "kind": "int",
+  "message": "spark.sql.objectHashAggregate.sortBased.fallbackThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizeNullAwareAntiJoin": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizeNullAwareAntiJoin should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.canChangeCachedPlanOutputPartitioning": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.canChangeCachedPlanOutputPartitioning should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.collapseProjectAlwaysInline": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.collapseProjectAlwaysInline should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.decorrelateInnerQuery.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.decorrelateInnerQuery.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.decorrelateSetOps.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.decorrelateSetOps.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.decorrelateSubqueryLegacyIncorrectCountHandling.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.decorrelateSubqueryLegacyIncorrectCountHandling.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.disableHints": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.disableHints should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.dynamicPartitionPruning.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.dynamicPartitionPruning.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.dynamicPartitionPruning.fallbackFilterRatio": {
+  "choices": [],
+  "default": "0.5",
+  "kind": "double",
+  "message": "spark.sql.optimizer.dynamicPartitionPruning.fallbackFilterRatio should be double, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.dynamicPartitionPruning.useStats": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.dynamicPartitionPruning.useStats should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.enableCsvExpressionOptimization": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.enableCsvExpressionOptimization should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.enableJsonExpressionOptimization": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.enableJsonExpressionOptimization should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.excludeSubqueryRefsFromRemoveRedundantAliases.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.excludeSubqueryRefsFromRemoveRedundantAliases.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.excludedRules": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.expression.nestedPruning.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.expression.nestedPruning.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.expressionProjectionCandidateLimit": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.optimizer.expressionProjectionCandidateLimit should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.inSetConversionThreshold": {
+  "choices": [],
+  "default": "10",
+  "kind": "int",
+  "message": "spark.sql.optimizer.inSetConversionThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.inSetSwitchThreshold": {
+  "choices": [],
+  "default": "400",
+  "kind": "int",
+  "message": "spark.sql.optimizer.inSetSwitchThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.maxIterations": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.optimizer.maxIterations should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.metadataOnly": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.metadataOnly should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.nestedPredicatePushdown.supportedFileSources": {
+  "choices": [],
+  "default": "parquet,orc",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.nestedSchemaPruning.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.nestedSchemaPruning.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.optimizeOneRowRelationSubquery": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.optimizeOneRowRelationSubquery should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.optimizeOneRowRelationSubquery.alwaysInline": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.optimizeOneRowRelationSubquery.alwaysInline should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.plannedWrite.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.plannedWrite.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.propagateDistinctKeys.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.propagateDistinctKeys.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.pruneFiltersCanPruneStreamingSubplan": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.pruneFiltersCanPruneStreamingSubplan should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.pullHintsIntoSubqueries": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.pullHintsIntoSubqueries should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.replaceExceptWithFilter": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.replaceExceptWithFilter should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold": {
+  "choices": [],
+  "default": "10GB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.creationSideThreshold": {
+  "choices": [],
+  "default": "10MB",
+  "kind": "bytes",
+  "message": "Size must be specified as bytes (b), kibibytes (k), mebibytes (m), gibibytes (g), tebibytes (t), or pebibytes(p). E.g. 50b, 100k, or 250m. Failed to parse byte string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.runtime.bloomFilter.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.expectedNumItems": {
+  "choices": [],
+  "default": "1000000",
+  "kind": "long",
+  "message": "spark.sql.optimizer.runtime.bloomFilter.expectedNumItems should be long, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.maxNumBits": {
+  "choices": [],
+  "default": "67108864",
+  "kind": "long",
+  "message": "spark.sql.optimizer.runtime.bloomFilter.maxNumBits should be long, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.maxNumItems": {
+  "choices": [],
+  "default": "4000000",
+  "kind": "long",
+  "message": "spark.sql.optimizer.runtime.bloomFilter.maxNumItems should be long, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.bloomFilter.numBits": {
+  "choices": [],
+  "default": "8388608",
+  "kind": "long",
+  "message": "spark.sql.optimizer.runtime.bloomFilter.numBits should be long, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtime.rowLevelOperationGroupFilter.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.runtime.rowLevelOperationGroupFilter.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtimeFilter.number.threshold": {
+  "choices": [],
+  "default": "10",
+  "kind": "int",
+  "message": "spark.sql.optimizer.runtimeFilter.number.threshold should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.runtimeFilter.semiJoinReduction.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.runtimeFilter.semiJoinReduction.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.optimizer.serializer.nestedSchemaPruning.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.optimizer.serializer.nestedSchemaPruning.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.optimizer.windowGroupLimitThreshold": {
+  "choices": [],
+  "default": "1000",
+  "kind": "int",
+  "message": "spark.sql.optimizer.windowGroupLimitThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.orc.aggregatePushdown": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.orc.aggregatePushdown should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.columnarReaderBatchSize": {
+  "choices": [],
+  "default": "4096",
+  "kind": "int",
+  "message": "spark.sql.orc.columnarReaderBatchSize should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.columnarWriterBatchSize": {
+  "choices": [],
+  "default": "1024",
+  "kind": "int",
+  "message": "spark.sql.orc.columnarWriterBatchSize should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.compression.codec": {
+  "choices": [
+   "uncompressed",
+   "lz4",
+   "lzo",
+   "snappy",
+   "zlib",
+   "none",
+   "zstd"
+  ],
+  "default": "snappy",
+  "kind": "enum",
+  "message": "The value of spark.sql.orc.compression.codec should be one of uncompressed, lz4, lzo, snappy, zlib, none, zstd, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.enableNestedColumnVectorizedReader": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.orc.enableNestedColumnVectorizedReader should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.enableVectorizedReader": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.orc.enableVectorizedReader should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.filterPushdown": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.orc.filterPushdown should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orc.impl": {
+  "choices": [
+   "hive",
+   "native"
+  ],
+  "default": "native",
+  "kind": "enum",
+  "message": "The value of spark.sql.orc.impl should be one of hive, native, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.orc.mergeSchema": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.orc.mergeSchema should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.orderByOrdinal": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.orderByOrdinal should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.aggregatePushdown": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.aggregatePushdown should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.binaryAsString": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.binaryAsString should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.columnarReaderBatchSize": {
+  "choices": [],
+  "default": "4096",
+  "kind": "int",
+  "message": "spark.sql.parquet.columnarReaderBatchSize should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.compression.codec": {
+  "choices": [
+   "brotli",
+   "uncompressed",
+   "lz4",
+   "gzip",
+   "lzo",
+   "lz4raw",
+   "snappy",
+   "lz4_raw",
+   "none",
+   "zstd"
+  ],
+  "default": "snappy",
+  "kind": "enum",
+  "message": "The value of spark.sql.parquet.compression.codec should be one of brotli, uncompressed, lz4, gzip, lzo, lz4raw, snappy, lz4_raw, none, zstd, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.datetimeRebaseModeInRead": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.parquet.datetimeRebaseModeInRead should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.datetimeRebaseModeInWrite": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.parquet.datetimeRebaseModeInWrite should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.enableNestedColumnVectorizedReader": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.enableNestedColumnVectorizedReader should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.enableVectorizedReader": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.enableVectorizedReader should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.fieldId.read.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.fieldId.read.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.fieldId.read.ignoreMissing": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.fieldId.read.ignoreMissing should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.fieldId.write.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.fieldId.write.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.filterPushdown": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.filterPushdown should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.filterPushdown.date": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.filterPushdown.date should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.filterPushdown.decimal": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.filterPushdown.decimal should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.filterPushdown.string.startsWith": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.filterPushdown.string.startsWith should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.filterPushdown.stringPredicate": {
+  "choices": [],
+  "default": "<value of spark.sql.parquet.filterPushdown.string.startsWith>",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.filterPushdown.string.startsWith should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.filterPushdown.timestamp": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.filterPushdown.timestamp should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.inferTimestampNTZ.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.inferTimestampNTZ.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.int96AsTimestamp": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.int96AsTimestamp should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.int96RebaseModeInRead": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.parquet.int96RebaseModeInRead should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.int96RebaseModeInWrite": {
+  "choices": [
+   "CORRECTED",
+   "EXCEPTION",
+   "LEGACY"
+  ],
+  "default": "EXCEPTION",
+  "kind": "enum",
+  "message": "The value of spark.sql.parquet.int96RebaseModeInWrite should be one of CORRECTED, EXCEPTION, LEGACY, but was @@INVALID@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.int96TimestampConversion": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.int96TimestampConversion should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.mergeSchema": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.mergeSchema should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.output.committer.class": {
+  "choices": [],
+  "default": "org.apache.parquet.hadoop.ParquetOutputCommitter",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.outputTimestampType": {
+  "choices": [
+   "INT96",
+   "TIMESTAMP_MICROS",
+   "TIMESTAMP_MILLIS"
+  ],
+  "default": "INT96",
+  "kind": "enum",
+  "message": "The value of spark.sql.parquet.outputTimestampType should be one of INT96, TIMESTAMP_MICROS, TIMESTAMP_MILLIS, but was @@INVALID@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.pushdown.inFilterThreshold": {
+  "choices": [],
+  "default": "10",
+  "kind": "int",
+  "message": "spark.sql.parquet.pushdown.inFilterThreshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parquet.recordLevelFilter.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.recordLevelFilter.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.respectSummaryFiles": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.respectSummaryFiles should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parquet.writeLegacyFormat": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parquet.writeLegacyFormat should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.parser.escapedStringLiterals": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parser.escapedStringLiterals should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.parser.quotedRegexColumnNames": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.parser.quotedRegexColumnNames should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.pivotMaxValues": {
+  "choices": [],
+  "default": "10000",
+  "kind": "int",
+  "message": "spark.sql.pivotMaxValues should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.planChangeLog.batches": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.planChangeLog.level": {
+  "choices": [
+   "trace",
+   "debug",
+   "info",
+   "warn",
+   "error"
+  ],
+  "default": "trace",
+  "kind": "enum",
+  "message": "'@@INVALID@@' in spark.sql.planChangeLog.level is invalid. Invalid value for 'spark.sql.planChangeLog.level'. Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.planChangeLog.rules": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.planChangeValidation": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.planChangeValidation should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.pyspark.inferNestedDictAsStruct.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.pyspark.inferNestedDictAsStruct.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.pyspark.jvmStacktrace.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.pyspark.jvmStacktrace.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.pyspark.legacy.inferArrayTypeFromFirstElement.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.pyspark.legacy.inferArrayTypeFromFirstElement.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.queryExecutionListeners": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.readSideCharPadding": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.readSideCharPadding should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.redaction.options.regex": {
+  "choices": [],
+  "default": "(?i)url",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.redaction.string.regex": {
+  "choices": [],
+  "default": "<value of spark.redaction.string.regex>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.repl.eagerEval.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.repl.eagerEval.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.repl.eagerEval.maxNumRows": {
+  "choices": [],
+  "default": "20",
+  "kind": "int",
+  "message": "spark.sql.repl.eagerEval.maxNumRows should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.repl.eagerEval.truncate": {
+  "choices": [],
+  "default": "20",
+  "kind": "int",
+  "message": "spark.sql.repl.eagerEval.truncate should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.requireAllClusterKeysForCoPartition": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.requireAllClusterKeysForCoPartition should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.requireAllClusterKeysForDistribution": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.requireAllClusterKeysForDistribution should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.retainGroupColumns": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.retainGroupColumns should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.runSQLOnFiles": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.runSQLOnFiles should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.scriptTransformation.exitTimeoutInSeconds": {
+  "choices": [],
+  "default": "10000ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.selfJoinAutoResolveAmbiguity": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.selfJoinAutoResolveAmbiguity should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.session.localRelationCacheThreshold": {
+  "choices": [],
+  "default": "67108864",
+  "kind": "int",
+  "message": "spark.sql.session.localRelationCacheThreshold should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.session.timeZone": {
+  "choices": [],
+  "default": "UTC",
+  "kind": "other",
+  "message": "'@@invalid@@' in spark.sql.session.timeZone is invalid. Cannot resolve the given timezone with ZoneId.of(_, ZoneId.SHORT_IDS)",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sessionWindow.buffer.in.memory.threshold": {
+  "choices": [],
+  "default": "4096",
+  "kind": "int",
+  "message": "spark.sql.sessionWindow.buffer.in.memory.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sessionWindow.buffer.spill.threshold": {
+  "choices": [],
+  "default": "2147483647",
+  "kind": "int",
+  "message": "spark.sql.sessionWindow.buffer.spill.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.shuffle.partitions": {
+  "choices": [],
+  "default": "200",
+  "kind": "int",
+  "message": "spark.sql.shuffle.partitions should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.shuffledHashJoinFactor": {
+  "choices": [],
+  "default": "3",
+  "kind": "int",
+  "message": "spark.sql.shuffledHashJoinFactor should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sort.enableRadixSort": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.sort.enableRadixSort should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sortMergeJoinExec.buffer.in.memory.threshold": {
+  "choices": [],
+  "default": "2147483632",
+  "kind": "int",
+  "message": "spark.sql.sortMergeJoinExec.buffer.in.memory.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sortMergeJoinExec.buffer.spill.threshold": {
+  "choices": [],
+  "default": "2147483647",
+  "kind": "int",
+  "message": "spark.sql.sortMergeJoinExec.buffer.spill.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.binaryFile.maxLength": {
+  "choices": [],
+  "default": "2147483647",
+  "kind": "int",
+  "message": "spark.sql.sources.binaryFile.maxLength should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.bucketing.autoBucketedScan.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.sources.bucketing.autoBucketedScan.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.bucketing.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.sources.bucketing.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.bucketing.maxBuckets": {
+  "choices": [],
+  "default": "100000",
+  "kind": "int",
+  "message": "spark.sql.sources.bucketing.maxBuckets should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.commitProtocolClass": {
+  "choices": [],
+  "default": "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.default": {
+  "choices": [],
+  "default": "parquet",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.disabledJdbcConnProviderList": {
+  "choices": [],
+  "default": "",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.sources.fileCompressionFactor": {
+  "choices": [],
+  "default": "1.0",
+  "kind": "double",
+  "message": "spark.sql.sources.fileCompressionFactor should be double, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.ignoreDataLocality": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.sources.ignoreDataLocality should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.outputCommitterClass": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.parallelPartitionDiscovery.parallelism": {
+  "choices": [],
+  "default": "10000",
+  "kind": "int",
+  "message": "spark.sql.sources.parallelPartitionDiscovery.parallelism should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.parallelPartitionDiscovery.threshold": {
+  "choices": [],
+  "default": "32",
+  "kind": "int",
+  "message": "spark.sql.sources.parallelPartitionDiscovery.threshold should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.partitionColumnTypeInference.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.sources.partitionColumnTypeInference.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.partitionOverwriteMode": {
+  "choices": [
+   "DYNAMIC",
+   "STATIC"
+  ],
+  "default": "STATIC",
+  "kind": "enum",
+  "message": "The value of spark.sql.sources.partitionOverwriteMode should be one of DYNAMIC, STATIC, but was @@INVALID@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.schemaStringLengthThreshold": {
+  "choices": [],
+  "default": "4000",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.sources.useV1SourceList": {
+  "choices": [],
+  "default": "avro,csv,json,kafka,orc,parquet,text",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.sources.v2.bucketing.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.sources.v2.bucketing.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.v2.bucketing.pushPartValues.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.sources.v2.bucketing.pushPartValues.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.sources.validatePartitionColumns": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.sources.validatePartitionColumns should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.stableDerivedColumnAlias.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.stableDerivedColumnAlias.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.statistics.fallBackToHdfs": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.statistics.fallBackToHdfs should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.statistics.histogram.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.statistics.histogram.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.statistics.histogram.numBins": {
+  "choices": [],
+  "default": "254",
+  "kind": "int",
+  "message": "spark.sql.statistics.histogram.numBins should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.statistics.ndv.maxError": {
+  "choices": [],
+  "default": "0.05",
+  "kind": "double",
+  "message": "spark.sql.statistics.ndv.maxError should be double, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.statistics.parallelFileListingInStatsComputation.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.statistics.parallelFileListingInStatsComputation.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.statistics.percentile.accuracy": {
+  "choices": [],
+  "default": "10000",
+  "kind": "int",
+  "message": "spark.sql.statistics.percentile.accuracy should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.statistics.size.autoUpdate.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.statistics.size.autoUpdate.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.storeAssignmentPolicy": {
+  "choices": [
+   "ANSI",
+   "LEGACY",
+   "STRICT"
+  ],
+  "default": "ANSI",
+  "kind": "enum",
+  "message": "The value of spark.sql.storeAssignmentPolicy should be one of ANSI, LEGACY, STRICT, but was @@INVALID@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.aggregation.stateFormatVersion": {
+  "choices": [],
+  "default": "2",
+  "kind": "int",
+  "message": "spark.sql.streaming.aggregation.stateFormatVersion should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.asyncLogPurge.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.asyncLogPurge.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.checkpoint.escapedPathCheck.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.checkpoint.escapedPathCheck.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.checkpoint.renamedFileCheck.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.checkpoint.renamedFileCheck.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.checkpointLocation": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.commitProtocolClass": {
+  "choices": [],
+  "default": "org.apache.spark.sql.execution.streaming.ManifestFileCommitProtocol",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.continuous.epochBacklogQueueSize": {
+  "choices": [],
+  "default": "10000",
+  "kind": "int",
+  "message": "spark.sql.streaming.continuous.epochBacklogQueueSize should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.continuous.executorPollIntervalMs": {
+  "choices": [],
+  "default": "100ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.continuous.executorQueueSize": {
+  "choices": [],
+  "default": "1024",
+  "kind": "int",
+  "message": "spark.sql.streaming.continuous.executorQueueSize should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.disabledV2MicroBatchReaders": {
+  "choices": [],
+  "default": "",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.disabledV2Writers": {
+  "choices": [],
+  "default": "",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.fileSink.log.cleanupDelay": {
+  "choices": [],
+  "default": "600000ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileSink.log.compactInterval": {
+  "choices": [],
+  "default": "10",
+  "kind": "int",
+  "message": "spark.sql.streaming.fileSink.log.compactInterval should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileSink.log.deletion": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.fileSink.log.deletion should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileSource.cleaner.numThreads": {
+  "choices": [],
+  "default": "1",
+  "kind": "int",
+  "message": "spark.sql.streaming.fileSource.cleaner.numThreads should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.fileSource.log.cleanupDelay": {
+  "choices": [],
+  "default": "600000ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileSource.log.compactInterval": {
+  "choices": [],
+  "default": "10",
+  "kind": "int",
+  "message": "spark.sql.streaming.fileSource.log.compactInterval should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileSource.log.deletion": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.fileSource.log.deletion should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileSource.schema.forceNullable": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.fileSource.schema.forceNullable should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.fileStreamSink.ignoreMetadata": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.fileStreamSink.ignoreMetadata should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.flatMapGroupsWithState.stateFormatVersion": {
+  "choices": [],
+  "default": "2",
+  "kind": "int",
+  "message": "spark.sql.streaming.flatMapGroupsWithState.stateFormatVersion should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.forceDeleteTempCheckpointLocation": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.forceDeleteTempCheckpointLocation should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.join.stateFormatVersion": {
+  "choices": [],
+  "default": "2",
+  "kind": "int",
+  "message": "spark.sql.streaming.join.stateFormatVersion should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.kafka.useDeprecatedOffsetFetching": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.kafka.useDeprecatedOffsetFetching should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.maxBatchesToRetainInMemory": {
+  "choices": [],
+  "default": "2",
+  "kind": "int",
+  "message": "spark.sql.streaming.maxBatchesToRetainInMemory should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.metadataCache.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.metadataCache.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.metricsEnabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.metricsEnabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.minBatchesToRetain": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.streaming.minBatchesToRetain should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.multipleWatermarkPolicy": {
+  "choices": [
+   "min",
+   "max"
+  ],
+  "default": "min",
+  "kind": "enum",
+  "message": "'@@invalid@@' in spark.sql.streaming.multipleWatermarkPolicy is invalid. Invalid value for 'spark.sql.streaming.multipleWatermarkPolicy'. Valid values are 'min' and 'max'",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.noDataMicroBatches.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.noDataMicroBatches.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.noDataProgressEventInterval": {
+  "choices": [],
+  "default": "10000ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.numRecentProgressUpdates": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.streaming.numRecentProgressUpdates should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.optimizeOneRowPlan.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.optimizeOneRowPlan.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.pollingDelay": {
+  "choices": [],
+  "default": "10ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.schemaInference": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.schemaInference should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.sessionWindow.merge.sessions.in.local.partition": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.sessionWindow.merge.sessions.in.local.partition should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.sessionWindow.stateFormatVersion": {
+  "choices": [],
+  "default": "1",
+  "kind": "int",
+  "message": "spark.sql.streaming.sessionWindow.stateFormatVersion should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.compression.codec": {
+  "choices": [],
+  "default": "lz4",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.formatValidation.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.stateStore.formatValidation.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.maintenanceInterval": {
+  "choices": [],
+  "default": "60000ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.minDeltasForSnapshot": {
+  "choices": [],
+  "default": "10",
+  "kind": "int",
+  "message": "spark.sql.streaming.stateStore.minDeltasForSnapshot should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.providerClass": {
+  "choices": [],
+  "default": "org.apache.spark.sql.execution.streaming.state.HDFSBackedStateStoreProvider",
+  "kind": "string",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.rocksdb.formatVersion": {
+  "choices": [],
+  "default": "5",
+  "kind": "int",
+  "message": "spark.sql.streaming.stateStore.rocksdb.formatVersion should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.skipNullsForStreamStreamJoins.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.stateStore.skipNullsForStreamStreamJoins.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stateStore.stateSchemaCheck": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.stateStore.stateSchemaCheck should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.statefulOperator.allowMultiple": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.statefulOperator.allowMultiple should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.statefulOperator.checkCorrectness.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.statefulOperator.checkCorrectness.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.statefulOperator.useStrictDistribution": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.statefulOperator.useStrictDistribution should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.streaming.stopActiveRunOnRestart": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.stopActiveRunOnRestart should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.stopTimeout": {
+  "choices": [],
+  "default": "0",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.streaming.streamingQueryListeners": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.streaming.ui.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.streaming.ui.enabledCustomMetricList": {
+  "choices": [],
+  "default": "",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.streaming.ui.retainedProgressUpdates": {
+  "choices": [],
+  "default": "100",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.streaming.ui.retainedQueries": {
+  "choices": [],
+  "default": "100",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.streaming.unsupportedOperationCheck": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.streaming.unsupportedOperationCheck should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.subexpressionElimination.cache.maxEntries": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.subexpressionElimination.cache.maxEntries should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.subexpressionElimination.enabled": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.subexpressionElimination.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.subexpressionElimination.skipForShortcutExpr": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.subexpressionElimination.skipForShortcutExpr should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.subquery.maxThreadThreshold": {
+  "choices": [],
+  "default": "16",
+  "kind": "static",
+  "public": false,
+  "static": true
+ },
+ "spark.sql.thriftServer.incrementalCollect": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.thriftServer.incrementalCollect should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.thriftServer.interruptOnCancel": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.thriftServer.interruptOnCancel should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.thriftServer.queryTimeout": {
+  "choices": [],
+  "default": "0ms",
+  "kind": "time",
+  "message": "Time must be specified as seconds (s), milliseconds (ms), microseconds (us), minutes (m or min), hour (h), or day (d). E.g. 50s, 100ms, or 250us. Failed to parse time string: @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.thriftserver.scheduler.pool": {
+  "choices": [],
+  "default": "<undefined>",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.thriftserver.ui.retainedSessions": {
+  "choices": [],
+  "default": "200",
+  "kind": "int",
+  "message": "spark.sql.thriftserver.ui.retainedSessions should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.thriftserver.ui.retainedStatements": {
+  "choices": [],
+  "default": "200",
+  "kind": "int",
+  "message": "spark.sql.thriftserver.ui.retainedStatements should be int, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.timestampType": {
+  "choices": [
+   "TIMESTAMP_LTZ",
+   "TIMESTAMP_NTZ"
+  ],
+  "default": "TIMESTAMP_LTZ",
+  "kind": "enum",
+  "message": "The value of spark.sql.timestampType should be one of TIMESTAMP_LTZ, TIMESTAMP_NTZ, but was @@INVALID@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.truncateTable.ignorePermissionAcl.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.truncateTable.ignorePermissionAcl.enabled should be boolean, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.tvf.allowMultipleTableArguments.enabled": {
+  "choices": [],
+  "default": "false",
+  "kind": "boolean",
+  "message": "spark.sql.tvf.allowMultipleTableArguments.enabled should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.udt.allowCreatingUDTFromString": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.udt.allowCreatingUDTFromString should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.udt.allowedDynamicUDTClasses": {
+  "choices": [],
+  "default": "",
+  "kind": "string",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.ui.explainMode": {
+  "choices": [
+   "simple",
+   "extended",
+   "codegen",
+   "cost",
+   "formatted"
+  ],
+  "default": "formatted",
+  "kind": "enum",
+  "message": "'@@INVALID@@' in spark.sql.ui.explainMode is invalid. Invalid value for 'spark.sql.ui.explainMode'. Valid values are 'simple', 'extended', 'codegen', 'cost' and 'formatted'.",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.ui.retainedExecutions": {
+  "choices": [],
+  "default": "1000",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.variable.substitute": {
+  "choices": [],
+  "default": "true",
+  "kind": "boolean",
+  "message": "spark.sql.variable.substitute should be boolean, but was @@invalid@@",
+  "public": true,
+  "static": false
+ },
+ "spark.sql.view.maxNestedViewDepth": {
+  "choices": [],
+  "default": "100",
+  "kind": "int",
+  "message": "spark.sql.view.maxNestedViewDepth should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.warehouse.dir": {
+  "choices": [],
+  "default": "file:/tmp/claude-0/probe/spark-warehouse",
+  "kind": "static",
+  "public": true,
+  "static": true
+ },
+ "spark.sql.windowExec.buffer.in.memory.threshold": {
+  "choices": [],
+  "default": "4096",
+  "kind": "int",
+  "message": "spark.sql.windowExec.buffer.in.memory.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ },
+ "spark.sql.windowExec.buffer.spill.threshold": {
+  "choices": [],
+  "default": "2147483647",
+  "kind": "int",
+  "message": "spark.sql.windowExec.buffer.spill.threshold should be int, but was @@invalid@@",
+  "public": false,
+  "static": false
+ }
+}

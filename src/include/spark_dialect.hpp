@@ -68,6 +68,17 @@ void RegisterSparkFormats(ExtensionLoader &loader);
 void RegisterSparkExtras(ExtensionLoader &loader);
 void RegisterSparkIntervals(ExtensionLoader &loader);
 void RegisterSparkCasts(ExtensionLoader &loader);
+void RegisterSparkConf(ExtensionLoader &loader);
+
+//! The value of a Spark setting in this connection (the value set by `SET`, else Spark's default; empty if the key is
+//! unknown), read at bind time by the functions a setting changes (spark_conf.cpp)
+string SparkConfGet(ClientContext &context, const string &key);
+//! Static checks of `SET key = value` (raises ParserException-like errors; see spark_conf.cpp)
+void SparkConfCheck(const string &key, const string &value);
+//! A Spark session time zone id as a time zone name for DuckDB's TimeZone setting (empty: use it as is)
+string SparkNormalizeTimeZone(const string &id);
+bool SparkConfBool(ClientContext &context, const string &key);
+bool SparkConfEquals(ClientContext &context, const string &key, const string &expected);
 
 //! Functions in the `spark` schema. The parser routes calls to these names into that schema.
 bool IsSparkOverride(const string &lower_name);

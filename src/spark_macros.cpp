@@ -33,8 +33,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"json_tuple_field", "(j, k) AS json_extract_string(TRY(CAST(j AS JSON)), '$.\"' || k || '\"')"},
 
     // ---- conditional / null handling ----
-    {"nvl", "(a, b) AS coalesce(a, b)"},
-    {"ifnull", "(a, b) AS coalesce(a, b)"},
+    {"nvl", "(a, b) AS " S "coalesce_value(a, b)"},
+    {"ifnull", "(a, b) AS " S "coalesce_value(a, b)"},
     {"nvl2", "(a, b, c) AS CASE WHEN a IS NOT NULL THEN b ELSE c END"},
     {"isnull", "(a) AS a IS NULL"},
     // 0 (not NULL) when no row is true
@@ -45,7 +45,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"max_by", "(x, y) AS arg_max_null(x, y)"},
     {"min_by", "(x, y) AS arg_min_null(x, y)"},
     // Catalyst's Divide yields NULL when the variance product is zero, where DuckDB's corr gives NaN
-    {"corr", "(x, y) AS CASE WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
+    {"corr", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
     {"isnotnull", "(a) AS a IS NOT NULL"},
     {"equal_null", "(a, b) AS " S "cmp_nsafe(a, b)"},
     {"nanvl", "(a, b) AS CASE WHEN isnan(" S "as_double(a)) THEN " S "as_double(b) ELSE " S "as_double(a) END"},
@@ -103,7 +103,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"try_to_binary", "(s) AS TRY(unhex(s)), (s, f) AS TRY(" S "to_binary(s, f))"},
     // Java's MIME decoder skips characters outside the base64 alphabet (whitespace, line breaks)
     {"unbase64", "(s) AS from_base64(regexp_replace(" S "as_string(s), '[^A-Za-z0-9+/=]', '', 'g'))"},
-    {"base64", "(b) AS to_base64(" S "as_binary(b))"},
+    {"base64", "(b) AS CASE WHEN " S "conf_bool('spark.sql.chunkBase64String.enabled') THEN array_to_string(list_transform(range(0, len(to_base64(" S "as_binary(b))), 76), lambda i: substr(to_base64(" S "as_binary(b)), i + 1, 76)), chr(13) || chr(10)) ELSE to_base64(" S "as_binary(b)) END"},
     {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE hex(CAST(x AS BIGINT)) END"},
     {"unhex", "(s) AS TRY(unhex(s))"},
     {"parse_url", "(u, p) AS " S "parse_url_impl(u, p), (u, p, k) AS " S "parse_url_impl(u, p, k)"},
@@ -155,7 +155,10 @@ const SparkMacro SPARK_MACROS[] = {
     {"current_timestamp", "() AS CAST(now() AS TIMESTAMP)"},
     {"now", "() AS CAST(now() AS TIMESTAMP)"},
     {"localtimestamp", "() AS CAST(now() AS TIMESTAMP)"},
-    {"current_timezone", "() AS current_setting('TimeZone')"},
+    {"current_timezone", "() AS " S "spark_session_timezone()"},
+    {"format_zoned", "(w, f) AS CASE WHEN regexp_matches(f, '[zZXxVO]') THEN " S "format_datetime_zone(w, f, " S "spark_session_timezone(), "
+                     "CAST(epoch(timezone('UTC', w)) - epoch(timezone(current_setting('TimeZone'), w)) AS INTEGER), "
+                     "strftime(timezone(current_setting('TimeZone'), w), '%Z')) ELSE " S "format_datetime(w, f) END"},
     {"date", "(x) AS " S "as_date(x)"},
     {"timestamp", "(x) AS " S "as_timestamp(x)"},
     {"to_date", "(s) AS " S "as_date(s), (s, f) AS CAST(" S "parse_datetime(" S "as_string(s), f) AS DATE)"},
@@ -163,12 +166,13 @@ const SparkMacro SPARK_MACROS[] = {
     {"to_timestamp_ltz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
     {"to_timestamp_ntz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
     {"try_to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
-    {"date_format", "(t, f) AS " S "format_datetime(" S "as_timestamp(t), f)"},
-    {"from_unixtime", "(t) AS " S "format_datetime(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wrap(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
-                      "(t, f) AS " S "format_datetime(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wrap(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
+    {"date_format", "(t, f) AS " S "format_zoned(" S "as_timestamp(t), f)"},
+    {"from_unixtime", "(t) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
+                      "(t, f) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
+    {"epoch_seconds_wall", "(n) AS CAST(timezone('UTC', " S "epoch_seconds_wrap(n)) AS TIMESTAMP)"},
     {"unix_timestamp", "() AS CAST(floor(epoch(now())) AS BIGINT), "
-                       "(t) AS CAST(floor(epoch(CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END)) AS BIGINT), "
-                       "(t, f) AS CAST(floor(epoch(CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), f) ELSE " S "as_timestamp(t) END)) AS BIGINT)"},
+                       "(t) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END))) AS BIGINT), "
+                       "(t, f) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), f) ELSE " S "as_timestamp(t) END))) AS BIGINT)"},
     {"to_unix_timestamp", "(t) AS " S "unix_timestamp(t), (t, f) AS " S "unix_timestamp(t, f)"},
     {"add_months", "(d, n) AS CAST(" S "as_date(d) + to_months(CAST(n AS INTEGER)) AS DATE)"},
     {"date_add", "(d, n) AS " S "as_date(d) + CAST(n AS INTEGER)"},
@@ -178,12 +182,12 @@ const SparkMacro SPARK_MACROS[] = {
     {"date_diff", "(e, s) AS CAST(" S "as_date(e) - " S "as_date(s) AS INTEGER)"},
     {"date_from_unix_date", "(n) AS DATE '1970-01-01' + CAST(n AS INTEGER)"},
     {"unix_date", "(d) AS CAST(" S "as_date(d) - DATE '1970-01-01' AS INTEGER)"},
-    {"unix_seconds", "(t) AS CAST(floor(epoch(" S "as_timestamp(t))) AS BIGINT)"},
-    {"unix_millis", "(t) AS CAST(floor(epoch_us(" S "as_timestamp(t)) / 1000) AS BIGINT)"},
-    {"unix_micros", "(t) AS epoch_us(" S "as_timestamp(t))"},
+    {"unix_seconds", "(t) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), " S "as_timestamp(t)))) AS BIGINT)"},
+    {"unix_millis", "(t) AS CAST(floor(epoch_us(timezone(current_setting('TimeZone'), " S "as_timestamp(t))) / 1000) AS BIGINT)"},
+    {"unix_micros", "(t) AS epoch_us(timezone(current_setting('TimeZone'), " S "as_timestamp(t)))"},
     {"timestamp_seconds", "(n) AS CAST(to_timestamp(CAST(n AS DOUBLE)) AS TIMESTAMP)"},
-    {"timestamp_millis", "(n) AS make_timestamp(CAST(n AS BIGINT) * 1000)"},
-    {"timestamp_micros", "(n) AS make_timestamp(CAST(n AS BIGINT))"},
+    {"timestamp_millis", "(n) AS CAST(timezone('UTC', make_timestamp(CAST(n AS BIGINT) * 1000)) AS TIMESTAMP)"},
+    {"timestamp_micros", "(n) AS CAST(timezone('UTC', make_timestamp(CAST(n AS BIGINT))) AS TIMESTAMP)"},
     {"year", "(d) AS CAST(year(" S "as_date(d)) AS INTEGER)"},
     {"quarter", "(d) AS CAST(quarter(" S "as_date(d)) AS INTEGER)"},
     {"month", "(d) AS CAST(month(" S "as_date(d)) AS INTEGER)"},
@@ -218,7 +222,7 @@ const SparkMacro SPARK_MACROS[] = {
      "WHEN 'HOUR' THEN date_trunc('hour', " S "as_timestamp(t)) WHEN 'MINUTE' THEN date_trunc('minute', " S "as_timestamp(t)) "
      "WHEN 'SECOND' THEN date_trunc('second', " S "as_timestamp(t)) WHEN 'MILLISECOND' THEN date_trunc('millisecond', " S "as_timestamp(t)) "
      "WHEN 'MICROSECOND' THEN date_trunc('microsecond', " S "as_timestamp(t)) END"},
-    {"date_part",
+    {"date_part_dynamic",
      "(f, t) AS CASE upper(f) WHEN 'YEAR' THEN year(t) WHEN 'Y' THEN year(t) WHEN 'YEARS' THEN year(t) WHEN 'YR' THEN year(t) WHEN 'YRS' THEN year(t) "
      "WHEN 'YEAROFWEEK' THEN isoyear(t) WHEN 'QUARTER' THEN quarter(t) WHEN 'QTR' THEN quarter(t) "
      "WHEN 'MONTH' THEN month(t) WHEN 'MON' THEN month(t) WHEN 'MONS' THEN month(t) WHEN 'MONTHS' THEN month(t) "
@@ -231,7 +235,10 @@ const SparkMacro SPARK_MACROS[] = {
      "WHEN 'SECOND' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) WHEN 'S' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) "
      "WHEN 'SEC' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) WHEN 'SECONDS' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) "
      "WHEN 'SECS' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) END"},
-    {"datepart", "(f, t) AS " S "date_part(f, t)"},
+    {"date_part", "(f, t) AS " S "date_part_value(f, t)"},
+    {"datepart", "(f, t) AS " S "date_part_value(f, t)"},
+    {"regr_count", "(y, x) AS CAST(regr_count(y, x) AS BIGINT)"},
+    {"uuid", "() AS CAST(uuid() AS VARCHAR)"},
     {"make_timestamp", "(y, mo, d, h, mi, s) AS TRY(make_timestamp(CAST(y AS BIGINT), CAST(mo AS BIGINT), CAST(d AS BIGINT), CAST(h AS BIGINT), CAST(mi AS BIGINT), CAST(s AS DOUBLE))), "
                        "(y, mo, d, h, mi, s, tz) AS CAST(timezone(current_setting('TimeZone'), timezone(tz, TRY(make_timestamp(CAST(y AS BIGINT), CAST(mo AS BIGINT), CAST(d AS BIGINT), CAST(h AS BIGINT), CAST(mi AS BIGINT), CAST(s AS DOUBLE))))) AS TIMESTAMP)"},
     
@@ -243,8 +250,8 @@ const SparkMacro SPARK_MACROS[] = {
                          "(d, h, m) AS to_days(CAST(d AS INTEGER)) + to_hours(CAST(h AS BIGINT)) + to_minutes(CAST(m AS BIGINT)), "
                          "(d, h, m, s) AS to_days(CAST(d AS INTEGER)) + to_hours(CAST(h AS BIGINT)) + to_minutes(CAST(m AS BIGINT)) + to_microseconds(CAST(round(CAST(s AS DECIMAL(18, 6)) * 1000000) AS BIGINT))"},
     {"make_ym_interval", "() AS INTERVAL 0 MONTH, (y) AS to_years(CAST(y AS INTEGER)), (y, m) AS to_years(CAST(y AS INTEGER)) + to_months(CAST(m AS INTEGER))"},
-    {"from_utc_timestamp", "(t, tz) AS CAST(timezone(tz, timezone('UTC', " S "as_timestamp(t))) AS TIMESTAMP)"},
-    {"to_utc_timestamp", "(t, tz) AS CAST(timezone('UTC', timezone(tz, " S "as_timestamp(t))) AS TIMESTAMP)"},
+    {"from_utc_timestamp", "(t, tz) AS CAST(timezone('UTC', timezone(tz, timezone('UTC', timezone('UTC', timezone(current_setting('TimeZone'), " S "as_timestamp(t)))))) AS TIMESTAMP)"},
+    {"to_utc_timestamp", "(t, tz) AS CAST(timezone(tz, timezone('UTC', timezone(current_setting('TimeZone'), " S "as_timestamp(t)))) AS TIMESTAMP)"},
     {"convert_timezone", "(tgt, t) AS CAST(timezone(tgt, timezone(current_setting('TimeZone'), " S "as_timestamp(t))) AS TIMESTAMP), "
                          "(src, tgt, t) AS CAST(timezone(tgt, timezone(src, " S "as_timestamp(t))) AS TIMESTAMP)"},
     {"window", "(t, d) AS {'start': time_bucket(CAST(d AS INTERVAL), " S "as_timestamp(t), TIMESTAMP '1970-01-01'), "
@@ -275,7 +282,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"sort_array", "(a) AS list_sort(a, 'ASC', 'NULLS FIRST'), (a, ascending) AS CASE WHEN ascending THEN list_sort(a, 'ASC', 'NULLS FIRST') ELSE list_sort(a, 'DESC', 'NULLS LAST') END"},
     {"arrays_overlap", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL WHEN list_has_any(a, b) THEN true "
                        "WHEN len(a) > 0 AND len(b) > 0 AND (list_count(a) < len(a) OR list_count(b) < len(b)) THEN NULL ELSE false END"},
-    {"array_insert",
+    {"array_insert", "(a, p, v) AS " S "array_insert_impl(a, CASE WHEN p < 0 AND " S "conf_bool('spark.sql.legacy.negativeIndexInArrayInsert') THEN p - 1 ELSE p END, v)"},
+    {"array_insert_impl",
      "(a, p, v) AS CASE WHEN a IS NULL OR p IS NULL THEN NULL "
      "WHEN p > 0 AND p <= len(a) + 1 THEN list_concat(list_slice(a, 1, p - 1), [v], list_slice(a, p, len(a))) "
      "WHEN p > 0 THEN list_concat(a, list_transform(range(p - 1 - len(a)), lambda i: NULL), [v]) "
@@ -288,7 +296,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"shuffle", "(a) AS list_transform(list_sort(list_transform(a, lambda x: {'r': random(), 'v': x})), lambda e: e.v)"},
     {"get", "(a, i) AS " S "subscript(a, i)"},
     {"exists", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), true) THEN true "
-               "WHEN list_count(list_transform(a, f)) < len(a) THEN NULL ELSE false END"},
+               "WHEN " S "conf_bool('spark.sql.legacy.followThreeValuedLogicInArrayExists') AND list_count(list_transform(a, f)) < len(a) THEN NULL ELSE false END"},
     {"forall", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), false) THEN false "
                "WHEN list_count(list_transform(a, f)) < len(a) THEN NULL ELSE true END"},
     {"aggregate", "(a, z, m) AS list_reduce(a, m, z), (a, z, m, f) AS list_transform([list_reduce(a, m, z)], f)[1]"},
@@ -297,8 +305,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"map_keys", "(m) AS map_keys(m)"},
     {"map_values", "(m) AS map_values(m)"},
     {"map_entries", "(m) AS map_entries(m)"},
-    {"str_to_map", "(s, p, k) AS map_from_entries(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, k, 2)[1], 'value': " S "split(kv, k, 2)[2]}))"},
-    {"str_to_map_2", "(s, p) AS map_from_entries(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, ':', 2)[1], 'value': " S "split(kv, ':', 2)[2]}))"},
+    {"str_to_map", "(s, p, k) AS " S "map_from_entries_value(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, k, 2)[1], 'value': " S "split(kv, k, 2)[2]}))"},
+    {"str_to_map_2", "(s, p) AS " S "map_from_entries_value(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, ':', 2)[1], 'value': " S "split(kv, ':', 2)[2]}))"},
     {"array_agg", "(x) AS coalesce(list(x) FILTER (WHERE x IS NOT NULL), [])"},
 
     // ---- json ----
@@ -327,8 +335,12 @@ const SparkMacro SPARK_MACROS[] = {
     {"any_value", "(x) AS first(x), (x, n) AS CASE WHEN n THEN first(x) FILTER (WHERE x IS NOT NULL) ELSE first(x) END"},
     {"last", "(x) AS last(x), (x, n) AS CASE WHEN n THEN last(x) FILTER (WHERE x IS NOT NULL) ELSE last(x) END"},
     {"last_value", "(x) AS last(x), (x, n) AS CASE WHEN n THEN last(x) FILTER (WHERE x IS NOT NULL) ELSE last(x) END"},
-    {"std", "(x) AS stddev_samp(x)"},
-    {"stddev", "(x) AS stddev_samp(x)"},
+    {"var_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(x) END"},
+    {"variance", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(x) END"},
+    {"stddev_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE stddev_samp(x) END"},
+    {"covar_samp", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) ELSE covar_samp(x, y) END"},
+    {"std", "(x) AS " S "stddev_samp(x)"},
+    {"stddev", "(x) AS " S "stddev_samp(x)"},
     {"median", "(x) AS " S "from_number(quantile_cont(" S "as_number(x), 0.5), max(x))"},
     {"percentile", "(x, p) AS " S "from_number(quantile_cont(" S "as_number(x), p), max(x)), (x, p, f) AS " S "from_number(quantile_cont(" S "as_number(x), p), max(x))"},
     {"percentile_approx", "(x, p) AS quantile_disc(x, p), (x, p, a) AS quantile_disc(x, p)"},
@@ -362,8 +374,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"xpath_int", "(x, p) AS CAST(CASE WHEN isnan(" S "xpath_number_impl(x, p)) THEN 0 ELSE trunc(" S "xpath_number_impl(x, p)) END AS INTEGER)"},
     {"xpath_long", "(x, p) AS CAST(CASE WHEN isnan(" S "xpath_number_impl(x, p)) THEN 0 ELSE trunc(" S "xpath_number_impl(x, p)) END AS BIGINT)"},
     {"xpath_short", "(x, p) AS CAST(CASE WHEN isnan(" S "xpath_number_impl(x, p)) THEN 0 ELSE trunc(" S "xpath_number_impl(x, p)) END AS SMALLINT)"},
-    {"to_json", "(x) AS " S "to_json_impl(x, 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', 'yyyy-MM-dd'), "
-                "(x, o) AS " S "to_json_impl(x, coalesce(o['timestampFormat'], 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX'), coalesce(o['dateFormat'], 'yyyy-MM-dd'))"},
+    {"to_json", "(x) AS " S "to_json_impl(x, 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', CASE WHEN " S "conf_bool('spark.sql.jsonGenerator.ignoreNullFields') THEN 'yyyy-MM-dd' ELSE chr(1) || 'yyyy-MM-dd' END), "
+                "(x, o) AS " S "to_json_impl(x, coalesce(o['timestampFormat'], 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX'), CASE WHEN " S "conf_bool('spark.sql.jsonGenerator.ignoreNullFields') THEN coalesce(o['dateFormat'], 'yyyy-MM-dd') ELSE chr(1) || coalesce(o['dateFormat'], 'yyyy-MM-dd') END)"},
     {"schema_of_json", "(j) AS " S "schema_of_json_impl(j), (j, o) AS " S "schema_of_json_impl(j)"},
     {"current_catalog", "() AS 'spark_catalog'"},
     {"current_user", "() AS current_user"},

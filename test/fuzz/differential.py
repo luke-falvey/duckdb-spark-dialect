@@ -24,6 +24,15 @@ from engines import DuckRunner, SparkOracle, scratch_dir, use_utc  # noqa: E402
 from harness import Case  # noqa: E402
 
 
+def emulated_settings():
+    """{key: legal values} of the semantic settings the dialect emulates (test/settings/inventory.toml)."""
+    import tomllib
+    inv = tomllib.loads((Path(__file__).resolve().parent.parent / "settings" / "inventory.toml").read_text())["keys"]
+    return {k: list(dict.fromkeys([e["default"], *e["values"]])) for k, e in inv.items()
+            if e["class"] == "semantic" and e["status"] in ("emulated", "partial")
+            and k != "spark.sql.ansi.enabled"}  # ANSI mode is only partly implemented: it has its own matrices (ansi-implicit-cast)
+
+
 def is_ordered(sql):
     return Case("gen", 0, sql, {}).ordered
 
@@ -45,6 +54,25 @@ class Differential:
         t = self.strict.run(sql) if self.strict else None
         return s, d, t, compare.classify(s, d, t, is_ordered(sql))
 
+    def set_conf(self, assignment):
+        """Apply a `{key: value}` assignment of Spark settings in Spark and in both dialects (--conf-fuzz)."""
+        for key, value in assignment.items():
+            self.spark.spark.conf.set(key, value)
+            for runner in (self.lenient, self.strict):
+                if runner:
+                    r = runner.run(f"SET {key} = {value}")
+                    if not r.ok:
+                        raise SystemExit(f"cannot set {key}={value} in the dialect: {r.error}")
+        self.conf = dict(assignment)
+
+    def reset_conf(self):
+        for key in getattr(self, "conf", {}):
+            self.spark.spark.conf.unset(key)
+            for runner in (self.lenient, self.strict):
+                if runner:
+                    runner.run(f"RESET {key}")
+        self.conf = {}
+
     def close(self):
         self.lenient.close()
         if self.strict:
@@ -55,6 +83,8 @@ class Differential:
         rec = {"kind": kind, "dialect": dialect, "sql": sql, "difference": diff, "setup": "gen.setup_statements()",
                "spark": {"ok": s.ok, "rows": repr(s.rows)[:800], "error": s.error, "phase": s.phase},
                "duck": {"status": duck.status, "rows": repr(duck.rows)[:800], "error": duck.error}, **extra}
+        if getattr(self, "conf", None):
+            rec["conf"] = dict(self.conf)  # reduce.py and replays reproduce the finding under these settings
         rec["signature"] = triage.signature(rec)
         return rec
 
@@ -99,6 +129,9 @@ def main():
     ap.add_argument("--sql-file", help="statements (one per blank-line separated block) to run instead")
     ap.add_argument("--timeout", type=float, default=20.0)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--conf-fuzz", action="store_true",
+                    help="each batch of 100 queries runs under a random assignment of the emulated semantic settings")
+    ap.add_argument("--conf", default=None, help="k=v,k=v: run every query under these settings (replays a finding)")
     args = ap.parse_args()
     if args.seed is None:
         args.seed = random.randrange(1 << 30)
@@ -117,12 +150,19 @@ def main():
         queries = list(gen.generate(args.seed, args.budget, args.depth, shapes))
 
     diff = Differential(args.timeout, strict=not args.no_strict)
+    conf_space = emulated_settings() if args.conf_fuzz else {}
+    conf_rng = random.Random(args.seed + 1)
+    if args.conf:
+        diff.set_conf(dict(kv.split("=", 1) for kv in args.conf.split(",") if kv))
     known = compare.load_known()
     counts = Counter()
     findings = []
     reduced_sigs = set()
     start = time.time()
     for i, (shape, sql) in enumerate(queries):
+        if conf_space and i % 100 == 0:
+            diff.reset_conf()
+            diff.set_conf({k: conf_rng.choice(v) for k, v in conf_space.items() if conf_rng.random() < 0.5})
         s, d, t, found = diff.run(sql)
         counts["queries"] += 1
         counts["spark_ok" if s.ok else "spark_error"] += 1

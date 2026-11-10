@@ -78,7 +78,28 @@ class Result:
 
 
 def first_line(e, limit=300):
-    return str(e).split("\n")[0][:limit]
+    """The first non-empty line of an exception message (PySpark messages often start with a blank line)."""
+    for line in str(e).split("\n"):
+        if line.strip():
+            return line.strip()[:limit]
+    return ""
+
+
+ERROR_CLASS = re.compile(r"\[([A-Z][A-Z0-9_]*(?:\.[A-Z][A-Z0-9_]*)*)\]")
+
+
+def error_class_of(text, exc=None):
+    """The error class of a Spark (or extension) error: `getErrorClass()` when the exception has one, else the
+    first bracketed upper-case token of the message (`[DIVIDE_BY_ZERO]`, `[DATATYPE_MISMATCH.BINARY_OP_DIFF_TYPES]`)."""
+    if exc is not None and hasattr(exc, "getErrorClass"):
+        try:
+            cls = exc.getErrorClass()
+            if cls:
+                return cls
+        except Exception:  # noqa: BLE001
+            pass
+    m = ERROR_CLASS.search(text or "")
+    return m.group(1) if m else None
 
 
 # ----------------------------------------------------------------------------------------------
@@ -92,7 +113,6 @@ class SparkOracle:
         self.spark = (SparkSession.builder.master("local[2]")
                       .config("spark.ui.enabled", "false")
                       .config("spark.sql.session.timeZone", "UTC")
-                      .config("spark.sql.shuffle.partitions", "2")
                       .config("spark.sql.warehouse.dir", str(self.warehouse))
                       .config("spark.driver.memory", os.environ.get("SPARK_DRIVER_MEMORY", "2g"))
                       .getOrCreate())
@@ -143,13 +163,20 @@ class SparkOracle:
         try:
             df = self.spark.sql(sql)
         except Exception as e:  # noqa: BLE001
-            return Result("error", error=first_line(e), phase="analysis", seconds=time.perf_counter() - start)
+            text = first_line(e)
+            return Result("error", error=text, phase="analysis", seconds=time.perf_counter() - start,
+                          extra={"error_class": error_class_of(str(e), e)})
         try:
             rows = df.collect()
             out = [[normalize(v) for v in row] for row in rows]
-            return Result("ok", rows=out, schema=df.schema.simpleString(), seconds=time.perf_counter() - start)
+            fields = df.schema.fields
+            return Result("ok", rows=out, schema=df.schema.simpleString(), seconds=time.perf_counter() - start,
+                          extra={"types": [f.dataType.simpleString() for f in fields],
+                                 "names": [f.name for f in fields]})
         except Exception as e:  # noqa: BLE001
-            return Result("error", error=first_line(e), phase="runtime", seconds=time.perf_counter() - start)
+            text = first_line(e)
+            return Result("error", error=text, phase="runtime", seconds=time.perf_counter() - start,
+                          extra={"error_class": error_class_of(str(e), e)})
 
     def setup(self, statements):
         for sql in statements:
@@ -216,7 +243,7 @@ def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=No
         limit = memory_mb * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
     import duckdb
-    from harness import normalize_typed
+    from harness import duck_type_to_spark, normalize_typed
 
     try:
         con = duckdb.connect(config={"allow_unsigned_extensions": "true",
@@ -244,24 +271,30 @@ def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=No
             timer.daemon = True
             timer.start()
         start = time.perf_counter()
+        stage = "bind"
         try:
             try:
                 rel = con.sql(sql)
+                stage = "exec"
                 rows = rel.fetchall() if rel is not None else []
                 types = rel.types if rel is not None else []
+                names = list(rel.columns) if rel is not None else []
             except duckdb.InvalidInputException as e:
                 if "Expected exactly one SQL statement" not in str(e):
                     raise
                 # token rewrites such as INSERT OVERWRITE produce several statements
+                stage = "exec"
                 rows = con.execute(sql).fetchall()
                 types = []
+                names = []
             elapsed = time.perf_counter() - start
             if want_rows:
                 out = [[normalize_typed(v, types[i] if i < len(types) else None) for i, v in enumerate(row)]
                        for row in rows]
             else:
                 out = len(rows)
-            reply = ("ok", out, None, [str(t) for t in types], elapsed)
+            info = {"spark_types": [duck_type_to_spark(t) for t in types], "names": names}
+            reply = ("ok", out, None, [str(t) for t in types], elapsed, info)
         except Exception as e:  # noqa: BLE001
             elapsed = time.perf_counter() - start
             text = first_line(e)
@@ -271,7 +304,7 @@ def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=No
                 status = "internal"
             else:
                 status = "error"
-            reply = (status, None, text, None, elapsed)
+            reply = (status, None, text, None, elapsed, {"exc": type(e).__name__, "stage": stage})
         finally:
             if timer:
                 timer.cancel()
@@ -352,14 +385,18 @@ class DuckRunner:
         if not self._conn.poll(wait):
             return Result("timeout", error=f"no answer after {wait:.0f}s (killed)", seconds=wait)
         try:
-            status, rows, error, types, elapsed = self._conn.recv()
+            status, rows, error, types, elapsed, info = self._conn.recv()
         except (EOFError, ConnectionResetError):
             self._proc.join(5)
             code = self._proc.exitcode
             sig = -code if code is not None and code < 0 else None
             name = signal.Signals(sig).name if sig else f"exit {code}"
             return Result("crash", error=f"worker died: {name}")
-        return Result(status, rows=rows, error=error, seconds=elapsed, extra={"types": types})
+        extra = {"types": types}
+        extra.update(info or {})
+        if error:
+            extra["error_class"] = error_class_of(error)
+        return Result(status, rows=rows, error=error, seconds=elapsed, extra=extra)
 
     def run(self, sql, timeout=None, want_rows=True):
         if self._proc is None:

@@ -116,7 +116,40 @@ inline void AppendPadded(string &out, int64_t value, idx_t width) {
 	out.append(p, digits);
 }
 
-bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string &out) {
+//! The session zone at the instant being formatted, for the zone letters of a pattern
+struct FormatZone {
+	string id;          // the session time zone as the user wrote it (`Asia/Kolkata`, `+05:30`)
+	int32_t offset;     // seconds east of UTC at that instant
+	string abbreviation; // `IST`, `PDT` (empty if unknown)
+};
+
+//! "+05:30"-style rendering of an offset: hours always, minutes if requested or non-zero
+string OffsetText(int32_t offset, bool colon, bool minutes_always, bool seconds_if_any, bool zero_as_z) {
+	if (offset == 0 && zero_as_z) {
+		return "Z";
+	}
+	int32_t magnitude = offset < 0 ? -offset : offset;
+	char buffer[24];
+	int hh = magnitude / 3600, mm = magnitude / 60 % 60, ss = magnitude % 60;
+	string out(1, offset < 0 ? '-' : '+');
+	snprintf(buffer, sizeof(buffer), "%02d", hh);
+	out += buffer;
+	if (minutes_always || mm != 0 || (seconds_if_any && ss != 0)) {
+		snprintf(buffer, sizeof(buffer), colon ? ":%02d" : "%02d", mm);
+		out += buffer;
+	}
+	if (seconds_if_any && ss != 0) {
+		snprintf(buffer, sizeof(buffer), colon ? ":%02d" : "%02d", ss);
+		out += buffer;
+	}
+	return out;
+}
+
+bool IsOffsetZoneId(const string &id) {
+	return !id.empty() && (id[0] == '+' || id[0] == '-' || id == "Z");
+}
+
+bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string &out, const FormatZone *zone = nullptr) {
 	date_t date;
 	dtime_t time;
 	Timestamp::Convert(ts, date, time);
@@ -206,21 +239,68 @@ bool FormatTimestamp(timestamp_t ts, const vector<PatternToken> &tokens, string 
 			break;
 		}
 		case 'z':
+			if (!zone) {
+				out += "UTC";
+			} else if (IsOffsetZoneId(zone->id)) {
+				out += zone->id == "Z" ? "Z" : zone->id;
+			} else {
+				out += zone->abbreviation.empty() ? zone->id : zone->abbreviation;
+			}
+			break;
 		case 'V':
-			out += "UTC";
+			out += zone ? zone->id : "UTC";
 			break;
-		case 'Z':
-			out += t.count == 4 ? "GMT" : (t.count == 5 ? "Z" : "+0000");
+		case 'Z': {
+			int32_t offset = zone ? zone->offset : 0;
+			if (t.count == 4) {
+				if (offset == 0) {
+					out += "GMT";
+				} else {
+					out += "GMT" + OffsetText(offset, true, true, false, false);
+				}
+			} else if (t.count == 5) {
+				out += OffsetText(offset, true, true, false, true);
+			} else {
+				out += OffsetText(offset, false, true, false, false);
+			}
 			break;
+		}
 		case 'X':
-			out += "Z";
+		case 'x': {
+			int32_t offset = zone ? zone->offset : 0;
+			bool z = t.letter == 'X';
+			switch (t.count) {
+			case 1:
+				out += offset == 0 ? (z ? "Z" : "+00") : OffsetText(offset, false, false, false, false);
+				break;
+			case 2:
+			case 4:
+				out += offset == 0 ? (z ? "Z" : "+0000") : OffsetText(offset, false, true, t.count == 4, false);
+				break;
+			default:
+				out += offset == 0 ? (z ? "Z" : "+00:00") : OffsetText(offset, true, true, t.count == 5, false);
+				break;
+			}
 			break;
-		case 'x':
-			out += t.count == 1 ? "+00" : (t.count == 2 || t.count == 4 ? "+0000" : "+00:00");
+		}
+		case 'O': {
+			int32_t offset = zone ? zone->offset : 0;
+			if (offset == 0) {
+				out += "GMT";
+			} else if (t.count == 4) {
+				out += "GMT" + OffsetText(offset, true, true, false, false);
+			} else {
+				int32_t magnitude = offset < 0 ? -offset : offset;
+				out += offset < 0 ? "GMT-" : "GMT+";
+				out += to_string(magnitude / 3600);
+				if (magnitude / 60 % 60) {
+					char buffer[8];
+					snprintf(buffer, sizeof(buffer), ":%02d", int(magnitude / 60 % 60));
+					out += buffer;
+				}
+			}
 			break;
-		case 'O':
-			out += "GMT";
-			break;
+		}
 		case 'G':
 			out += year > 0 ? "AD" : "BC";
 			break;
@@ -477,6 +557,42 @@ void FormatDatetimeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	    });
 }
 
+void FormatDatetimeZoneKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	// (timestamp, pattern, zone id, offset seconds, zone abbreviation)
+	UnifiedVectorFormat f0, f1, f2, f3, f4;
+	args.data[0].ToUnifiedFormat(f0);
+	args.data[1].ToUnifiedFormat(f1);
+	args.data[2].ToUnifiedFormat(f2);
+	args.data[3].ToUnifiedFormat(f3);
+	args.data[4].ToUnifiedFormat(f4);
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	auto out_data = FlatVector::GetDataMutable<string_t>(result);
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto i0 = f0.sel->get_index(i), i1 = f1.sel->get_index(i), i2 = f2.sel->get_index(i), i3 = f3.sel->get_index(i),
+		     i4 = f4.sel->get_index(i);
+		if (!f0.validity.RowIsValid(i0) || !f1.validity.RowIsValid(i1)) {
+			FlatVector::ValidityMutable(result).SetInvalid(i);
+			continue;
+		}
+		auto ts = UnifiedVectorFormat::GetData<timestamp_t>(f0)[i0];
+		auto fmt = UnifiedVectorFormat::GetData<string_t>(f1)[i1];
+		FormatZone zone;
+		if (f2.validity.RowIsValid(i2)) {
+			zone.id = UnifiedVectorFormat::GetData<string_t>(f2)[i2].GetString();
+		}
+		zone.offset = f3.validity.RowIsValid(i3) ? UnifiedVectorFormat::GetData<int32_t>(f3)[i3] : 0;
+		if (f4.validity.RowIsValid(i4)) {
+			zone.abbreviation = UnifiedVectorFormat::GetData<string_t>(f4)[i4].GetString();
+		}
+		static thread_local string out;
+		out.clear();
+		if (!FormatTimestamp(ts, CachedPattern(fmt), out, &zone)) {
+			throw InvalidInputException("Unsupported datetime pattern: %s", fmt.GetString());
+		}
+		out_data[i] = StringVector::AddString(result, out);
+	}
+}
+
 void ParseDatetimeKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<string_t, string_t, timestamp_t>(
 	    args.data[0], args.data[1], result, args.size(), [&](string_t input, string_t fmt) -> optional<timestamp_t> {
@@ -529,6 +645,10 @@ string FormatDatetimeValue(timestamp_t ts, const string &pattern) {
 void RegisterSparkDatetime(ExtensionLoader &loader) {
 	RegisterFallible(loader, ScalarFunction(Identifier("format_datetime"), {LogicalType::TIMESTAMP, LogicalType::VARCHAR},
 	                                       LogicalType::VARCHAR, FormatDatetimeKernel));
+	RegisterFallible(loader, ScalarFunction(Identifier("format_datetime_zone"),
+	                                       {LogicalType::TIMESTAMP, LogicalType::VARCHAR, LogicalType::VARCHAR,
+	                                        LogicalType::INTEGER, LogicalType::VARCHAR},
+	                                       LogicalType::VARCHAR, FormatDatetimeZoneKernel));
 	RegisterFallible(loader, ScalarFunction(Identifier("parse_datetime"), {LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                                       LogicalType::TIMESTAMP, ParseDatetimeKernel));
 	RegisterFallible(loader, ScalarFunction(Identifier("months_between_impl"),

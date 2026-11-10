@@ -20,6 +20,9 @@ COLUMNS = [  # name, kind, Spark type
     ("s", "str", "STRING"), ("s2", "str", "STRING"), ("bin", "bin", "BINARY"), ("dt", "date", "DATE"),
     ("ts", "ts", "TIMESTAMP"), ("ai", "arr_i", "ARRAY<INT>"), ("ast", "arr_s", "ARRAY<STRING>"),
     ("m", "map", "MAP<STRING,INT>"), ("st", "struct", "STRUCT<a: INT, b: STRING>"),
+    # plan E.3: the types the generator did not cover (TIMESTAMP_NTZ, intervals, DECIMAL(38,0), CHAR, VARCHAR, nested arrays)
+    ("dl0", "num", "DECIMAL(38,0)"), ("tn", "ts", "TIMESTAMP_NTZ"), ("ch", "str", "CHAR(5)"), ("vc", "str", "VARCHAR(5)"),
+    ("iym", "ival", "INTERVAL YEAR TO MONTH"), ("ids", "ival", "INTERVAL DAY TO SECOND"), ("aai", "arr_a", "ARRAY<ARRAY<INT>>"),
 ]
 
 VALUES = {
@@ -64,6 +67,21 @@ VALUES = {
            "named_struct('a', -1, 'b', '')", "named_struct('a', 2147483647, 'b', 'é')", "named_struct('a', 0, 'b', 'y')",
            "named_struct('a', 3, 'b', 'x')", "named_struct('a', 1, 'b', 'z')", "named_struct('a', 5, 'b', NULL)",
            "named_struct('a', 2, 'b', 'w')", "named_struct('a', 7, 'b', 'q')", "named_struct('a', 1, 'b', 'x')"],
+    "dl0": ["0", "1", "-1", "99999999999999999999999999999999999999", "NULL", "12345678901234567890", "7", "-7", "100", "5", "2", "3"],
+    "tn": ["TIMESTAMP_NTZ '1970-01-01 00:00:00'", "TIMESTAMP_NTZ '2024-02-29 12:34:56.123456'", "NULL",
+           "TIMESTAMP_NTZ '2000-01-01 00:00:00'", "TIMESTAMP_NTZ '2023-03-15 08:00:00'", "TIMESTAMP_NTZ '9999-12-31 23:59:59'",
+           "TIMESTAMP_NTZ '0001-01-01 00:00:00'", "TIMESTAMP_NTZ '2024-03-10 02:30:00'", "TIMESTAMP_NTZ '1999-12-31 23:59:59.5'",
+           "TIMESTAMP_NTZ '2001-09-09 01:46:40'", "NULL", "TIMESTAMP_NTZ '2024-01-01 00:00:01'"],
+    "ch": ["'ab'", "'abcde'", "NULL", "''", "'x'", "'é'", "'12'", "'a b'", "'ABC'", "NULL", "'z'", "'ab'"],
+    "vc": ["'ab'", "'abcde'", "NULL", "''", "'x'", "'é'", "'12'", "'a b'", "'ABC'", "NULL", "'z'", "'ab'"],
+    "iym": ["INTERVAL '1-2' YEAR TO MONTH", "INTERVAL '0-0' YEAR TO MONTH", "NULL", "INTERVAL '-1-6' YEAR TO MONTH",
+            "INTERVAL '10-0' YEAR TO MONTH", "INTERVAL '0-1' YEAR TO MONTH", "INTERVAL '2-3' YEAR TO MONTH", "NULL",
+            "INTERVAL '5-5' YEAR TO MONTH", "INTERVAL '1-0' YEAR TO MONTH", "INTERVAL '0-11' YEAR TO MONTH", "INTERVAL '3-3' YEAR TO MONTH"],
+    "ids": ["INTERVAL '1 02:03:04' DAY TO SECOND", "INTERVAL '0 00:00:00' DAY TO SECOND", "NULL", "INTERVAL '-1 00:00:01.5' DAY TO SECOND",
+            "INTERVAL '10 10:10:10' DAY TO SECOND", "INTERVAL '0 00:00:01' DAY TO SECOND", "INTERVAL '2 03:04:05' DAY TO SECOND", "NULL",
+            "INTERVAL '5 05:05:05' DAY TO SECOND", "INTERVAL '1 00:00:00' DAY TO SECOND", "INTERVAL '0 23:59:59' DAY TO SECOND", "INTERVAL '3 03:03:03' DAY TO SECOND"],
+    "aai": ["array()", "array(array(1), array(2, 3))", "array(NULL)", "NULL", "array(array(), array(NULL))", "array(array(1, 2))",
+            "array(array(3, 1, 2))", "array(NULL, array(1))", "array(array(0))", "array(array(1), array(1))", "array(array(-1))", "array(array(7, 8, 9))"],
 }
 
 
@@ -246,7 +264,7 @@ class Gen:
             return f"({e('int')} {op} {e('int')})"
         if kind == "num":
             op = self.pick(["+", "-", "*", "/", "%"])
-            return f"({e(self.pick(['num', 'int']))} {op} {e('num')})"
+            return f"({e(self.pick(['num', 'int', 'str']))} {op} {e(self.pick(['num', 'num', 'str', 'bool']))})"
         if kind == "str":
             return f"({e('str')} || {e(self.pick(['str', 'int']))})"
         if kind == "bool":
@@ -254,6 +272,9 @@ class Gen:
             if r < 0.3:
                 k = self.pick(["int", "num", "str", "date"])
                 op = self.pick(["=", "<>", "<", "<=", ">", ">=", "<=>", "!=", "=="])
+                if rng.random() < 0.4:
+                    # plan E.3: deliberately mix kinds so that the implicit casts are exercised
+                    return f"({e(k)} {op} {e(self.pick(['int', 'num', 'str', 'date', 'ts', 'bool']))})"
                 return f"({e(k)} {op} {e(k)})"
             if r < 0.45:
                 return f"({e('bool')} {self.pick(['AND', 'OR'])} {e('bool')})"
@@ -293,6 +314,8 @@ class Gen:
             return f"CASE {e(k)} WHEN {e(k)} THEN {e(kind)} ELSE {e(kind)} END"
         if r < 0.7:
             return f"if({e('bool')}, {e(kind)}, {e(kind)})"
+        if r < 0.78:
+            return f"coalesce({e(kind)}, {e(self.pick(['int', 'num', 'str', 'date', 'ts']))})"
         if r < 0.85:
             return f"coalesce({e(kind)}, {e(kind)})"
         if r < 0.92 or kind == "map":

@@ -41,5 +41,63 @@ for block in blocks:
     lines.append(f"- `{head}`")
     for r in rest[:3]:
         lines.append(f"  - {r.strip()[:300]}")
+
+
+def _cases():
+    path = ROOT / "test" / "results" / "cases.json"
+    return json.loads(path.read_text()) if path.exists() else []
+
+
+def _settings_table():
+    """Plan 'CI': a settings table (key, class, status, cases, pass / xfail) from the inventory and the last run."""
+    import tomllib
+    inv = tomllib.loads((ROOT / "test" / "settings" / "inventory.toml").read_text())["keys"]
+    by_file = {}
+    for c in _cases():
+        agg = by_file.setdefault(c["file"], {})
+        agg[c["outcome"]] = agg.get(c["outcome"], 0) + 1
+    out = ["", "## Spark settings", "",
+           f"{len(inv)} settings in `test/settings/inventory.toml`; `semantic` ones change results and have a case file "
+           "(`test/cases/settings/`, one run per legal value).", "",
+           "| key | class | tier | status | cases | pass | xfail |", "|---|---|---|---|---|---|---|"]
+    classes = {}
+    for key, e in sorted(inv.items()):
+        classes[e["class"]] = classes.get(e["class"], 0) + 1
+        if e["class"] != "semantic":
+            continue
+        name = "settings__" + Path(e["cases"]).name
+        agg = by_file.get(name, {})
+        total = sum(agg.values())
+        out.append(f"| `{key}` | {e['class']} | {e['tier']} | {e['status']} | {total} | "
+                   f"{agg.get('PASS', 0) + agg.get('LENIENT', 0)} | {agg.get('XFAIL', 0)} |")
+    out.insert(3, "Classes: " + ", ".join(f"{n} {k}" for k, n in sorted(classes.items())) + ".")
+    return out
+
+
+def _matrix_table():
+    """A table per type matrix: cells, pass, xfail by id (report-only metrics: error class, column names)."""
+    cases = [c for c in _cases() if c["file"].startswith("types__")]
+    if not cases:
+        return []
+    out = ["", "## Type conversion matrices", "",
+           "| matrix | cells | pass | lenient | phase | xfail by id |", "|---|---|---|---|---|---|"]
+    files = sorted({c["file"] for c in cases})
+    for f in files:
+        rows = [c for c in cases if c["file"] == f]
+        count = lambda o: sum(1 for c in rows if c["outcome"] == o)  # noqa: E731
+        ids = {}
+        for c in rows:
+            if c["outcome"] == "XFAIL":
+                ids[c.get("xfail")] = ids.get(c.get("xfail"), 0) + 1
+        out.append(f"| `{f[len('types__'):-len('.sql')]}` | {len(rows)} | {count('PASS')} | {count('LENIENT')} | {count('PHASE')} | "
+                   + ", ".join(f"{k}: {v}" for k, v in sorted(ids.items(), key=lambda kv: str(kv[0]))) + " |")
+    classes = [c for c in cases if c.get("class") is not None]
+    if classes:
+        agree = sum(1 for c in classes if c["class"])
+        out += ["", f"Error class agreement in `spark_strict` (report only): {agree} of {len(classes)} compared cases."]
+    return out
+
+
+lines += _settings_table() + _matrix_table()
 (ROOT / "COVERAGE.md").write_text("\n".join(lines) + "\n")
 print("wrote COVERAGE.md")
