@@ -29,13 +29,6 @@ total orders and match."""
 example = "SELECT array_sort(array(3, 1, 2, 7, 4), (l, r) -> -1)"
 
 [[difference]]
-signature = "strict_lenient|[[]DATATYPE_MISMATCH.NULL_TYPE]*"
-reason = """spark_strict rejects an untyped NULL literal argument of array_contains, array_position, map_contains_key,
-array_append and element_at (a parse-time check, as DuckDB types the NULL later). A NULL that only becomes untyped through
-an expression (coalesce(NULL, NULL), a column of NULLs) is still accepted: the types are only known when DuckDB binds."""
-example = "SELECT array_contains(array(1), coalesce(NULL, NULL))"
-
-[[difference]]
 signature = "duck_error|Out of Range Error: Date out of range*"
 reason = """Date arithmetic beyond DuckDB's date range (about year 5,881,580) raises an error; Spark evaluates the comparison
 differently: its int day count wraps around silently (and its optimizer may never evaluate the out-of-range side).
@@ -54,9 +47,4 @@ example = "SELECT size(map(CAST(NULL AS STRING), 1))"
 signature = "lenient_runtime|year N is out of range"
 reason = "Timestamp arithmetic past year 9999: Spark raises a run-time error, DuckDB represents the timestamp."
 example = "SELECT tn + INTERVAL 90 MINUTE FROM VALUES (TIMESTAMP_NTZ '9999-12-31 23:59:59') AS t(tn)"
-
-[[difference]]
-signature = "duck_error|Binder Error: Cannot mix values of type*"
-reason = "COALESCE / CASE over operands of types without a common type in DuckDB (BLOB and VARCHAR, BOOLEAN and VARCHAR): Spark casts to string."
-example = "SELECT coalesce(X'41', 'a')"
 

@@ -179,7 +179,7 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
 - Expressions nested deeper than about 60 levels are transformed on a helper thread with a 64 MB stack (Linux and
   macOS), so DuckDB's limit of 1000 levels applies; on other platforms the deeper statement fails with
   "Expression is nested too deeply".
-- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml` (9 entries). Spark's
+- More differences found by the fuzzers that are not fixed: see `test/fuzz/known_differences.toml` (7 entries). Spark's
   own SQL test inputs (`python test/fuzz/spark_corpus.py run`) still show, out of 3,734 statements, 512 DuckDB errors
   where Spark succeeds (mostly Spark commands such as `DESC FUNCTION`, interval and datetime-format corner cases),
   156 wrong results, 147 leniencies of `spark_strict` and 3 strict rejects of valid queries (it was 520, 157, 147

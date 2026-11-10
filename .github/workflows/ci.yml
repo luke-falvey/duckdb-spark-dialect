@@ -188,7 +188,7 @@ jobs:
       - name: Coverage report
         if: always() && matrix.dialect == 'spark' && matrix.group == 'base'
         run: |
-          if [ -f test/results/functions.json ]; then
+          if [ -f test/results/functions.json ] && [ -f test/results/summary.txt ]; then
             python scripts/coverage_report.py
             cat COVERAGE.md >> "$GITHUB_STEP_SUMMARY"
           fi
