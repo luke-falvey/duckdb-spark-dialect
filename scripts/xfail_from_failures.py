@@ -195,7 +195,7 @@ def main():
     # keep the entries of files this run did not cover
     kept = []
     if XFAIL.exists():
-        covered = {k[0] for k in groups} | {f for f in (args.files or []) if "*" not in f}
+        covered = {k[2] for k in groups} | {f.replace("/", "__") for f in (args.files or []) if "*" not in f}
         block = []
         for line in XFAIL.read_text().splitlines():
             if line.startswith("[[xfail]]") and block:

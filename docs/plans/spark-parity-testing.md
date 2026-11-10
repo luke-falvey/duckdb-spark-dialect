@@ -44,9 +44,24 @@ Regenerate the tables: `python scripts/xfail_summary.py` (per xfail id: `docs/pl
 - [ ] Burn-down of the `types-open-c1` ... `types-open-c14` ids (see known_differences.md for counts). Done so far: float with decimal is
   DOUBLE, bool to timestamp, `-9223372036854775808`, `COALESCE` / `array` / `CASE` / nested common types, `IN` lists and `BETWEEN`
   through Spark's implicit casts, string parameters of string / regexp / date functions, INT parameters truncate fractions.
-  Open: decimal division digits (computed through DOUBLE), narrowing casts of decimals wrap in Spark and give NULL here,
-  `CAST(x AS BINARY)` of numbers, `round` / `bround` of untyped NULL, `median` type, JOIN `USING` / `NATURAL` key coercion,
-  strict-dialect leniencies (most of the `spark_strict` expected failures: Spark rejects, `spark_strict` accepts)
+  Second pass (branch `claude/charming-gates-4xdtsm`): exact decimal division (HALF_UP to Spark's result scale, checked
+  against Python's `Decimal` on 21,000 random operand pairs and against live Spark on 300), decimal to integral casts wrap
+  like `Decimal.toLong`, `CAST(<integral> AS BINARY)` is the big-endian bytes, `median` / `percentile` are DOUBLE,
+  `round` / `bround` of NULL and strings are DOUBLE, `skewness` / `kurtosis` NULL for zero variance, boolean equality with
+  FLOAT / DOUBLE / DECIMAL, `IN` over structs compares by position when the field types agree and needs the same field
+  names when a cast is needed, mixed kinds raise `DATA_DIFF_TYPES` (they crashed the process with SIGSEGV or raised
+  INTERNAL errors before), `array_insert` past Spark's array size limit raises `COLLECTION_SIZE_LIMIT_EXCEEDED` (a huge
+  position exhausted memory before: constant folding built the padding), string arguments of the INT parameters of
+  `regexp_extract` / `regexp_extract_all` / `regexp_instr` / `sha2`, DOUBLE parameters of the math functions (`sqrt`,
+  `atan2`, `pow`, ...) and of `skewness` / `kurtosis` take numbers and strings only (booleans, dates, arrays, ... are
+  Spark's `UNEXPECTED_INPUT_TYPE`; the math functions used to accept them). Against the expected failures this branch
+  started from, no case fails and these pass now: default 468 (`spark`) / 1,232 (`spark_strict`), ANSI 270 / 648, time
+  zone 123 / 259, `allowPrecisionLoss=false` 17 / 17; their entries left `test/xfail.toml`.
+  `scripts/xfail_from_failures.py --write` replaced no entries before (it compared ids with file names); fixed.
+  Open: JOIN `USING` / `NATURAL` key coercion (DuckDB's binder casts the keys strictly: an unconvertible string is an error,
+  Spark's cast gives NULL), `IN (subquery)` with a string and a number (same cause), mixed-kind errors of the other
+  operators, and the strict-dialect leniencies (most of the `spark_strict` expected failures: Spark rejects,
+  `spark_strict` accepts)
 - [ ] 9.3 / 9.4: `types-ntz` and `types-interval` stay (one DuckDB type each); no TIMESTAMP to TIMESTAMPTZ remap was evaluated
 
 **Workstream D: configurations**
@@ -67,7 +82,8 @@ Regenerate the tables: `python scripts/xfail_summary.py` (per xfail id: `docs/pl
   nightly workflow with the other configurations, `--conf-fuzz`, signatures re-recording
 - [x] `scripts/coverage_report.py` settings table and per-matrix tables, `COVERAGE.md`, README testing section and limitations
 - [ ] COVERAGE.md is generated locally (CI runs files by group, which writes no `summary.txt`)
-- [ ] TPC-H benchmark not re-run (the `tpch` extension needs network); other smoke benchmarks pass `bench/baseline.json`
+- [ ] TPC-H benchmark not re-run (the `tpch` extension is downloaded from `extensions.duckdb.org`, which the cloud
+  sessions' network policy blocks; CI has network access); other smoke benchmarks pass `bench/baseline.json`
 
 **Definition of done (section 10)**
 1. [x] `check_inventory.py` passes

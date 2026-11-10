@@ -348,8 +348,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"percentile_approx", "(x, p) AS quantile_disc(x, p), (x, p, a) AS quantile_disc(x, p)"},
     {"approx_percentile", "(x, p) AS quantile_disc(x, p), (x, p, a) AS quantile_disc(x, p)"},
     // NULL when the variance is zero (NaN under legacy.statisticalAggregate), like Spark's CentralMomentAgg
-    {"kurtosis", "(x) AS CASE WHEN var_pop(" S "as_double(x)) = 0 THEN CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') THEN CAST('NaN' AS DOUBLE) END ELSE kurtosis_pop(" S "as_double(x)) END"},
-    {"skewness", "(x) AS CASE WHEN var_pop(" S "as_double(x)) = 0 THEN CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') THEN CAST('NaN' AS DOUBLE) END ELSE (avg(power(" S "as_double(x), 3)) - 3 * avg(" S "as_double(x)) * avg(power(" S "as_double(x), 2)) + 2 * power(avg(" S "as_double(x)), 3)) / power(var_pop(" S "as_double(x)), 1.5) END"},
+    {"kurtosis", "(x) AS CASE WHEN var_pop(" S "as_double_param(x)) = 0 THEN CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') THEN CAST('NaN' AS DOUBLE) END ELSE kurtosis_pop(" S "as_double_param(x)) END"},
+    {"skewness", "(x) AS CASE WHEN var_pop(" S "as_double_param(x)) = 0 THEN CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') THEN CAST('NaN' AS DOUBLE) END ELSE (avg(power(" S "as_double_param(x), 3)) - 3 * avg(" S "as_double_param(x)) * avg(power(" S "as_double_param(x), 2)) + 2 * power(avg(" S "as_double_param(x)), 3)) / power(var_pop(" S "as_double_param(x)), 1.5) END"},
     {"histogram_numeric", "(x, n) AS list_transform(list_sort(map_entries(histogram(x))), lambda e: {'x': e.key, 'y': CAST(e.value AS DOUBLE)})"},
 
     // ---- misc ----

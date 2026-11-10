@@ -1146,7 +1146,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		if (DOUBLE_FUNCTIONS.count(name)) {
 			for (auto &argument_entry : func.GetArgumentsMutable()) {
 				auto &argument = argument_entry.GetExpressionMutable();
-				argument = SparkCall("as_double", std::move(argument));
+				argument = SparkCall("as_double_param", std::move(argument));
 			}
 		}
 		auto entry = INT_PARAMETERS.find(name);

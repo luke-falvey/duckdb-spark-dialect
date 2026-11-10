@@ -2896,6 +2896,56 @@ ExprP BindInListValue(FunctionBindExpressionInput &input) {
 	if (!nested) {
 		CastToCommonType(b, args);
 	} else {
+		// operands of the same field types compare as they are (field names do not matter); once a cast is needed,
+		// Spark's common struct type requires the same field names (case-insensitive)
+		std::function<bool(const LogicalType &, const LogicalType &, bool)> same;
+		same = [&](const LogicalType &x, const LogicalType &y, bool names) -> bool {
+			auto l = Normalize(x), r = Normalize(y);
+			if (IsNull(l) || IsNull(r)) {
+				return true;
+			}
+			if (l.id() != r.id()) {
+				// with a cast, atomic types of different ids widen; nested kinds must agree
+				auto is_nested = [](const LogicalType &t) {
+					return t.id() == LogicalTypeId::STRUCT || t.id() == LogicalTypeId::LIST || t.id() == LogicalTypeId::MAP;
+				};
+				return names && !is_nested(l) && !is_nested(r);
+			}
+			switch (l.id()) {
+			case LogicalTypeId::STRUCT: {
+				if (StructType::GetChildCount(l) != StructType::GetChildCount(r)) {
+					return false;
+				}
+				for (idx_t i = 0; i < StructType::GetChildCount(l); i++) {
+					if (names && !StringUtil::CIEquals(StructType::GetChildName(l, i).GetIdentifierName(), StructType::GetChildName(r, i).GetIdentifierName())) {
+						return false;
+					}
+					if (!same(StructType::GetChildType(l, i), StructType::GetChildType(r, i), names)) {
+						return false;
+					}
+				}
+				return true;
+			}
+			case LogicalTypeId::LIST:
+				return same(ListType::GetChildType(l), ListType::GetChildType(r), names);
+			case LogicalTypeId::MAP:
+				return same(MapType::KeyType(l), MapType::KeyType(r), names) &&
+				       same(MapType::ValueType(l), MapType::ValueType(r), names);
+			default:
+				return names || l == r;
+			}
+		};
+		bool structurally_equal = true;
+		for (auto &arg : args) {
+			structurally_equal = structurally_equal && same(args[0]->GetReturnType(), arg->GetReturnType(), false);
+		}
+		if (!structurally_equal) {
+			for (auto &arg : args) {
+				if (!same(args[0]->GetReturnType(), arg->GetReturnType(), true)) {
+					throw mismatch();
+				}
+			}
+		}
 		LogicalType common = LogicalType::SQLNULL;
 		try {
 			for (auto &arg : args) {
@@ -3275,6 +3325,22 @@ ExprP BindAsType(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "conversion", 1, 1);
 	Builder b(input.context);
 	return SparkCast(b, Arg(input, 0), LogicalType(TARGET));
+}
+
+//! A DOUBLE parameter of a math or statistics function: numbers and strings are cast (Spark's implicit cast, NULL when
+//! a string is malformed), any other type is Spark's analysis error
+ExprP BindAsDoubleParam(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "as_double_param", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	if (!(IsNull(type) || IsString(type) || IsNumeric(type))) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the function call due to data "
+		                      "type mismatch: the parameter requires the \"DOUBLE\" type, however the argument has the "
+		                      "type \"%s\".",
+		                      StringUtil::Upper(SparkTypeName(type)));
+	}
+	return SparkCast(b, std::move(e), LogicalType::DOUBLE);
 }
 
 //! the value argument of round / bround: an untyped NULL or a string is a DOUBLE (Spark's implicit cast), numbers are
@@ -3866,6 +3932,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"as_timestamp", BindAsTimestamp},
 	    {"as_double", BindAsType<LogicalTypeId::DOUBLE>},
 	    {"as_round_operand", BindAsRoundOperand},
+	    {"as_double_param", BindAsDoubleParam},
 	    {"as_long", BindAsType<LogicalTypeId::BIGINT>},
 	    {"as_int", BindAsType<LogicalTypeId::INTEGER>},
 	    {"as_string", BindAsType<LogicalTypeId::VARCHAR>},
