@@ -146,6 +146,10 @@ class SparkOracle:
 
     def run(self, sql, _retry=True):
         r = self._run(sql)
+        if r.extra.pop("fatal", False) or (not r.ok and (r.error or "").startswith("An error occurred while calling")
+                                            and not self._alive()):
+            self._restart()
+            return r
         if not r.ok and any(m in (r.error or "") for m in self.DEAD_MARKERS):
             # the JVM died (usually out of memory on a huge result): restart and try once more, so a dead
             # session is not recorded as "Spark rejects this query" for every following query
@@ -156,6 +160,15 @@ class SparkOracle:
                     self._restart()
                     r.status = "crash"
         return r
+
+    def _alive(self):
+        """False when the JVM is gone or going (a raw Py4J error, not a Spark error, can mean it is exiting: an
+        out-of-memory error in an executor thread exits the JVM shortly after the statement failed)."""
+        time.sleep(0.3)
+        try:
+            return self.spark.sql("SELECT 1").collect()[0][0] == 1
+        except Exception:  # noqa: BLE001
+            return False
 
     def _run(self, sql):
         from harness import normalize
@@ -175,8 +188,12 @@ class SparkOracle:
                                  "names": [f.name for f in fields]})
         except Exception as e:  # noqa: BLE001
             text = first_line(e)
+            # a fatal JVM error (out of memory on a huge result) can surface as a Py4J wrapper whose first line
+            # names no dead marker; the JVM then exits while the next statement runs, which would record that
+            # statement as rejected by Spark. Keep this statement's error and start a new JVM for the next one.
+            fatal = any(m in str(e) for m in self.DEAD_MARKERS) and not any(m in text for m in self.DEAD_MARKERS)
             return Result("error", error=text, phase="runtime", seconds=time.perf_counter() - start,
-                          extra={"error_class": error_class_of(str(e), e)})
+                          extra={"error_class": error_class_of(str(e), e), **({"fatal": True} if fatal else {})})
 
     def setup(self, statements):
         for sql in statements:
