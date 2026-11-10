@@ -2060,7 +2060,7 @@ void CheckSparkCast(ClientContext &context, const LogicalType &source, const Log
 	}
 }
 
-ExprP BindCastValue(FunctionBindExpressionInput &input) {
+ExprP BindCastValueInner(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "cast", 2, 2);
 	Builder b(input.context);
 	auto target = input.children[1]->GetReturnType();
@@ -2091,10 +2091,16 @@ ExprP BindCastValue(FunctionBindExpressionInput &input) {
 		inputs.push_back(std::move(copy));
 		return AnsiNullCheck(b, std::move(result), std::move(inputs));
 	}
-	auto result = SparkCast(b, std::move(e), target);
+	return SparkCast(b, std::move(e), target);
+}
+
+ExprP BindCastValue(FunctionBindExpressionInput &input) {
+	auto target = input.children[1]->GetReturnType();
+	auto result = BindCastValueInner(input);
 	if (result->IsFoldable() && IsIntegral(target)) {
 		// a cast is not a literal for Spark's decimal precision rules (CAST(1 AS INT) counts as DECIMAL(10,0)):
 		// keep it from looking like one; the optimizer folds it later
+		Builder b(input.context);
 		return b.Kernel(ScalarFunction(Identifier("spark_cast_result"), {target}, target, IdentityKernel),
 		                std::move(result));
 	}
