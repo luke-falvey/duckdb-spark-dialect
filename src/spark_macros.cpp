@@ -91,8 +91,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"regexp_substr", "(s, p) AS CASE WHEN regexp_matches(s, p) THEN nullif(regexp_extract(s, p), '') END"},
     {"regexp_instr", "(s, p) AS CASE WHEN s IS NULL OR p IS NULL THEN NULL WHEN regexp_matches(s, p) THEN CAST(length(regexp_replace(s, '(?s)(' || p || ').*', '')) + 1 AS INTEGER) ELSE 0 END, "
                      "(s, p, i) AS CASE WHEN s IS NULL OR p IS NULL THEN NULL WHEN regexp_matches(s, p) THEN CAST(length(regexp_replace(s, '(?s)(' || p || ').*', '')) + 1 AS INTEGER) ELSE 0 END"},
-    {"regexp_extract", "(s, p) AS regexp_extract(s, p, 1), (s, p, i) AS regexp_extract(s, p, CAST(i AS INTEGER))"},
-    {"regexp_extract_all", "(s, p) AS regexp_extract_all(s, p, 1), (s, p, i) AS regexp_extract_all(s, p, CAST(i AS INTEGER))"},
+    {"regexp_extract", "(s, p) AS regexp_extract(s, p, 1), (s, p, i) AS CASE WHEN i IS NOT NULL THEN regexp_extract(s, p, CAST(i AS INTEGER)) END"},
+    {"regexp_extract_all", "(s, p) AS regexp_extract_all(s, p, 1), (s, p, i) AS CASE WHEN i IS NOT NULL THEN regexp_extract_all(s, p, CAST(i AS INTEGER)) END"},
     {"replace", "(s, f) AS replace(s, f, ''), (s, f, r) AS replace(s, f, r)"},
     {"space", "(n) AS CASE WHEN n IS NULL THEN NULL WHEN n <= 0 THEN '' ELSE repeat(' ', CAST(n AS BIGINT)) END"},
     {"split", "(s, p) AS " S "split_impl(s, p, -1), (s, p, l) AS " S "split_impl(s, p, CAST(l AS INTEGER))"},
@@ -127,8 +127,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"csc", "(x) AS 1 / sin(" S "as_double(x))"},
     {"sec", "(x) AS 1 / cos(" S "as_double(x))"},
     {"cot", "(x) AS 1 / tan(" S "as_double(x))"},
-    {"bround", "(x) AS round_even(x, 0), (x, d) AS round_even(x, CAST(d AS INTEGER))"},
-    {"round", "(x) AS round(x, 0), (x, d) AS round(x, CAST(d AS INTEGER))"},
+    {"bround", "(x) AS round_even(" S "as_round_operand(x), 0), (x, d) AS round_even(" S "as_round_operand(x), CAST(d AS INTEGER))"},
+    {"round", "(x) AS round(" S "as_round_operand(x), 0), (x, d) AS round(" S "as_round_operand(x), CAST(d AS INTEGER))"},
     {"ceil", "(x) AS " S "ceil_value(x), (x, d) AS ceil(x * pow(10, d)) / pow(10, d)"},
     {"ceiling", "(x) AS " S "ceil_value(x), (x, d) AS ceil(x * pow(10, d)) / pow(10, d)"},
     {"floor", "(x) AS " S "floor_value(x), (x, d) AS floor(x * pow(10, d)) / pow(10, d)"},
@@ -285,10 +285,12 @@ const SparkMacro SPARK_MACROS[] = {
     {"array_insert", "(a, p, v) AS " S "array_insert_impl(a, CASE WHEN p < 0 AND " S "conf_bool('spark.sql.legacy.negativeIndexInArrayInsert') THEN p - 1 ELSE p END, v)"},
     {"array_insert_impl",
      "(a, p, v) AS CASE WHEN a IS NULL OR p IS NULL THEN NULL "
+     // Spark's array size limit. The padding lengths are capped too: constant folding evaluates every branch
+     "WHEN p > 2147483632 OR p < -2147483632 THEN error('[COLLECTION_SIZE_LIMIT_EXCEEDED] Unsuccessful try to concat arrays with ' || abs(p) || ' elements due to exceeding the array size limit 2147483632.') "
      "WHEN p > 0 AND p <= len(a) + 1 THEN list_concat(list_slice(a, 1, p - 1), [v], list_slice(a, p, len(a))) "
-     "WHEN p > 0 THEN list_concat(a, list_transform(range(p - 1 - len(a)), lambda i: NULL), [v]) "
+     "WHEN p > 0 THEN list_concat(a, list_transform(range(CASE WHEN p > 2147483632 THEN 0 ELSE p - 1 - len(a) END), lambda i: NULL), [v]) "
      "WHEN p < 0 AND -p <= len(a) THEN list_concat(list_slice(a, 1, len(a) + p + 1), [v], list_slice(a, len(a) + p + 2, len(a))) "
-     "WHEN p < 0 THEN list_concat([v], list_transform(range(-p - len(a) - 1), lambda i: NULL), a) "
+     "WHEN p < 0 THEN list_concat([v], list_transform(range(CASE WHEN p < -2147483632 THEN 0 ELSE -p - len(a) - 1 END), lambda i: NULL), a) "
      "ELSE error('[INVALID_INDEX_OF_ZERO] The index 0 is invalid.') END"},
     {"slice", "(a, s, l) AS CASE WHEN a IS NULL OR s IS NULL OR l IS NULL THEN NULL WHEN l < 0 THEN error('Unexpected value for length in function slice: length must be greater than or equal to 0.') "
               "WHEN s > 0 THEN list_slice(a, s, s + l - 1) WHEN s < 0 AND len(a) + s + 1 >= 1 THEN list_slice(a, len(a) + s + 1, len(a) + s + l) "
@@ -345,8 +347,9 @@ const SparkMacro SPARK_MACROS[] = {
     {"percentile", "(x, p) AS " S "from_number(quantile_cont(" S "as_number(x), p), max(x)), (x, p, f) AS " S "from_number(quantile_cont(" S "as_number(x), p), max(x))"},
     {"percentile_approx", "(x, p) AS quantile_disc(x, p), (x, p, a) AS quantile_disc(x, p)"},
     {"approx_percentile", "(x, p) AS quantile_disc(x, p), (x, p, a) AS quantile_disc(x, p)"},
-    {"kurtosis", "(x) AS kurtosis_pop(x)"},
-    {"skewness", "(x) AS (avg(power(x, 3)) - 3 * avg(x) * avg(power(x, 2)) + 2 * power(avg(x), 3)) / power(var_pop(x), 1.5)"},
+    // NULL when the variance is zero (NaN under legacy.statisticalAggregate), like Spark's CentralMomentAgg
+    {"kurtosis", "(x) AS CASE WHEN var_pop(" S "as_double(x)) = 0 THEN CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') THEN CAST('NaN' AS DOUBLE) END ELSE kurtosis_pop(" S "as_double(x)) END"},
+    {"skewness", "(x) AS CASE WHEN var_pop(" S "as_double(x)) = 0 THEN CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') THEN CAST('NaN' AS DOUBLE) END ELSE (avg(power(" S "as_double(x), 3)) - 3 * avg(" S "as_double(x)) * avg(power(" S "as_double(x), 2)) + 2 * power(avg(" S "as_double(x)), 3)) / power(var_pop(" S "as_double(x)), 1.5) END"},
     {"histogram_numeric", "(x, n) AS list_transform(list_sort(map_entries(histogram(x))), lambda e: {'x': e.key, 'y': CAST(e.value AS DOUBLE)})"},
 
     // ---- misc ----

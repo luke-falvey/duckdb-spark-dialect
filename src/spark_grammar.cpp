@@ -1113,7 +1113,8 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		    {"slice", {1, 2}},          {"format_number", {1}},     {"split_part", {2}},        {"overlay", {2, 3}},
 		    {"locate", {2}},            {"factorial", {0}},         {"nth_value", {1}},         {"ntile", {0}},
 		    {"levenshtein", {2}},       {"lag", {1}},               {"lead", {1}},              {"make_timestamp", {0, 1, 2, 3, 4}},
-		    {"make_timestamp_ntz", {0, 1, 2, 3, 4}}, {"make_timestamp_ltz", {0, 1, 2, 3, 4}}};
+		    {"make_timestamp_ntz", {0, 1, 2, 3, 4}}, {"make_timestamp_ltz", {0, 1, 2, 3, 4}},
+		    {"regexp_extract", {2}},    {"regexp_extract_all", {2}}, {"regexp_instr", {2}},   {"sha2", {1}}};
 		// STRING parameters: Spark's implicit cast turns any atomic value into a string (upper(1) is '1'); DuckDB's
 		// string functions accept only strings. as_string leaves strings alone.
 		static const unordered_map<string, vector<idx_t>> STRING_PARAMETERS = {
@@ -1140,7 +1141,8 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		// DOUBLE parameters of the math functions: a string is converted (NULL when malformed), decimals widen
 		static const unordered_set<string> DOUBLE_FUNCTIONS = {
 		    "acos", "acosh", "asin", "asinh", "atan", "atanh", "cbrt", "cos", "cosh", "cot", "csc", "degrees", "exp", "expm1",
-		    "ln", "log10", "log1p", "log2", "radians", "rint", "sec", "sin", "sinh", "sqrt", "tan", "tanh"};
+		    "ln", "log10", "log1p", "log2", "radians", "rint", "sec", "sin", "sinh", "sqrt", "tan", "tanh",
+		    "atan2", "hypot", "pow", "power"};
 		if (DOUBLE_FUNCTIONS.count(name)) {
 			for (auto &argument_entry : func.GetArgumentsMutable()) {
 				auto &argument = argument_entry.GetExpressionMutable();
