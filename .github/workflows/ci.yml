@@ -78,7 +78,7 @@ jobs:
         run: pip install "duckdb==${DUCKDB_VERSION#v}" pandas pytz pytest
 
       - name: Harness unit tests
-        run: python test/test_harness.py
+        run: python -m pytest -q test/test_harness.py
 
       - name: Settings inventory (plan B1)
         run: python test/settings/check_inventory.py
@@ -87,6 +87,7 @@ jobs:
         run: |
           python scripts/gen_setting_cases.py
           python scripts/gen_type_cases.py
+          python test/fuzz/args_sweep.py --types --emit
           git diff --exit-code -- test/cases
 
   golden:
@@ -119,6 +120,11 @@ jobs:
         # Re-runs every case in Spark so the comparison is against a live Spark 3.5,
         # not only the results committed in test/golden/. Done once per group; both dialects compare against it.
         run: python test/make_golden.py $(python scripts/case_group.py ${{ matrix.group }})
+
+      - name: Record the files that run again with ANSI mode on (workstream D)
+        run: |
+          files=$(python scripts/case_group.py ${{ matrix.group }} --config ansi)
+          if [ -n "$files" ]; then python test/make_golden.py --config spark.sql.ansi.enabled=true $files; fi
 
       - name: Upload the expected results
         uses: actions/upload-artifact@v4
@@ -165,6 +171,13 @@ jobs:
         env:
           SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
         run: python test/run_duckdb.py -v --dialect ${{ matrix.dialect }} $(python scripts/case_group.py ${{ matrix.group }})
+
+      - name: Compare with Spark under ANSI mode (workstream D)
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: |
+          files=$(python scripts/case_group.py ${{ matrix.group }} --config ansi)
+          if [ -n "$files" ]; then python test/run_duckdb.py -v --dialect ${{ matrix.dialect }} --config spark.sql.ansi.enabled=true $files; fi
 
       - name: DuckDB settings must not leak (plan B5)
         if: matrix.group == 'base'
