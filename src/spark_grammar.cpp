@@ -1308,9 +1308,9 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		}
 		vector<ExprPtr> values;
 		for (idx_t i = 1; i < args.size(); i++) {
-			values.push_back(SparkCall("as_string", std::move(args[i])));
+			values.push_back(std::move(args[i]));
 		}
-		return SparkCall("elt", std::move(args[0]), DuckCall("list_value", std::move(values)));
+		return SparkCall("elt", std::move(args[0]), SparkCall("elt_list", std::move(values)));
 	}
 	if (name == "decode" && func.GetArguments().size() > 2) {
 		// decode(expr, search1, result1, ..., default): null-safe equality

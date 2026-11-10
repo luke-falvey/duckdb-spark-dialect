@@ -298,7 +298,7 @@ note = ""
 
 [keys."spark.sql.ansi.doubleQuotedIdentifiers"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -306,7 +306,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/ansi_doubleQuotedIdentifiers.sql"
 witness = true
 differs = true
-note = ""
+note = "double-quoted strings versus identifiers is a parser decision (tier 3)"
 
 [keys."spark.sql.ansi.enabled"]
 class = "semantic"
@@ -322,7 +322,7 @@ note = "ANSI runtime errors are emulated; ANSI implicit casts (AnsiTypeCoercion)
 
 [keys."spark.sql.ansi.enforceReservedKeywords"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -330,11 +330,11 @@ values = ["true", "false"]
 cases = "test/cases/settings/ansi_enforceReservedKeywords.sql"
 witness = true
 differs = true
-note = ""
+note = "the reserved keyword list is the DuckDB parser's (tier 3)"
 
 [keys."spark.sql.ansi.relationPrecedence"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -342,7 +342,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/ansi_relationPrecedence.sql"
 witness = true
 differs = true
-note = ""
+note = "join / comma precedence is the DuckDB parser's (tier 3)"
 
 [keys."spark.sql.autoBroadcastJoinThreshold"]
 class = "execution"
@@ -598,7 +598,7 @@ note = ""
 
 [keys."spark.sql.charAsVarchar"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -606,12 +606,12 @@ values = ["true", "false"]
 cases = "test/cases/settings/charAsVarchar.sql"
 witness = true
 differs = true
-note = ""
+note = "CHAR(n) columns are padded by the extension; the switch needs a catalog-level type mapping (tier 3)"
 
 [keys."spark.sql.chunkBase64String.enabled"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "true"
 values = ["true", "false"]
@@ -874,7 +874,7 @@ note = ""
 
 [keys."spark.sql.crossJoin.enabled"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -882,7 +882,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/crossJoin_enabled.sql"
 witness = true
 differs = true
-note = ""
+note = "implicit cross join check needs a plan-level pass (tier 3)"
 
 [keys."spark.sql.csv.filterPushdown.enabled"]
 class = "storage"
@@ -947,7 +947,7 @@ note = ""
 [keys."spark.sql.decimalOperations.allowPrecisionLoss"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "true"
 values = ["true", "false"]
@@ -1426,7 +1426,7 @@ note = ""
 [keys."spark.sql.function.eltOutputAsString"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "false"
 values = ["true", "false"]
@@ -1447,7 +1447,7 @@ note = ""
 
 [keys."spark.sql.groupByAliases"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -1455,11 +1455,11 @@ values = ["true", "false"]
 cases = "test/cases/settings/groupByAliases.sql"
 witness = true
 differs = true
-note = ""
+note = "alias resolution in GROUP BY is DuckDB's binder; the switch needs an analyzer pass (tier 3)"
 
 [keys."spark.sql.groupByOrdinal"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -1467,7 +1467,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/groupByOrdinal.sql"
 witness = true
 differs = true
-note = ""
+note = "GROUP BY ordinals are resolved by DuckDB's binder; the switch needs an analyzer pass (tier 3)"
 
 [keys."spark.sql.hive.advancedPartitionPredicatePushdown.enabled"]
 class = "storage"
@@ -1855,7 +1855,7 @@ note = ""
 
 [keys."spark.sql.lateralColumnAlias.enableImplicitResolution"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -1863,7 +1863,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/lateralColumnAlias_enableImplicitResolution.sql"
 witness = true
 differs = true
-note = ""
+note = "lateral alias resolution is DuckDB's binder (tier 3)"
 
 [keys."spark.sql.leafNodeDefaultParallelism"]
 class = "execution"
@@ -1955,7 +1955,7 @@ note = ""
 
 [keys."spark.sql.legacy.allowParameterlessCount"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -1963,7 +1963,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/legacy_allowParameterlessCount.sql"
 witness = true
 differs = true
-note = ""
+note = "count() without arguments is rewritten by the grammar, which has no session access (tier 3)"
 
 [keys."spark.sql.legacy.allowStarWithSingleTableIdentifierInCount"]
 class = "semantic"
@@ -2032,7 +2032,7 @@ note = ""
 
 [keys."spark.sql.legacy.castComplexTypesToString.enabled"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -2040,7 +2040,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/legacy_castComplexTypesToString_enabled.sql"
 witness = true
 differs = true
-note = ""
+note = "the string form of complex casts is a cast function without per-setting variants yet (tier 3)"
 
 [keys."spark.sql.legacy.charVarcharAsString"]
 class = "semantic"
@@ -2068,7 +2068,7 @@ note = ""
 
 [keys."spark.sql.legacy.createHiveTableByDefault"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -2076,7 +2076,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/legacy_createHiveTableByDefault.sql"
 witness = true
 differs = true
-note = ""
+note = "CREATE TABLE without USING has no Hive provider here (tier 3)"
 
 [keys."spark.sql.legacy.csv.enableDateTimeParsingFallback"]
 class = "storage"
@@ -2090,7 +2090,7 @@ note = ""
 
 [keys."spark.sql.legacy.ctePrecedencePolicy"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "enum"
 default = "EXCEPTION"
@@ -2098,7 +2098,7 @@ values = ["CORRECTED", "EXCEPTION", "LEGACY"]
 cases = "test/cases/settings/legacy_ctePrecedencePolicy.sql"
 witness = true
 differs = true
-note = ""
+note = "nested WITH name resolution is DuckDB's binder (tier 3)"
 
 [keys."spark.sql.legacy.dataFrameWriterV2IgnorePathOption"]
 class = "client"
@@ -2369,7 +2369,7 @@ note = ""
 
 [keys."spark.sql.legacy.nullInEmptyListBehavior"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -2377,7 +2377,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/legacy_nullInEmptyListBehavior.sql"
 witness = true
 differs = true
-note = ""
+note = "IN over an empty subquery is DuckDB's planner (tier 3)"
 
 [keys."spark.sql.legacy.nullValueWrittenAsQuotedEmptyStringCsv"]
 class = "storage"
@@ -2490,7 +2490,7 @@ note = ""
 
 [keys."spark.sql.legacy.setopsPrecedence.enabled"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -2498,7 +2498,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/legacy_setopsPrecedence_enabled.sql"
 witness = true
 differs = true
-note = ""
+note = "set operation precedence is decided by the DuckDB parser (tier 3)"
 
 [keys."spark.sql.legacy.sizeOfNull"]
 class = "semantic"
@@ -3218,7 +3218,7 @@ note = ""
 
 [keys."spark.sql.orderByOrdinal"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -3226,7 +3226,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/orderByOrdinal.sql"
 witness = true
 differs = true
-note = ""
+note = "ORDER BY ordinals are resolved by DuckDB's binder; the switch needs an analyzer pass (tier 3)"
 
 [keys."spark.sql.parquet.aggregatePushdown"]
 class = "storage"
@@ -3520,7 +3520,7 @@ note = ""
 
 [keys."spark.sql.parser.escapedStringLiterals"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -3528,11 +3528,11 @@ values = ["true", "false"]
 cases = "test/cases/settings/parser_escapedStringLiterals.sql"
 witness = true
 differs = true
-note = ""
+note = "string literal unescaping happens in the tokenizer without session access to this switch yet (tier 3)"
 
 [keys."spark.sql.parser.quotedRegexColumnNames"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -3540,7 +3540,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/parser_quotedRegexColumnNames.sql"
 witness = true
 differs = true
-note = ""
+note = "needs column-regex expansion in the binder (tier 3)"
 
 [keys."spark.sql.pivotMaxValues"]
 class = "client"
@@ -4876,7 +4876,7 @@ note = ""
 
 [keys."spark.sql.variable.substitute"]
 class = "semantic"
-tier = 2
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "true"
@@ -4884,7 +4884,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/variable_substitute.sql"
 witness = true
 differs = true
-note = ""
+note = "needs ${var} substitution before parsing (tier 3)"
 
 [keys."spark.sql.view.maxNestedViewDepth"]
 class = "semantic"

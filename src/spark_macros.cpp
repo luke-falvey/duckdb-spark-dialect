@@ -103,7 +103,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"try_to_binary", "(s) AS TRY(unhex(s)), (s, f) AS TRY(" S "to_binary(s, f))"},
     // Java's MIME decoder skips characters outside the base64 alphabet (whitespace, line breaks)
     {"unbase64", "(s) AS from_base64(regexp_replace(" S "as_string(s), '[^A-Za-z0-9+/=]', '', 'g'))"},
-    {"base64", "(b) AS to_base64(" S "as_binary(b))"},
+    {"base64", "(b) AS CASE WHEN " S "conf_bool('spark.sql.chunkBase64String.enabled') THEN array_to_string(list_transform(range(0, len(to_base64(" S "as_binary(b))), 76), lambda i: substr(to_base64(" S "as_binary(b)), i + 1, 76)), chr(13) || chr(10)) ELSE to_base64(" S "as_binary(b)) END"},
     {"hex", "(x) AS CASE WHEN typeof(x) IN ('VARCHAR', 'BLOB') THEN hex(" S "as_binary(x)) ELSE hex(CAST(x AS BIGINT)) END"},
     {"unhex", "(s) AS TRY(unhex(s))"},
     {"parse_url", "(u, p) AS " S "parse_url_impl(u, p), (u, p, k) AS " S "parse_url_impl(u, p, k)"},

@@ -1657,9 +1657,13 @@ ExprP NumericOperand(Builder &b, ExprP e) {
 }
 
 //! Spark's DecimalType.adjustPrecisionScale (allowPrecisionLoss = true)
-LogicalType AdjustDecimal(int precision, int scale) {
+LogicalType AdjustDecimal(int precision, int scale, bool allow_precision_loss = true) {
 	if (precision <= 38) {
 		return LogicalType::DECIMAL(uint8_t(precision), uint8_t(scale));
+	}
+	if (!allow_precision_loss) {
+		// DecimalType.bounded: keep the scale, cap the precision (overflow becomes NULL)
+		return LogicalType::DECIMAL(38, uint8_t(MinValue(scale, 38)));
 	}
 	int int_digits = precision - scale;
 	int min_scale = MinValue(scale, 6);
@@ -1749,7 +1753,7 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 			scale = MaxValue(s1, s2);
 			precision = MaxValue(p1 - s1, p2 - s2) + scale + 1;
 		}
-		auto result_type = AdjustDecimal(precision, scale);
+		auto result_type = AdjustDecimal(precision, scale, SparkConfBool(input.context, "spark.sql.decimalOperations.allowPrecisionLoss"));
 		ExprP left_copy, right_copy;
 		if (ansi) {
 			left_copy = left->Copy();
@@ -2142,11 +2146,14 @@ ExprP BindTryMultiply(FunctionBindExpressionInput &input) {
 }
 
 //! Spark decimal division result type: DecimalPrecision rules with allowPrecisionLoss = true
-LogicalType DecimalDivideType(const LogicalType &l, const LogicalType &r) {
+LogicalType DecimalDivideType(const LogicalType &l, const LogicalType &r, bool allow_precision_loss = true) {
 	int p1 = DecimalType::GetWidth(l), s1 = DecimalType::GetScale(l);
 	int p2 = DecimalType::GetWidth(r), s2 = DecimalType::GetScale(r);
 	int scale = MaxValue(6, s1 + p2 + 1);
 	int precision = p1 - s1 + s2 + scale;
+	if (precision > 38 && !allow_precision_loss) {
+		return LogicalType::DECIMAL(38, uint8_t(MinValue(scale, 38)));
+	}
 	if (precision > 38) {
 		int int_digits = precision - scale;
 		int min_scale = MinValue(scale, 6);
@@ -2190,7 +2197,8 @@ ExprP BindDivideImpl(FunctionBindExpressionInput &input) {
 		right = AnsiNonZero(b, std::move(right), left->Copy());
 	}
 	if ((IsDecimal(lt) || IsDecimal(rt)) && !IsFloating(lt) && !IsFloating(rt)) {
-		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal);
+		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal,
+		                                     SparkConfBool(input.context, "spark.sql.decimalOperations.allowPrecisionLoss"));
 		auto quotient = b.Kernel(ScalarFunction(Identifier("spark_divide"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
 		                                        LogicalType::DOUBLE, DoubleDivideKernel),
 		                         b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
@@ -2694,6 +2702,22 @@ ExprP BindMapFromEntries(FunctionBindExpressionInput &input) {
 		entries = b.Call("list_select", std::move(entries), std::move(last));
 	}
 	return b.Call("map_from_entries", std::move(entries));
+}
+
+// elt_list(values...): the candidates of elt(); binary stays binary unless spark.sql.function.eltOutputAsString
+ExprP BindEltList(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	bool all_binary = !input.children.empty();
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		all_binary = all_binary && Normalize(ArgType(input, i)).id() == LogicalTypeId::BLOB;
+	}
+	all_binary = all_binary && !SparkConfBool(input.context, "spark.sql.function.eltOutputAsString");
+	vector<ExprP> args;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		auto arg = Arg(input, i);
+		args.push_back(all_binary ? std::move(arg) : b.Spark("as_string", std::move(arg)));
+	}
+	return b.Call("list_value", std::move(args));
 }
 
 // conf_bool('spark.sql.key'): the value of a boolean setting, as a constant at bind time (macros use it to branch)
@@ -3558,6 +3582,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"map_from_arrays", BindMapFromArrays},
     {"map_concat", BindMapConcat},
     {"conf_bool", BindConfBool},
+    {"elt_list", BindEltList},
     {"map_from_entries_value", BindMapFromEntries},
     {"map_from_entries", BindMapFromEntries},
 	    {"inline_rows", BindInlineRows},
