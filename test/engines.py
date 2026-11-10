@@ -187,13 +187,22 @@ class SparkOracle:
                           extra={"types": [f.dataType.simpleString() for f in fields],
                                  "names": [f.name for f in fields]})
         except Exception as e:  # noqa: BLE001
-            text = first_line(e)
+            # str() of a Py4J error asks the JVM for the Java stack trace: once, and it fails when the JVM is gone
+            try:
+                full = str(e)
+            except Exception as gone:  # noqa: BLE001
+                full = f"{type(e).__name__}\nPy4JNetworkError: {gone}"
+            text = first_line(full)
             # a fatal JVM error (out of memory on a huge result) can surface as a Py4J wrapper whose first line
             # names no dead marker; the JVM then exits while the next statement runs, which would record that
             # statement as rejected by Spark. Keep this statement's error and start a new JVM for the next one.
-            fatal = any(m in str(e) for m in self.DEAD_MARKERS) and not any(m in text for m in self.DEAD_MARKERS)
+            fatal = any(m in full for m in self.DEAD_MARKERS) and not any(m in text for m in self.DEAD_MARKERS)
+            try:
+                error_class = error_class_of(full, e)
+            except Exception:  # noqa: BLE001
+                error_class = error_class_of(full)
             return Result("error", error=text, phase="runtime", seconds=time.perf_counter() - start,
-                          extra={"error_class": error_class_of(str(e), e), **({"fatal": True} if fatal else {})})
+                          extra={"error_class": error_class, **({"fatal": True} if fatal else {})})
 
     def setup(self, statements):
         for sql in statements:
