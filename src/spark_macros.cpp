@@ -34,6 +34,8 @@ const SparkMacro SPARK_MACROS[] = {
 
     // ---- conditional / null handling ----
     {"nvl", "(a, b) AS " S "coalesce_value(a, b)"},
+    // NullIf(a, b) is If(a = b, NULL, a): Spark's equality with its implicit casts (a boolean equals a number)
+    {"nullif", "(a, b) AS CASE WHEN " S "cmp_eq(a, b) THEN NULL ELSE a END"},
     {"ifnull", "(a, b) AS " S "coalesce_value(a, b)"},
     {"nvl2", "(a, b, c) AS CASE WHEN a IS NOT NULL THEN b ELSE c END"},
     {"isnull", "(a) AS a IS NULL"},

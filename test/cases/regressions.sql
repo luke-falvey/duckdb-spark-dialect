@@ -100,3 +100,19 @@ SELECT sequence(4294967297L, 5);
 SELECT sequence(1, 4294967297L);
 
 SELECT sequence(1, 5), sequence(5, 1), sequence(1, 10, 3), sequence(10, 1, -4), size(sequence(1, 100000)), sequence(1, 1);
+
+-- decimal precision of integer operands: a literal (1, 1L, 1S, 1Y) has its own digits, a CAST(1 AS INT) the type's
+SELECT typeof(1 + CAST(1 AS DECIMAL(5,2))), typeof(1L + CAST(1 AS DECIMAL(5,2))), typeof(CAST(1 AS INT) + CAST(1 AS DECIMAL(5,2))), typeof(100000 + CAST(1 AS DECIMAL(5,2))), typeof(1Y + CAST(1 AS DECIMAL(5,2))), typeof(1S + CAST(1 AS DECIMAL(5,2))), typeof(cast(1 as bigint) + cast(1 as decimal(3, 0)));
+
+SELECT typeof(x), x FROM VALUES (1Y), (2Y) AS t(x);
+
+SELECT typeof(v), v FROM (SELECT CAST(1 AS BIGINT) AS v UNION ALL SELECT CAST(123.45 AS DECIMAL(5,2)) AS v) ORDER BY v;
+
+-- casts and argument types Spark's analyzer rejects; inline tables without a common type; boolean equality
+SELECT CAST(true AS BINARY);
+
+SELECT date_add(true, 1);
+
+SELECT * FROM VALUES (1), (true) AS t(x);
+
+SELECT true = cast(1 as tinyint), cast(1 as bigint) = true, 2 <=> true, to_binary('', 'base64'), width_bucket(INTERVAL '0' YEAR, INTERVAL '0' YEAR, INTERVAL '10' YEAR, 10);

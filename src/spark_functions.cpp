@@ -9,6 +9,9 @@
 #include "spark_dialect.hpp"
 
 #include "duckdb/common/types/decimal.hpp"
+#include "duckdb/main/client_config.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
+#include "duckdb/function/cast/cast_function_set.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
 #include <array>
 #include "duckdb/common/vector_operations/binary_executor.hpp"
@@ -431,6 +434,39 @@ unique_ptr<Expression> BindSparkKernelImpl(ClientContext &context, ScalarFunctio
 		expr->Cast<BoundFunctionExpression>().BindInfoMutable() = make_uniq<SparkKernelData>(key);
 	}
 	return expr;
+}
+
+//! The bind of every dispatcher, by name (ClassifiedBind looks it up)
+unordered_map<string, function_bind_expression_t> &DispatcherBinds() {
+	static unordered_map<string, function_bind_expression_t> binds;
+	return binds;
+}
+
+//! A dispatcher's bind, with DuckDB's unclassified type errors raised inside it (no function for these argument
+//! types, no common type, no cast between the types) reported as Spark's analysis error class DATATYPE_MISMATCH.
+//! Errors that already carry a class, and value errors (a string that does not convert), are unchanged.
+ExprP ClassifiedBind(FunctionBindExpressionInput &input) {
+	auto &binds = DispatcherBinds();
+	auto entry = binds.find(input.bound_function.GetName().GetIdentifierName());
+	if (entry == binds.end()) {
+		throw InternalException("spark dispatcher without a bind: %s", input.bound_function.GetName().GetIdentifierName());
+	}
+	try {
+		return entry->second(input);
+	} catch (std::exception &ex) {
+		ErrorData error(ex);
+		auto &message = error.RawMessage();
+		bool type_error = StringUtil::Contains(message, "No function matches") ||
+		                  StringUtil::Contains(message, "Cannot combine types") ||
+		                  StringUtil::Contains(message, "Could not choose a best candidate") ||
+		                  StringUtil::Contains(message, "Unimplemented type for cast");
+		bool known_type = error.Type() == ExceptionType::BINDER || error.Type() == ExceptionType::NOT_IMPLEMENTED ||
+		                  error.Type() == ExceptionType::CONVERSION;
+		if (type_error && known_type && !StringUtil::StartsWith(message, "[")) {
+			throw BinderException("[DATATYPE_MISMATCH] %s", message);
+		}
+		throw;
+	}
 }
 
 ScalarFunction Dispatcher(const string &name, function_bind_expression_t bind_expression, idx_t min_args = 0) {
@@ -1818,12 +1854,219 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	return b.Cast(std::move(e), target, true);
 }
 
-ExprP BindCastValue(FunctionBindExpressionInput &input) {
+//! typed_literal(CAST(n AS BIGINT)): the value of a typed integral literal (1L, 1S, 1Y) as a constant
+ExprP BindTypedLiteral(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "typed_literal", 1, 1);
+	auto e = Arg(input, 0);
+	if (!e->IsFoldable()) {
+		return e;
+	}
+	// a cast of the number as a constant: what DecimalOperandType recognizes as a literal (a CAST the user wrote is
+	// not one, see BindCastValue); kept as a cast node so VALUES lists type it like before
+	auto target = e->GetReturnType();
+	auto value = ExpressionExecutor::EvaluateScalar(input.context, *e);
+	auto number = make_uniq<BoundConstantExpression>(value.IsNull() ? Value(LogicalType::BIGINT)
+	                                                                : value.DefaultCastAs(LogicalType::BIGINT));
+	return BoundCastExpression::AddCastToType(input.context, std::move(number), target);
+}
+
+void IdentityKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	result.Reference(args.data[0]);
+}
+
+//===----------------------------------------------------------------------===//
+// spark_strict: argument types Spark's analyzer rejects (generated from Spark's answers, spark_arg_types.inc)
+//===----------------------------------------------------------------------===//
+namespace ArgKind {
+enum : uint32_t {
+	NULL_ = 1u << 0, BOOLEAN = 1u << 1, TINYINT = 1u << 2, SMALLINT = 1u << 3, INTEGER = 1u << 4, BIGINT = 1u << 5,
+	FLOAT = 1u << 6, DOUBLE = 1u << 7, DECIMAL = 1u << 8, STRING = 1u << 9, BINARY = 1u << 10, DATE = 1u << 11,
+	TIMESTAMP = 1u << 12, INTERVAL = 1u << 13, LIST = 1u << 14, MAP = 1u << 15, STRUCT = 1u << 16
+};
+} // namespace ArgKind
+#define NULL NULL_
+struct ArgTypeRule {
+	const char *function;
+	idx_t position;
+	uint32_t rejected;
+};
+const ArgTypeRule ARG_TYPE_RULES[] = {
+#include "spark_arg_types.inc"
+};
+#undef NULL
+
+const unordered_map<string, uint32_t> &ArgTypeRules() {
+	static const auto rules = [] {
+		unordered_map<string, uint32_t> map;
+		for (auto &rule : ARG_TYPE_RULES) {
+			map[string(rule.function) + "/" + to_string(rule.position)] = rule.rejected;
+		}
+		return map;
+	}();
+	return rules;
+}
+
+uint32_t ArgKindOf(const LogicalType &type) {
+	switch (type.id()) {
+	case LogicalTypeId::SQLNULL:
+		return ArgKind::NULL_;
+	case LogicalTypeId::BOOLEAN:
+		return ArgKind::BOOLEAN;
+	case LogicalTypeId::TINYINT:
+		return ArgKind::TINYINT;
+	case LogicalTypeId::SMALLINT:
+		return ArgKind::SMALLINT;
+	case LogicalTypeId::INTEGER:
+	case LogicalTypeId::INTEGER_LITERAL:
+		return ArgKind::INTEGER;
+	case LogicalTypeId::BIGINT:
+		return ArgKind::BIGINT;
+	case LogicalTypeId::FLOAT:
+		return ArgKind::FLOAT;
+	case LogicalTypeId::DOUBLE:
+		return ArgKind::DOUBLE;
+	case LogicalTypeId::DECIMAL:
+		return ArgKind::DECIMAL;
+	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::STRING_LITERAL:
+		return ArgKind::STRING;
+	case LogicalTypeId::BLOB:
+		return ArgKind::BINARY;
+	case LogicalTypeId::DATE:
+		return ArgKind::DATE;
+	case LogicalTypeId::TIMESTAMP:
+	case LogicalTypeId::TIMESTAMP_TZ:
+		return ArgKind::TIMESTAMP;
+	case LogicalTypeId::INTERVAL:
+		return ArgKind::INTERVAL;
+	case LogicalTypeId::LIST:
+	case LogicalTypeId::ARRAY:
+		return ArgKind::LIST;
+	case LogicalTypeId::MAP:
+		return ArgKind::MAP;
+	case LogicalTypeId::STRUCT:
+		return ArgKind::STRUCT;
+	default:
+		return 0;
+	}
+}
+
+bool HasArgTypeRuleImpl(const string &lower_name, idx_t position) {
+	return ArgTypeRules().count(lower_name + "/" + to_string(position)) > 0;
+}
+
+//! check_arg(value, 'function', position): the value unchanged, or Spark's analysis error when Spark rejects an
+//! argument of its type at that position (spark_strict only wraps arguments that have a rule)
+ExprP BindCheckArg(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "check_arg", 3, 3);
+	auto function = ExpressionExecutor::EvaluateScalar(input.context, *input.children[1]).ToString();
+	auto position = ExpressionExecutor::EvaluateScalar(input.context, *input.children[2]).GetValue<int64_t>();
+	auto entry = ArgTypeRules().find(function + "/" + to_string(position));
+	auto type = input.children[0]->GetReturnType();
+	if (entry != ArgTypeRules().end() && (entry->second & ArgKindOf(type))) {
+		throw BinderException("[DATATYPE_MISMATCH] Cannot resolve \"%s\" due to data type mismatch: Parameter %lld "
+		                      "does not accept the \"%s\" type.",
+		                      function, (long long)position + 1, StringUtil::Upper(SparkTypeName(type)));
+	}
+	return std::move(input.children[0]);
+}
+
+//! The spark_strict dialect is selected
+bool InStrictDialect(ClientContext &context) {
+	auto &dialect = ClientConfig::GetConfig(context).current_dialect;
+	return dialect.has_value() && *dialect == "spark_strict";
+}
+
+//! Spark 3.5's Cast.canCast (ansi = false) and Cast.canAnsiCast (ansi = true, also TRY_CAST) over the DuckDB types
+//! the dialect maps Spark's types to. TIMESTAMP_NTZ and the interval kinds are not distinguishable here: they are
+//! checked as TIMESTAMP and as an interval of the matching kind.
+bool SparkCanCast(const LogicalType &source_p, const LogicalType &target_p, bool ansi) {
+	auto source = Normalize(source_p), target = Normalize(target_p);
+	if (IsNull(source) || source == target || IsString(target)) {
+		return true;
+	}
+	auto sid = source.id(), tid = target.id();
+	bool s_string = IsString(source), s_bool = sid == LogicalTypeId::BOOLEAN, s_date = sid == LogicalTypeId::DATE;
+	bool s_ts = sid == LogicalTypeId::TIMESTAMP || sid == LogicalTypeId::TIMESTAMP_TZ;
+	bool s_interval = sid == LogicalTypeId::INTERVAL, s_binary = sid == LogicalTypeId::BLOB;
+	bool s_integral = IsIntegral(source), s_numeric = IsNumeric(source);
+	auto nested = [](LogicalTypeId id) {
+		return id == LogicalTypeId::LIST || id == LogicalTypeId::ARRAY || id == LogicalTypeId::MAP ||
+		       id == LogicalTypeId::STRUCT;
+	};
+	bool s_known = nested(sid) || IsString(source) || sid == LogicalTypeId::BOOLEAN || sid == LogicalTypeId::DATE ||
+	               sid == LogicalTypeId::TIMESTAMP || sid == LogicalTypeId::TIMESTAMP_TZ ||
+	               sid == LogicalTypeId::INTERVAL || sid == LogicalTypeId::BLOB || IsNumeric(source);
+	if (!s_known) {
+		return true; // a type the dialect does not map from Spark (rejected elsewhere in spark_strict, if at all)
+	}
+	if (nested(tid) || nested(sid)) {
+		if ((tid == LogicalTypeId::LIST || tid == LogicalTypeId::ARRAY) &&
+		    (sid == LogicalTypeId::LIST || sid == LogicalTypeId::ARRAY)) {
+			auto child = [](const LogicalType &t) {
+				return t.id() == LogicalTypeId::LIST ? ListType::GetChildType(t) : ArrayType::GetChildType(t);
+			};
+			return SparkCanCast(child(source), child(target), ansi);
+		}
+		if (tid == LogicalTypeId::MAP && sid == LogicalTypeId::MAP) {
+			return SparkCanCast(MapType::KeyType(source), MapType::KeyType(target), ansi) &&
+			       SparkCanCast(MapType::ValueType(source), MapType::ValueType(target), ansi);
+		}
+		if (tid == LogicalTypeId::STRUCT && sid == LogicalTypeId::STRUCT) {
+			if (StructType::GetChildCount(source) != StructType::GetChildCount(target)) {
+				return false;
+			}
+			for (idx_t i = 0; i < StructType::GetChildCount(source); i++) {
+				if (!SparkCanCast(StructType::GetChildType(source, i), StructType::GetChildType(target, i), ansi)) {
+					return false;
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+	if (!(s_string || s_bool || s_date || s_ts || s_interval || s_binary || s_numeric)) {
+		return true; // a DuckDB-only type: rejected elsewhere in spark_strict
+	}
+	switch (tid) {
+	case LogicalTypeId::BLOB:
+		return s_string || (s_integral && !ansi);
+	case LogicalTypeId::BOOLEAN:
+		return s_string || s_numeric || (!ansi && (s_date || s_ts));
+	case LogicalTypeId::DATE:
+		return s_string || s_ts;
+	case LogicalTypeId::TIMESTAMP:
+	case LogicalTypeId::TIMESTAMP_TZ:
+		return s_string || s_date || s_numeric || (!ansi && s_bool);
+	case LogicalTypeId::INTERVAL:
+		return s_string || s_interval || s_integral || IsDecimal(source);
+	case LogicalTypeId::FLOAT:
+	case LogicalTypeId::DOUBLE:
+		return s_string || s_numeric || s_bool || s_ts || (!ansi && s_date);
+	default:
+		if (IsIntegral(target) || IsDecimal(target)) {
+			return s_string || s_numeric || s_bool || s_ts || s_interval || (!ansi && s_date);
+		}
+		return true;
+	}
+}
+
+//! spark_strict: Spark's analysis error for a cast its analyzer refuses
+void CheckSparkCast(ClientContext &context, const LogicalType &source, const LogicalType &target, bool ansi) {
+	if (InStrictDialect(context) && !SparkCanCast(source, target, ansi)) {
+		throw BinderException("[DATATYPE_MISMATCH] Cannot resolve the cast due to data type mismatch: cannot cast "
+		                      "\"%s\" to \"%s\".",
+		                      StringUtil::Upper(SparkTypeName(source)), StringUtil::Upper(SparkTypeName(target)));
+	}
+}
+
+ExprP BindCastValueInner(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "cast", 2, 2);
 	Builder b(input.context);
 	auto target = input.children[1]->GetReturnType();
 	auto e = Arg(input, 0);
 	auto source = Normalize(e->GetReturnType());
+	CheckSparkCast(input.context, source, target, AnsiEnabled(input.context));
 	if (AnsiEnabled(input.context) && source != target && !IsNull(source) &&
 	    (IsIntegral(target) || IsFloating(target) || IsDecimal(target) || target.id() == LogicalTypeId::BOOLEAN ||
 	     target.id() == LogicalTypeId::DATE || target.id() == LogicalTypeId::TIMESTAMP)) {
@@ -1851,6 +2094,19 @@ ExprP BindCastValue(FunctionBindExpressionInput &input) {
 	return SparkCast(b, std::move(e), target);
 }
 
+ExprP BindCastValue(FunctionBindExpressionInput &input) {
+	auto target = input.children[1]->GetReturnType();
+	auto result = BindCastValueInner(input);
+	if (result->IsFoldable() && IsIntegral(target)) {
+		// a cast is not a literal for Spark's decimal precision rules (CAST(1 AS INT) counts as DECIMAL(10,0)):
+		// keep it from looking like one; the optimizer folds it later
+		Builder b(input.context);
+		return b.Kernel(ScalarFunction(Identifier("spark_cast_result"), {target}, target, IdentityKernel),
+		                std::move(result));
+	}
+	return result;
+}
+
 //===----------------------------------------------------------------------===//
 // Arithmetic
 //===----------------------------------------------------------------------===//
@@ -1864,6 +2120,42 @@ ExprP NumericOperand(Builder &b, ExprP e) {
 		return b.Cast(std::move(e), LogicalType::INTEGER);
 	}
 	return e;
+}
+
+//! Spark's implicit cast of a value to a common type: Spark's CAST semantics, and under ANSI a string that does not
+//! convert is CAST_INVALID_INPUT when it is evaluated (an untaken CASE branch does not fail)
+ExprP SparkImplicitCast(Builder &b, ExprP e, const LogicalType &target) {
+	auto source = Normalize(e->GetReturnType());
+	if (AnsiEnabled(b.context) && IsString(source) && !IsString(target) && !IsNull(target)) {
+		auto copy = e->Copy();
+		vector<ExprP> inputs;
+		inputs.push_back(std::move(copy));
+		return AnsiNullCheck(b, SparkCast(b, std::move(e), target), std::move(inputs));
+	}
+	return SparkCast(b, std::move(e), target);
+}
+
+//! The operands of a binary arithmetic operator: strings convert like Spark's implicit cast (non-ANSI: DOUBLE; ANSI:
+//! BIGINT next to an integer, DOUBLE next to a fraction, and two strings are an analysis error)
+void NumericOperands(Builder &b, ExprP &left, ExprP &right, const char *op) {
+	auto lt = Normalize(left->GetReturnType()), rt = Normalize(right->GetReturnType());
+	if (AnsiEnabled(b.context) && (IsString(lt) || IsString(rt))) {
+		if (IsString(lt) && IsString(rt)) {
+			throw BinderException("[DATATYPE_MISMATCH.BINARY_OP_WRONG_TYPE] Cannot resolve \"%s\" due to data type "
+			                      "mismatch: the binary operator requires numeric or interval operands, not two "
+			                      "strings.",
+			                      op);
+		}
+		auto &other = IsString(lt) ? rt : lt;
+		if (IsNumeric(other)) {
+			auto target = IsIntegral(other) ? LogicalType::BIGINT : LogicalType::DOUBLE;
+			auto &operand = IsString(lt) ? left : right;
+			operand = SparkImplicitCast(b, std::move(operand), target);
+			return;
+		}
+	}
+	left = NumericOperand(b, std::move(left));
+	right = NumericOperand(b, std::move(right));
 }
 
 //! Spark's DecimalType.adjustPrecisionScale (allowPrecisionLoss = true)
@@ -1885,8 +2177,13 @@ LogicalType DecimalOperandType(const Expression &expr, const LogicalType &type) 
 	if (IsDecimal(type)) {
 		return type;
 	}
-	if (expr.GetExpressionClass() == ExpressionClass::BOUND_CONSTANT && IsIntegral(type)) {
-		auto &value = expr.Cast<BoundConstantExpression>().GetValue();
+	// a literal: a constant, or a typed literal (1L, 1S, 1Y: a cast of a constant, see BindTypedLiteral)
+	auto *constant = &expr;
+	if (BoundCastExpression::IsCast(expr)) {
+		constant = &BoundCastExpression::Child(expr.Cast<BoundFunctionExpression>());
+	}
+	if (constant->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT && IsIntegral(type)) {
+		auto &value = constant->Cast<BoundConstantExpression>().GetValue();
 		if (!value.IsNull()) {
 			auto text = to_string(std::abs(value.GetValue<int64_t>()));
 			return LogicalType::DECIMAL(uint8_t(MaxValue<idx_t>(text.size(), 1)), 0);
@@ -1912,8 +2209,9 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 		// NULL + NULL: both untyped operands are DOUBLE in Spark
 		return b.NullOf(LogicalType::DOUBLE);
 	}
-	auto left = NumericOperand(b, Arg(input, 0));
-	auto right = NumericOperand(b, Arg(input, 1));
+	auto left = Arg(input, 0);
+	auto right = Arg(input, 1);
+	NumericOperands(b, left, right, duck_op);
 	auto lt = Normalize(left->GetReturnType());
 	auto rt = Normalize(right->GetReturnType());
 	bool ansi = !CHECKED && AnsiEnabled(input.context);
@@ -1947,8 +2245,11 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 			return b.Cast(b.Op("-", std::move(left), std::move(right)), LogicalType::DATE);
 		}
 	}
-	if ((IsDecimal(lt) && IsFloating(rt)) || (IsFloating(lt) && IsDecimal(rt))) {
-		// Spark: decimal with FLOAT or DOUBLE is DOUBLE (DuckDB: FLOAT)
+	bool float_with_integer = (lt.id() == LogicalTypeId::FLOAT && IsIntegral(rt)) ||
+	                          (rt.id() == LogicalTypeId::FLOAT && IsIntegral(lt));
+	if ((IsDecimal(lt) && IsFloating(rt)) || (IsFloating(lt) && IsDecimal(rt)) ||
+	    (float_with_integer && AnsiEnabled(input.context))) {
+		// Spark: decimal with FLOAT or DOUBLE is DOUBLE (DuckDB: FLOAT); under ANSI an integer with FLOAT too
 		return b.Op(duck_op, b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
 	}
 	bool decimal_math = (IsDecimal(lt) || IsDecimal(rt)) && (IsDecimal(lt) || IsIntegral(lt) || IsLargeIntegral(lt)) &&
@@ -2400,8 +2701,9 @@ ExprP BindDivideImpl(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
 	auto right_decimal = DecimalOperandType(*input.children[1], ArgType(input, 1));
-	auto left = NumericOperand(b, Arg(input, 0));
-	auto right = NumericOperand(b, Arg(input, 1));
+	auto left = Arg(input, 0);
+	auto right = Arg(input, 1);
+	NumericOperands(b, left, right, "/");
 	auto lt = Normalize(left->GetReturnType());
 	auto rt = Normalize(right->GetReturnType());
 	if (lt.id() == LogicalTypeId::INTERVAL && IsNumeric(rt)) {
@@ -2442,8 +2744,9 @@ ExprP BindTryDivide(FunctionBindExpressionInput &input) {
 ExprP BindDiv(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "div", 2, 2);
 	Builder b(input.context);
-	auto left = NumericOperand(b, Arg(input, 0));
-	auto right = NumericOperand(b, Arg(input, 1));
+	auto left = Arg(input, 0);
+	auto right = Arg(input, 1);
+	NumericOperands(b, left, right, "div");
 	auto lt = Normalize(left->GetReturnType());
 	auto rt = Normalize(right->GetReturnType());
 	if (lt.id() == LogicalTypeId::INTERVAL && rt.id() == LogicalTypeId::INTERVAL) {
@@ -2467,8 +2770,9 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
 	auto right_decimal = DecimalOperandType(*input.children[1], ArgType(input, 1));
-	auto left = NumericOperand(b, Arg(input, 0));
-	auto right = NumericOperand(b, Arg(input, 1));
+	auto left = Arg(input, 0);
+	auto right = Arg(input, 1);
+	NumericOperands(b, left, right, "%");
 	auto lt = Normalize(left->GetReturnType());
 	auto rt = Normalize(right->GetReturnType());
 	if (AnsiEnabled(input.context) && IsNumeric(rt)) {
@@ -2497,6 +2801,9 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 	if (IsFloating(lt) || IsFloating(rt)) {
 		// FLOAT with FLOAT or an integer stays FLOAT in Spark; DOUBLE or a decimal makes it DOUBLE
 		bool stays_float = (lt.id() == LogicalTypeId::FLOAT || IsIntegral(lt)) && (rt.id() == LogicalTypeId::FLOAT || IsIntegral(rt));
+		if (AnsiEnabled(input.context) && !(lt.id() == LogicalTypeId::FLOAT && rt.id() == LogicalTypeId::FLOAT)) {
+			stays_float = false; // AnsiTypeCoercion: an integer with FLOAT widens to DOUBLE
+		}
 		auto result = b.Kernel(ScalarFunction(Identifier("spark_remainder"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
 		                                      LogicalType::DOUBLE, DoubleRemainderKernel),
 		                       b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
@@ -2562,11 +2869,11 @@ ExprP BindComparisonAs(FunctionBindExpressionInput &input, ExpressionType type) 
 			}
 		}
 	}
-	// equality of a boolean with a fractional number (BooleanEquality): the boolean is cast to the number's type
+	// equality of a boolean with a number (BooleanEquality): the boolean is cast to the number's type
 	bool equality = type == ExpressionType::COMPARE_EQUAL || type == ExpressionType::COMPARE_NOTEQUAL ||
 	                type == ExpressionType::COMPARE_NOT_DISTINCT_FROM || type == ExpressionType::COMPARE_DISTINCT_FROM;
 	auto fractional = [](const LogicalType &t) {
-		return IsFloating(t) || IsDecimal(t);
+		return IsFloating(t) || IsDecimal(t) || IsIntegral(t);
 	};
 	if (equality && lt.id() == LogicalTypeId::BOOLEAN && fractional(rt)) {
 		l = b.Cast(std::move(l), rt);
@@ -2887,7 +3194,7 @@ void CastToCommonType(Builder &b, vector<ExprP> &args) {
 	}
 	for (auto &arg : args) {
 		if (arg->GetReturnType() != common) {
-			arg = b.Cast(std::move(arg), common);
+			arg = AnsiEnabled(b.context) ? SparkImplicitCast(b, std::move(arg), common) : b.Cast(std::move(arg), common);
 		}
 	}
 }
@@ -3665,6 +3972,9 @@ LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const
 			return LogicalType::DOUBLE;
 		}
 		if (a.id() == LogicalTypeId::FLOAT || b.id() == LogicalTypeId::FLOAT) {
+			if (AnsiEnabled(context) && !(a.id() == LogicalTypeId::FLOAT && b.id() == LogicalTypeId::FLOAT)) {
+				return LogicalType::DOUBLE; // AnsiTypeCoercion: an integer or a decimal with FLOAT widens to DOUBLE
+			}
 			return (IsDecimal(a) || IsDecimal(b)) ? LogicalType::DOUBLE : LogicalType::FLOAT;
 		}
 		if (IsIntegral(a) && IsIntegral(b)) {
@@ -3699,6 +4009,17 @@ LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const
 	bool a_atomic = IsNumeric(a) || IsDatetime(a) || a.id() == LogicalTypeId::BOOLEAN;
 	bool b_atomic = IsNumeric(b) || IsDatetime(b) || b.id() == LogicalTypeId::BOOLEAN;
 	if ((IsString(a) && b_atomic) || (IsString(b) && a_atomic)) {
+		if (AnsiEnabled(context)) {
+			// AnsiTypeCoercion: the string takes the other side's type (an integer as BIGINT, a fraction as DOUBLE)
+			auto &other = IsString(a) ? b : a;
+			if (IsIntegral(other)) {
+				return LogicalType::BIGINT;
+			}
+			if (IsNumeric(other)) {
+				return LogicalType::DOUBLE;
+			}
+			return other;
+		}
 		return LogicalType::VARCHAR;
 	}
 	return LogicalType::MaxLogicalType(context, a, b);
@@ -3726,10 +4047,10 @@ ExprP BindCaseWhen(FunctionBindExpressionInput &input) {
 	for (idx_t i = 0; i + 1 < args.size(); i += 2) {
 		BoundCaseCheck check;
 		check.when_expr = b.Cast(std::move(args[i]), LogicalType::BOOLEAN);
-		check.then_expr = SparkCast(b, std::move(args[i + 1]), type);
+		check.then_expr = SparkImplicitCast(b, std::move(args[i + 1]), type);
 		result->CaseChecksMutable().push_back(std::move(check));
 	}
-	result->ElseMutable() = SparkCast(b, std::move(args.back()), type);
+	result->ElseMutable() = SparkImplicitCast(b, std::move(args.back()), type);
 	return std::move(result);
 }
 
@@ -3869,6 +4190,7 @@ ExprP BindTryCastValue(FunctionBindExpressionInput &input) {
 	auto target = input.children[1]->GetReturnType();
 	auto e = Arg(input, 0);
 	auto source = Normalize(e->GetReturnType());
+	CheckSparkCast(input.context, source, target, true);
 	if (IsIntegral(target) && IsString(source) && AnsiEnabled(input.context)) {
 		return b.Kernel(StringToIntegralFunction(target, true), std::move(e));
 	}
@@ -3990,6 +4312,8 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"as_timestamp", BindAsTimestamp},
 	    {"as_double", BindAsType<LogicalTypeId::DOUBLE>},
 	    {"as_round_operand", BindAsRoundOperand},
+	    {"typed_literal", BindTypedLiteral},
+	    {"check_arg", BindCheckArg},
 	    {"as_double_param", BindAsDoubleParam},
 	    {"as_long", BindAsType<LogicalTypeId::BIGINT>},
 	    {"as_int", BindAsType<LogicalTypeId::INTEGER>},
@@ -4048,7 +4372,8 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	};
 	loader.RegisterFunction(SparkKernelCatalogEntry());
 	for (auto &entry : dispatchers) {
-		RegisterFallible(loader, Dispatcher(entry.first, entry.second));
+		DispatcherBinds()[entry.first] = entry.second;
+		RegisterFallible(loader, Dispatcher(entry.first, ClassifiedBind));
 		AddSparkOverride(entry.first);
 	}
 	RegisterFallible(loader, ExplodeRowsFunction<false, false>("explode_rows"));
@@ -4068,6 +4393,10 @@ bool SparkAnsiEnabled(ClientContext &context) {
 unique_ptr<Expression> BindSparkKernel(ClientContext &context, ScalarFunction function,
                                        vector<unique_ptr<Expression>> args) {
 	return BindSparkKernelImpl(context, std::move(function), std::move(args));
+}
+
+bool HasArgTypeRule(const string &lower_name, idx_t position) {
+	return HasArgTypeRuleImpl(lower_name, position);
 }
 
 } // namespace duckdb

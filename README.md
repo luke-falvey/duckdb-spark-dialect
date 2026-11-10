@@ -37,6 +37,11 @@ dialect's grammar once.
 - **Expression syntax**: `[1, 2]`, `{'a': 1}`, `MAP {...}`, `x::T`, `#1`, `alias: expr`, `lambda x: ...`,
   `TRY()`, `COLUMNS()`, `UNPACK()`, `ROW()`, `* EXCLUDE / EXCEPT / REPLACE / RENAME`, list comprehensions,
   DuckDB operators (`//`, `**`, `^@`, `~`, `GLOB`, `SIMILAR TO`, `->>`), `E'...'` and `$$...$$` strings.
+- **Type errors Spark's analyzer raises** (`[DATATYPE_MISMATCH]`): casts Spark refuses (`CAST(true AS BINARY)`,
+  `CAST(1 AS DATE)`; Spark's `Cast.canCast`, and the stricter `canAnsiCast` for `TRY_CAST` and under ANSI),
+  argument types a function rejects (`date_add(true, 1)`, `md5(1)`: a table generated from Spark's answers by
+  `scripts/gen_arg_type_rules.py`), inline tables and `CASE` branches without a common type (`VALUES (1), (true)`),
+  and DuckDB's own type errors inside the extension's functions carry the class too.
 - **Query clauses**: `QUALIFY`, `ASOF` / `POSITIONAL` / `NEAREST` / `JOIN BY`, `USING SAMPLE`,
   `TABLESAMPLE` methods and `<n>%`, `LIMIT <n>%`, statement-level `PIVOT ... ON` / `UNPIVOT ... ON`.
 - **Statements**: `PRAGMA`, `CALL`, `COPY`, `EXPORT` / `IMPORT`, `ATTACH` / `DETACH`, `INSTALL` / `LOAD`,
@@ -111,7 +116,8 @@ The new matrices find what the dialect does not do yet: **the cases that still d
 grouped by id, with a reproducing example, in
 [docs/plans/spark-parity/known_differences.md](docs/plans/spark-parity/known_differences.md)**, and counted in
 [COVERAGE.md](COVERAGE.md). Most belong to a few causes: DuckDB has one `INTERVAL` and one `TIMESTAMP` type
-(`types-interval`, `types-ntz`), ANSI mode's implicit-cast rules are not implemented (`ansi-implicit-cast`), settings
+(`types-interval`, `types-ntz`), ANSI mode's implicit-cast rules for function arguments and comparisons
+(`ansi-implicit-cast`), settings
 the dialect rejects (`conf-rejected`), and the open work the matrices found (`types-open-c1` ... `types-open-c14`:
 implicit conversions of function arguments, common types of `CASE` / `UNION`, key coercion of JOIN `USING` /
 `NATURAL` and `IN (subquery)`, and others). `strict` rejects less than Spark does: the strict dialect
@@ -163,8 +169,10 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
   `SET ... = false` turn it off) covers runtime errors: integer overflow of `+ - * -x abs` and of `sum`, decimal
   overflow of `+ - *` and `sum`, division by zero (`/ % div mod`), invalid and out-of-range `CAST` (strings must be
   integers: `'1.5'` is not), array index out of bounds (`[]`, `element_at`) and `size(NULL)` returning NULL; the
-  `try_*` functions stay lenient. Not emulated: ANSI's implicit-cast rules (a string is still converted to a number
-  implicitly), map key lookups of missing keys, overflow in `avg`, `pmod`, `date`/`timestamp` arithmetic and
+  `try_*` functions stay lenient. ANSI's implicit casts are emulated for arithmetic and common types (a string next
+  to an integer is a BIGINT, next to a fraction a DOUBLE, and fails with `CAST_INVALID_INPUT` when it does not
+  convert; an integer with FLOAT widens to DOUBLE). Not emulated: the rest of `AnsiTypeCoercion` (function
+  arguments, comparisons), map key lookups of missing keys, overflow in `avg`, `pmod`, `date`/`timestamp` arithmetic and
   datetime parsing errors. A prepared statement is bound again when the setting changes.
 - `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. For `session_window` over a join, the
   joined tables' aliases are not available in the query (a single table or subquery keeps its alias).

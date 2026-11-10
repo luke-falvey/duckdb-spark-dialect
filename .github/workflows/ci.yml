@@ -89,6 +89,7 @@ jobs:
           python scripts/gen_type_cases.py
           python test/fuzz/args_sweep.py --types --emit
           git diff --exit-code -- test/cases
+          python scripts/gen_arg_type_rules.py --check
 
   golden:
     name: Record expected results with Spark 3.5 (${{ matrix.group }})
