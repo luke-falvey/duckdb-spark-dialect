@@ -192,3 +192,32 @@ def test_xfail_marker_and_entries():
     assert apply_xfail(_case(sql="SELECT TIMESTAMP_NTZ '1'"), "ansi.enabled=true", "spark", fail, [by_sql]).kind == "XFAIL"
     assert apply_xfail(_case(sql="SELECT TIMESTAMP_NTZ '1'"), "", "spark", fail, [by_sql]).kind == "FAIL"
     assert entry.hits >= 2 and getattr(entry, "fails", 0) >= 1
+
+
+def test_xfail_entry_config_semantics():
+    """An entry with config = "" applies to the default configuration only; no config applies to every one; a glob matches slugs."""
+    from harness import XfailEntry
+    base = {"id": "x", "file": "a.sql"}
+    assert XfailEntry({**base, "config": ""}).applies_to_file("a.sql", "")
+    assert not XfailEntry({**base, "config": ""}).applies_to_file("a.sql", "ansi.enabled=true")
+    assert XfailEntry(base).applies_to_file("a.sql", "ansi.enabled=true")
+    assert XfailEntry({**base, "config": "ansi.enabled=true*"}).applies_to_file("a.sql", "ansi.enabled=true_storeAssignmentPolicy=ANSI")
+    assert not XfailEntry({**base, "file": "b.sql"}).applies_to_file("a.sql", "")
+
+
+def test_case_groups_cover_every_generated_file():
+    """Every file under test/cases/types and test/cases/settings belongs to exactly one CI group."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import case_group
+    groups = ["base", "settings", "corpus", "types-casts", "types-operators", "types-common", "types-args", "types-rest"]
+    seen = [p for g in groups for p in case_group.files(g)]
+    assert len(seen) == len(set(seen))
+    cases = Path(__file__).resolve().parent / "cases"
+    everything = {p for p in cases.rglob("*.sql")}
+    assert everything - set(seen) == set(), sorted(everything - set(seen))
+
+
+def test_error_class_gating_is_limited_to_types_and_settings_files():
+    from harness import class_is_gated
+    assert class_is_gated("DATATYPE_MISMATCH.BINARY_OP_WRONG_TYPE", "types__c3_arithmetic.sql")
+    assert not class_is_gated("DATATYPE_MISMATCH.BINARY_OP_WRONG_TYPE", "operators.sql")

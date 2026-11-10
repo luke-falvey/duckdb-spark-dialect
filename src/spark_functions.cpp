@@ -2294,9 +2294,12 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 		                b.Cast(std::move(left), type), b.Cast(std::move(right), type));
 	}
 	if (IsFloating(lt) || IsFloating(rt)) {
-		return b.Kernel(ScalarFunction(Identifier("spark_remainder"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
-		                               LogicalType::DOUBLE, DoubleRemainderKernel),
-		                b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+		// FLOAT with FLOAT or an integer stays FLOAT in Spark; DOUBLE or a decimal makes it DOUBLE
+		bool stays_float = (lt.id() == LogicalTypeId::FLOAT || IsIntegral(lt)) && (rt.id() == LogicalTypeId::FLOAT || IsIntegral(rt));
+		auto result = b.Kernel(ScalarFunction(Identifier("spark_remainder"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
+		                                      LogicalType::DOUBLE, DoubleRemainderKernel),
+		                       b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
+		return stays_float ? b.Cast(std::move(result), LogicalType::FLOAT) : std::move(result);
 	}
 	// integers mixed with decimals; anything else (intervals, ...) is a type error as in Spark
 	if (!(IsDecimal(lt) || IsIntegral(lt)) || !(IsDecimal(rt) || IsIntegral(rt))) {
@@ -2402,10 +2405,14 @@ ExprP BindZeroKey(FunctionBindExpressionInput &input) {
 
 //! narrow_int(x): a BIGINT (or wider) argument wraps to INT like Spark's implicit cast; other types are unchanged
 ExprP BindNarrowInt(FunctionBindExpressionInput &input) {
-	CheckArgs(input, "narrow_int", 1, 1);
+	CheckArgs(input, "narrow_int", 1, 2);
 	Builder b(input.context);
 	auto value = Arg(input, 0);
 	auto type = Normalize(value->GetReturnType());
+	if (IsString(type) && input.children.size() == 1) {
+		// a string argument is read as an INT (NULL when malformed); with a second argument it may be a format and stays
+		return SparkCast(b, std::move(value), LogicalType::INTEGER);
+	}
 	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT || IsFloating(type) || IsDecimal(type)) {
 		// Spark's implicit cast to INT: wraps a BIGINT, truncates a fraction (a string argument may be a format: unchanged)
 		return SparkCast(b, std::move(value), LogicalType::INTEGER);
@@ -3297,6 +3304,23 @@ LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const
 	}
 	if (IsDatetime(a) && IsDatetime(b)) {
 		return LogicalType::TIMESTAMP;
+	}
+	// nested types widen element by element (array<int> with array<string> is array<string>)
+	if (a.id() == LogicalTypeId::LIST && b.id() == LogicalTypeId::LIST) {
+		return LogicalType::LIST(SparkWiderType(context, ListType::GetChildType(a), ListType::GetChildType(b)));
+	}
+	if (a.id() == LogicalTypeId::MAP && b.id() == LogicalTypeId::MAP) {
+		return LogicalType::MAP(SparkWiderType(context, MapType::KeyType(a), MapType::KeyType(b)),
+		                        SparkWiderType(context, MapType::ValueType(a), MapType::ValueType(b)));
+	}
+	if (a.id() == LogicalTypeId::STRUCT && b.id() == LogicalTypeId::STRUCT &&
+	    StructType::GetChildCount(a) == StructType::GetChildCount(b)) {
+		child_list_t<LogicalType> fields;
+		for (idx_t i = 0; i < StructType::GetChildCount(a); i++) {
+			fields.emplace_back(StructType::GetChildName(a, i),
+			                    SparkWiderType(context, StructType::GetChildType(a, i), StructType::GetChildType(b, i)));
+		}
+		return LogicalType::STRUCT(std::move(fields));
 	}
 	bool a_atomic = IsNumeric(a) || IsDatetime(a) || a.id() == LogicalTypeId::BOOLEAN;
 	bool b_atomic = IsNumeric(b) || IsDatetime(b) || b.id() == LogicalTypeId::BOOLEAN;

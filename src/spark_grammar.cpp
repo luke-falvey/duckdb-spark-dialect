@@ -1119,6 +1119,10 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		    {"translate", {0, 1, 2}}, {"unhex", {0}},      {"luhn_check", {0}},   {"repeat", {0}},         {"instr", {0, 1}},
 		    {"locate", {0, 1}},    {"position", {0, 1}},   {"find_in_set", {0, 1}}, {"levenshtein", {0, 1}}, {"sentences", {0}},
 		    {"split_part", {0, 1}}, {"soundex", {0}},      {"ascii", {0}},
+		    {"date_format", {1}},  {"to_date", {1}},       {"to_timestamp", {1}}, {"from_unixtime", {1}},  {"unix_timestamp", {1}},
+		    {"to_unix_timestamp", {1}}, {"trunc", {1}},    {"date_trunc", {0}},   {"next_day", {1}},       {"regexp_extract", {1}},
+		    {"regexp_extract_all", {1}}, {"regexp_replace", {1, 2}}, {"regexp_like", {1}}, {"regexp", {1}}, {"rlike", {1}},
+		    {"regexp_count", {1}}, {"regexp_instr", {1}},  {"regexp_substr", {1}}, {"split", {1}},
 		    {"substring_index", {0, 1}}};
 		auto string_entry = STRING_PARAMETERS.find(name);
 		if (string_entry != STRING_PARAMETERS.end()) {
@@ -1155,7 +1159,11 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 						continue;
 					}
 				}
-				argument = SparkCall("narrow_int", std::move(argument));
+				if (name == "format_number") {
+					argument = SparkCall("narrow_int", std::move(argument), ConstantExpression::Boolean(true));
+				} else {
+					argument = SparkCall("narrow_int", std::move(argument));
+				}
 			}
 		}
 	}
@@ -1559,6 +1567,19 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 }
 
 ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
+	if (expr->GetExpressionClass() == ExpressionClass::OPERATOR && expr->GetExpressionType() == ExpressionType::OPERATOR_COALESCE &&
+	    expr->Cast<OperatorExpression>().GetChildren().size() >= 2) {
+		// COALESCE(a, b, ...): the operands are brought to Spark's common type first (a string with a number is a string)
+		vector<ExprPtr> operands;
+		string name = "coalesce(";
+		for (auto &child : expr->Cast<OperatorExpression>().GetChildrenMutable()) {
+			name += (operands.empty() ? "" : ", ") + child->ToString();
+			operands.push_back(std::move(child));
+		}
+		auto call = SparkCall("coalesce_value", std::move(operands));
+		call->SetAlias(Identifier(name + ")"));  // the column name Spark gives (an explicit AS replaces it)
+		return call;
+	}
 	if (expr->GetExpressionClass() == ExpressionClass::WINDOW) {
 		auto &window = expr->Cast<WindowExpression>();
 		auto name = StringUtil::Lower(window.FunctionName().GetIdentifierName());
