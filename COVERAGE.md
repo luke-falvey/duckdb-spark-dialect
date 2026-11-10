@@ -18,7 +18,7 @@ literals_types.sql                           PASS=43  LENIENT=0  PHASE=0  FAIL=0
 non_spark.sql                                PASS=16  LENIENT=57  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 operators.sql                                PASS=103  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
 queries.sql                                  PASS=130  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
-regressions.sql                              PASS=33  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+regressions.sql                              PASS=36  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
 settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
 settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 settings__ansi_doubleQuotedIdentifiers.sql[ansi.doubleQuotedIdentifiers=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
@@ -303,7 +303,7 @@ types__c7_store_assignment.sql[storeAssignmentPolicy=LEGACY] PASS=840  LENIENT=0
 types__c7_store_assignment.sql[storeAssignmentPolicy=STRICT] PASS=1308  LENIENT=0  PHASE=0  FAIL=0  XFAIL=304  XPASS=0
 types__c8_decimal_precision.sql              PASS=453  LENIENT=0  PHASE=0  FAIL=0  XFAIL=95  XPASS=0
 types__c9_literals.sql                       PASS=101  LENIENT=5  PHASE=4  FAIL=0  XFAIL=19  XPASS=0
-TOTAL                                        PASS=46958  LENIENT=8684  PHASE=5380  FAIL=0  XFAIL=5633  XPASS=0
+TOTAL                                        PASS=46961  LENIENT=8684  PHASE=5380  FAIL=0  XFAIL=5633  XPASS=0
 ```
 
 `SET current_dialect = 'spark_strict'` (a LENIENT result counts as a failure):
@@ -319,7 +319,7 @@ literals_types.sql                           PASS=43  LENIENT=0  PHASE=0  FAIL=0
 non_spark.sql                                PASS=73  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 operators.sql                                PASS=103  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
 queries.sql                                  PASS=130  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
-regressions.sql                              PASS=33  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
+regressions.sql                              PASS=36  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4  XPASS=0
 settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=true] PASS=0  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
 settings__allowNamedFunctionArguments.sql[allowNamedFunctionArguments=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 settings__ansi_doubleQuotedIdentifiers.sql[ansi.doubleQuotedIdentifiers=false] PASS=1  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
@@ -604,7 +604,7 @@ types__c7_store_assignment.sql[storeAssignmentPolicy=LEGACY] PASS=90  LENIENT=0 
 types__c7_store_assignment.sql[storeAssignmentPolicy=STRICT] PASS=44  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1568  XPASS=0
 types__c8_decimal_precision.sql              PASS=453  LENIENT=0  PHASE=0  FAIL=0  XFAIL=95  XPASS=0
 types__c9_literals.sql                       PASS=95  LENIENT=0  PHASE=0  FAIL=0  XFAIL=34  XPASS=0
-TOTAL                                        PASS=32568  LENIENT=0  PHASE=0  FAIL=0  XFAIL=34088  XPASS=0
+TOTAL                                        PASS=32571  LENIENT=0  PHASE=0  FAIL=0  XFAIL=34088  XPASS=0
 ```
 
 ## Built-in functions (438 in Spark 3.5)

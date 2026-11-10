@@ -51,7 +51,8 @@ Regenerate the tables: `python scripts/xfail_summary.py` (per xfail id: `docs/pl
   FLOAT / DOUBLE / DECIMAL, `IN` over structs compares by position when the field types agree and needs the same field
   names when a cast is needed, mixed kinds raise `DATA_DIFF_TYPES` (they crashed the process with SIGSEGV or raised
   INTERNAL errors before), `array_insert` past Spark's array size limit raises `COLLECTION_SIZE_LIMIT_EXCEEDED` (a huge
-  position exhausted memory before: constant folding built the padding), string arguments of the INT parameters of
+  position exhausted memory before: constant folding built the padding), `sequence` past that limit raises the same error
+  before `generate_series` allocates (it asked for 32 GiB and starved later statements of CI's DuckDB worker), string arguments of the INT parameters of
   `regexp_extract` / `regexp_extract_all` / `regexp_instr` / `sha2`, DOUBLE parameters of the math functions (`sqrt`,
   `atan2`, `pow`, ...) and of `skewness` / `kurtosis` take numbers and strings only (booleans, dates, arrays, ... are
   Spark's `UNEXPECTED_INPUT_TYPE`; the math functions used to accept them). Against the expected failures this branch

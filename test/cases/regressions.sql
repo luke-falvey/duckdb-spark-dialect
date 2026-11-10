@@ -93,3 +93,10 @@ SELECT skewness(v) FROM VALUES (true) AS t(v);
 SELECT named_struct('A', 1, 'B', 'x') IN (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>));
 
 SELECT named_struct('x', 1, 'y', 'x') IN (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>));
+
+-- sequence past Spark's array size limit is an error before anything is allocated (it asked for 32 GiB before)
+SELECT sequence(4294967297L, 5);
+
+SELECT sequence(1, 4294967297L);
+
+SELECT sequence(1, 5), sequence(5, 1), sequence(1, 10, 3), sequence(10, 1, -4), size(sequence(1, 100000)), sequence(1, 1);

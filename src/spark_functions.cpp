@@ -13,6 +13,7 @@
 #include <array>
 #include "duckdb/common/vector_operations/binary_executor.hpp"
 #include "duckdb/common/vector_operations/unary_executor.hpp"
+#include "duckdb/common/vector_operations/ternary_executor.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/common/operator/multiply.hpp"
@@ -660,6 +661,23 @@ void AnsiIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
 			                                (long long)index, (long long)length);
 		    }
 		    return index + 1;
+	    });
+}
+
+//! sequence(start, stop, step) over integers: the step, after checking that the array stays within Spark's size
+//! limit (a huge range is Spark's error, never an attempt to allocate billions of elements)
+void SequenceStepKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	TernaryExecutor::Execute<int64_t, int64_t, int64_t, int64_t>(
+	    args.data[0], args.data[1], args.data[2], result, args.size(), [](int64_t start, int64_t stop, int64_t step) {
+		    if (step != 0 && (hugeint_t(stop) - hugeint_t(start)) / hugeint_t(step) >= hugeint_t(0)) {
+			    auto count = (hugeint_t(stop) - hugeint_t(start)) / hugeint_t(step) + hugeint_t(1);
+			    if (count > hugeint_t(2147483632)) {
+				    throw InvalidInputException("[COLLECTION_SIZE_LIMIT_EXCEEDED] Unsuccessful try to create array with "
+				                                "%s elements due to exceeding the array size limit 2147483632.",
+				                                count.ToString());
+			    }
+		    }
+		    return step;
 	    });
 }
 
@@ -3609,10 +3627,20 @@ ExprP BindSequence(FunctionBindExpressionInput &input) {
 		auto ascending = b.Compare(ExpressionType::COMPARE_LESSTHANOREQUALTO, start->Copy(), stop->Copy());
 		step = b.Case(std::move(ascending), b.Constant(Value::BIGINT(1)), b.Constant(Value::BIGINT(-1)));
 	}
+	auto start_long = b.Cast(std::move(start), LogicalType::BIGINT);
+	auto stop_long = b.Cast(std::move(stop), LogicalType::BIGINT);
+	ScalarFunction check(Identifier("spark_sequence_step"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::BIGINT},
+	                     LogicalType::BIGINT, SequenceStepKernel);
+	check.SetFallible();
+	vector<ExprP> check_args;
+	check_args.push_back(start_long->Copy());
+	check_args.push_back(stop_long->Copy());
+	check_args.push_back(std::move(step));
+	auto checked_step = b.Kernel(check, std::move(check_args));
 	vector<ExprP> args;
-	args.push_back(b.Cast(std::move(start), LogicalType::BIGINT));
-	args.push_back(b.Cast(std::move(stop), LogicalType::BIGINT));
-	args.push_back(std::move(step));
+	args.push_back(std::move(start_long));
+	args.push_back(std::move(stop_long));
+	args.push_back(std::move(checked_step));
 	return b.Cast(b.Call("generate_series", std::move(args)), LogicalType::LIST(result_type));
 }
 
