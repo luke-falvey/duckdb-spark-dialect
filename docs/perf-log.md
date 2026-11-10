@@ -360,3 +360,11 @@ Behaviour kept for `x ->`, `(a, b) ->`, `(x) ->`, nesting, `(left, right) ->` (k
 new golden cases from Spark in limitations.sql including the two syntax-error forms. Lost: reserved words that are not
 valid column references as parameter names (none found in the corpus). Checks: run_duckdb both dialects, replay (+known),
 differential, isolation, args_sweep on the higher-order functions: findings unchanged (array_sort comparator returning NULL).
+
+## Exact decimal division (`/` of decimals)
+Decimal division went through DOUBLE and lost digits; it is now an exact kernel (`DecimalDivideKernel`, HALF_UP to Spark's
+result scale). A first version on DuckDB's `uhugeint_t` was 300x native (2M rows of `DECIMAL(18,2) / DECIMAL(10,3)`:
+5.7 ms native, 1,744 ms spark): its division is bit by bit. The kernel now uses the compiler's `unsigned __int128` (one
+runtime call per division) and plain 64-bit division when the scaled operands fit: 13.4 ms (2.4x native, which divides as
+DOUBLE); `DECIMAL(38,10) / DECIMAL(10,3)`: 9.8 ms against 72.7 ms native. Correctness: 21,000 random operand pairs agree
+with Python's `Decimal` (HALF_UP), 300 with live Spark. Smoke benchmarks within `bench/baseline.json`.

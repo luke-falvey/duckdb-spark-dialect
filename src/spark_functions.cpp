@@ -757,13 +757,33 @@ void IntDivKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	                                                   });
 }
 
+// Unsigned 128-bit arithmetic for the decimal division kernel: the compiler's native type where there is one (its
+// division is a single runtime call), DuckDB's portable uhugeint_t otherwise (bit-by-bit division, much slower)
+#if defined(__SIZEOF_INT128__)
+using U128 = unsigned __int128;
+inline U128 ToU128(hugeint_t v) { // v >= 0
+	return (U128(uint64_t(v.upper)) << 64) | U128(v.lower);
+}
+inline hugeint_t FromU128(U128 v) { // v < 2^127
+	return hugeint_t(int64_t(uint64_t(v >> 64)), uint64_t(v));
+}
+#else
+using U128 = uhugeint_t;
+inline U128 ToU128(hugeint_t v) {
+	return uhugeint_t(v);
+}
+inline hugeint_t FromU128(U128 v) {
+	return hugeint_t(v);
+}
+#endif
+
 //! 10^n as an unsigned 128-bit integer, n <= 38
-uhugeint_t PowerOfTen(idx_t n) {
+U128 PowerOfTen(idx_t n) {
 	static const auto table = [] {
-		std::array<uhugeint_t, 39> t;
-		t[0] = uhugeint_t(1);
+		std::array<U128, 39> t;
+		t[0] = U128(1);
 		for (idx_t i = 1; i < t.size(); i++) {
-			t[i] = t[i - 1] * uhugeint_t(10);
+			t[i] = t[i - 1] * U128(10);
 		}
 		return t;
 	}();
@@ -779,32 +799,47 @@ void DecimalDivideKernel(DataChunk &args, ExpressionState &, Vector &result, idx
 	auto scale = idx_t(DecimalType::GetScale(result.GetType()));
 	auto shift = int64_t(s2) + int64_t(scale) - int64_t(s1);
 	auto limit = PowerOfTen(precision);
+	auto digit_limit = PowerOfTen(precision - 1);
+	// the scaled dividend fits in 128 bits below this bound (fast path)
+	auto fast_bound = (shift >= 0 && shift <= 38) ? PowerOfTen(idx_t(38 - shift)) : U128(0);
+	auto scale_factor = (shift >= 0 && shift <= 38) ? PowerOfTen(idx_t(shift)) : U128(1);
 	BinaryExecutor::Execute<hugeint_t, hugeint_t, hugeint_t>(
 	    args.data[0], args.data[1], result, args.size(), [&](hugeint_t a, hugeint_t b) -> optional<hugeint_t> {
 		    if (b == hugeint_t(0)) {
 			    return optional<hugeint_t>();
 		    }
 		    bool negative = (a < hugeint_t(0)) != (b < hugeint_t(0));
-		    auto ua = uhugeint_t(a < hugeint_t(0) ? -a : a);
-		    auto ub = uhugeint_t(b < hugeint_t(0) ? -b : b);
-		    if (shift >= 0 && shift <= 38 && ua < PowerOfTen(idx_t(38 - shift))) {
-			    // fast path: the scaled dividend fits, so one division and a HALF_UP step on the remainder
-			    auto n = ua * PowerOfTen(idx_t(shift));
-			    auto quotient = n / ub;
-			    if ((n % ub) * uhugeint_t(2) >= ub) {
-				    quotient += uhugeint_t(1);
-			    }
-			    if (quotient >= limit) {
+		    auto ua = ToU128(a < hugeint_t(0) ? -a : a);
+		    auto ub = ToU128(b < hugeint_t(0) ? -b : b);
+		    auto finish = [&](U128 q) -> optional<hugeint_t> {
+			    if (q >= limit) {
 				    return optional<hugeint_t>();
 			    }
-			    auto value = hugeint_t(quotient);
+			    auto value = FromU128(q);
 			    return negative ? optional<hugeint_t>(-value) : optional<hugeint_t>(value);
+		    };
+		    if (ua < fast_bound) {
+			    // the scaled dividend fits: one division and a HALF_UP step on the remainder
+			    auto n = ua * scale_factor;
+			    U128 q, r;
+			    if (n <= U128(NumericLimits<uint64_t>::Maximum()) && ub <= U128(NumericLimits<uint64_t>::Maximum())) {
+				    auto n64 = uint64_t(n), b64 = uint64_t(ub);
+				    q = U128(n64 / b64);
+				    r = U128(n64 % b64);
+			    } else {
+				    q = n / ub;
+				    r = n % ub;
+			    }
+			    if (r * U128(2) >= ub) {
+				    q += U128(1);
+			    }
+			    return finish(q);
 		    }
 		    auto q = ua / ub;
 		    auto r = ua % ub;
 		    // the next decimal digit of r / ub, without overflowing: 10 * r = digit * ub + rest
 		    auto next_digit = [&]() {
-			    uhugeint_t acc(0);
+			    U128 acc(0);
 			    uint32_t digit = 0;
 			    for (int i = 0; i < 10; i++) {
 				    acc += r;
@@ -818,31 +853,26 @@ void DecimalDivideKernel(DataChunk &args, ExpressionState &, Vector &result, idx
 		    };
 		    if (shift >= 0) {
 			    // another digit is past `precision` digits once q has precision - 1 of them
-			    auto digit_limit = PowerOfTen(precision - 1);
 			    for (int64_t i = 0; i < shift; i++) {
 				    if (q >= digit_limit) {
 					    return optional<hugeint_t>();
 				    }
-				    q = q * uhugeint_t(10) + uhugeint_t(next_digit());
+				    q = q * U128(10) + U128(next_digit());
 			    }
 			    if (next_digit() >= 5) {
-				    q += uhugeint_t(1);
+				    q += U128(1);
 			    }
 		    } else if (-shift > 38) {
-			    q = uhugeint_t(0);
+			    q = U128(0);
 		    } else {
 			    auto p = PowerOfTen(idx_t(-shift));
 			    auto rest = q % p;
 			    q = q / p;
-			    if (rest * uhugeint_t(2) >= p) {
-				    q += uhugeint_t(1);
+			    if (rest * U128(2) >= p) {
+				    q += U128(1);
 			    }
 		    }
-		    if (q >= limit) {
-			    return optional<hugeint_t>();
-		    }
-		    auto value = hugeint_t(q);
-		    return negative ? optional<hugeint_t>(-value) : optional<hugeint_t>(value);
+		    return finish(q);
 	    });
 }
 
