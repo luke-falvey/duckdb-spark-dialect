@@ -3,7 +3,8 @@ taken from Spark's recorded answers to the C6 matrix (test/cases/types/c6_functi
 
 spark_strict checks a function's arguments against this table at bind time (`check_arg`), so a call Spark rejects
 with DATATYPE_MISMATCH is rejected too. Only direct arguments of the named function are used (a swept value nested
-in another call is skipped), only analysis-time DATATYPE_MISMATCH errors count as a rejection, and kinds the dialect
+in another call is skipped), only analysis-time DATATYPE_MISMATCH errors that name the parameter ("Parameter N requires
+...") count as a rejection, and kinds the dialect
 cannot tell apart (TIMESTAMP and TIMESTAMP_NTZ, the interval kinds, the string values, the array element types) are
 rejected only when Spark rejects every one of them.
 
@@ -89,8 +90,11 @@ def collect():
             continue
         if e["ok"]:
             verdict = "allow"
-        elif e.get("phase") == "analysis" and "DATATYPE_MISMATCH" in (e.get("error_class") or e.get("error") or ""):
-            verdict = "deny"
+        elif (e.get("phase") == "analysis" and "DATATYPE_MISMATCH" in (e.get("error_class") or "")
+              and re.search(r"Parameter (\d+) requires", e.get("error") or "")):
+            # Spark names the parameter it rejects: a rejection for this argument's type, not for its value or for
+            # the other arguments (checked against the position below)
+            verdict = "deny:" + re.search(r"Parameter (\d+) requires", e["error"]).group(1)
         else:
             verdict = "other"
         by_slot[(fn, slot)].append((tname, args, verdict))
@@ -113,7 +117,8 @@ def collect():
         if not positions or len(positions) != 1:
             continue
         pos = positions.pop()
-        verdicts = {tname: verdict for tname, _, verdict in cases}
+        verdicts = {tname: ("deny" if verdict == f"deny:{pos + 1}" else "other" if verdict.startswith("deny") else verdict)
+                    for tname, _, verdict in cases}
         denied = set()
         for kind, members in KINDS.items():
             seen = [verdicts[m] for m in members if m in verdicts]
