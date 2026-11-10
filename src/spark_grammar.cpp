@@ -1575,15 +1575,12 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 	if (expr->GetExpressionClass() == ExpressionClass::OPERATOR && expr->GetExpressionType() == ExpressionType::OPERATOR_COALESCE &&
 	    expr->Cast<OperatorExpression>().GetChildren().size() >= 2) {
 		// COALESCE(a, b, ...): the operands are brought to Spark's common type first (a string with a number is a string)
+		// (no alias here: an aliased argument reads as a named argument to a macro, see CoalesceColumnName)
 		vector<ExprPtr> operands;
-		string name = "coalesce(";
 		for (auto &child : expr->Cast<OperatorExpression>().GetChildrenMutable()) {
-			name += (operands.empty() ? "" : ", ") + child->ToString();
 			operands.push_back(std::move(child));
 		}
-		auto call = SparkCall("coalesce_value", std::move(operands));
-		call->SetAlias(Identifier(name + ")"));  // the column name Spark gives (an explicit AS replaces it)
-		return call;
+		return SparkCall("coalesce_value", std::move(operands));
 	}
 	if (expr->GetExpressionClass() == ExpressionClass::WINDOW) {
 		auto &window = expr->Cast<WindowExpression>();
@@ -1672,6 +1669,25 @@ bool RenameGeneratorColumns(ParsedExpression &expr, const string &aliases) {
 	return true;
 }
 
+//! A select-list item that is COALESCE(a, b) (rewritten to system.spark.coalesce_value) gets the column name Spark
+//! gives it. Set on the select-list item only: an alias on a function argument would read as a named argument.
+void SetCoalesceColumnName(ParsedExpression &expr) {
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return;
+	}
+	auto &func = expr.Cast<FunctionExpression>();
+	if (func.GetQualifiedName().Schema().empty() ||
+	    !StringUtil::CIEquals(func.FunctionName().GetIdentifierName(), "coalesce_value")) {
+		return;
+	}
+	string name = "coalesce(";
+	idx_t i = 0;
+	for (auto &argument : func.GetArguments()) {
+		name += (i++ ? ", " : "") + argument.GetExpression().ToString();
+	}
+	expr.SetAlias(Identifier(name + ")"));
+}
+
 //! AliasedExpression: `generator AS name` and `generator AS (a, b)` name the generated columns
 ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
@@ -1693,6 +1709,8 @@ ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto expr = Expr(t, alt);
 	if (!expr->GetAlias().empty()) {
 		RenameGeneratorColumns(*expr, expr->GetAlias().GetIdentifierName());
+	} else {
+		SetCoalesceColumnName(*expr);
 	}
 	return expr;
 }
