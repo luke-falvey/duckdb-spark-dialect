@@ -4,6 +4,81 @@ This plan is a self-contained handoff. Read it fully before starting. It assumes
 sessions. Read `README.md` and `test/fuzz/README.md` first; they describe the code layers and the
 existing differential tests.
 
+## Implementation status (kept up to date for the agents that continue this plan)
+
+The plan below is unchanged. `[x]` = done and verified (CI green on the branch, zero FAIL / XPASS in both dialects under the
+default, ANSI, time zone and decimal configurations); `[ ]` = not done or only partly done, with the reason.
+Regenerate the tables: `python scripts/xfail_summary.py` (per xfail id: `docs/plans/spark-parity/known_differences.md`),
+`python scripts/coverage_report.py` (COVERAGE.md). Spark JVM runs need `pip install pyspark==3.5.*` and Java 17.
+
+**Workstream A: harness**
+- [x] 5.1 column types compared (`duck_type_to_spark`), 5.2 error phase, 5.3 `-- @exact`
+- [x] 5.4 settings per file / per case / `@matrix` / `--config`
+- [x] 5.5 expected failures (`test/xfail.toml`, per configuration, XPASS and stale entries fail the run; `--no-xfail`, `--results`)
+- [x] 5.6 other items (unit tests `test/test_harness.py`, names gating by SQL text, error class gated in `spark_strict` for types / settings files)
+
+**Workstream B: settings**
+- [x] B1 inventory of all 478 keys, `check_inventory.py`, `scripts/gen_inventory.py`
+- [x] B2 `SET` / `RESET` / `SET TIME ZONE` (`test/cases/settings/set_command.sql`, `time_zone_command.sql`), `session_behaviour.sql`
+- [x] B3 one case file per semantic setting (66 files, witnesses verified in Spark)
+- [x] B4 `interactions.sql`, `interactions_time.sql`
+- [x] B5 DuckDB settings do not leak (`scripts/check_duckdb_leaks.py`, `test/settings/duckdb_inventory.toml`)
+- [x] Emulated: `session.timeZone` (partly: zone names and `window()` are xfails), `mapKeyDedupPolicy`, `legacy.sizeOfNull`,
+  `jsonGenerator.ignoreNullFields`, `function.concatBinaryAsString`, `function.eltOutputAsString`, `chunkBase64String.enabled`,
+  `decimalOperations.allowPrecisionLoss`, `legacy.statisticalAggregate`, `legacy.negativeIndexInArrayInsert`,
+  `legacy.followThreeValuedLogicInArrayExists`; `ansi.enabled` runtime errors only
+- [ ] Tier 1 not emulated, moved to tier 3 with a note in the inventory: `caseSensitive`, `storeAssignmentPolicy`, `legacy.timeParserPolicy`
+- [ ] Tier 2 not emulated (parser / binder / planner decisions), tier 3 with notes: `groupByOrdinal`, `orderByOrdinal`, `groupByAliases`,
+  `crossJoin.enabled`, `legacy.setopsPrecedence.enabled`, `parser.escapedStringLiterals`, `parser.quotedRegexColumnNames`,
+  `ansi.doubleQuotedIdentifiers`, `ansi.enforceReservedKeywords`, `ansi.relationPrecedence`, `variable.substitute`,
+  `lateralColumnAlias.enableImplicitResolution`, `legacy.ctePrecedencePolicy`, `legacy.createHiveTableByDefault`, `charAsVarchar`,
+  `legacy.nullInEmptyListBehavior`, `legacy.allowParameterlessCount`, `legacy.castComplexTypesToString.enabled`
+- [ ] `timestampType` / `legacy.typeCoercion.datetimeToString.enabled` stay rejected, so their rows of workstream D do not run
+- [ ] 9.5 generated column names are not implemented: the 15 cases of `test/cases/generated_names.sql` are xfails (`names-generated`)
+- [ ] Views and cached tables capture no settings (`view-captures-settings` xfail)
+
+**Workstream C: type matrices** (`scripts/gen_type_cases.py`, `test/fuzz/args_sweep.py --types`)
+- [x] C1-C5, C7-C14 generated, recorded from Spark, run in both dialects
+- [x] C6 generated (21,995 statements, one example per function, up to 4 slots, 22 types; numbers compared with tolerance),
+  `test/golden/signatures.json.gz`, `scripts/check_int_parameters.py` (report only: its output is noisy)
+- [ ] Burn-down of the `types-open-c1` ... `types-open-c14` ids (see known_differences.md for counts). Done so far: float with decimal is
+  DOUBLE, bool to timestamp, `-9223372036854775808`, `COALESCE` / `array` / `CASE` / nested common types, `IN` lists and `BETWEEN`
+  through Spark's implicit casts, string parameters of string / regexp / date functions, INT parameters truncate fractions.
+  Open: decimal division digits (computed through DOUBLE), narrowing casts of decimals wrap in Spark and give NULL here,
+  `CAST(x AS BINARY)` of numbers, `round` / `bround` of untyped NULL, `median` type, JOIN `USING` / `NATURAL` key coercion,
+  strict-dialect leniencies (most of the `spark_strict` expected failures: Spark rejects, `spark_strict` accepts)
+- [ ] 9.3 / 9.4: `types-ntz` and `types-interval` stay (one DuckDB type each); no TIMESTAMP to TIMESTAMPTZ remap was evaluated
+
+**Workstream D: configurations**
+- [x] ANSI (all of types except C6, plus operators, literals_types, functions_examples, queries, ddl_dml), time zone
+  `America/Los_Angeles` (C1, C2, C4, C10, C12, functions_examples), `allowPrecisionLoss=false` (C3, C8): recorded, run, xfail entries
+- [ ] `signatures.json.gz` recorded a second time under ANSI; `caseSensitive`, `timestampType`, `datetimeToString` rows (settings rejected)
+- [ ] ANSI implicit-cast rules are not implemented: shared id `ansi-implicit-cast`
+
+**Workstream E: Spark corpus and fuzzers**
+- [x] 54 Spark inputs promoted to `test/cases/spark_corpus/` (`scripts/promote_spark_corpus.py`, NOTICE), goldens from live Spark
+- [x] `gen.py` new column types and mixed kinds, `differential.py --conf-fuzz` / `--conf`, `compare.py` compares types and phase
+  (report only: `REPORT_ONLY` kinds `type_mismatch`, `phase_mismatch`; promote them to failing once the xfail ids are burned down)
+- [ ] `spark_corpus.py run` still has its own `SKIP` list (the promoted files are gated through `test/cases/` instead)
+- [ ] `differential.py --conf-fuzz --budget 20000` was not run to completion; it excludes `ansi.enabled`
+
+**CI and documentation**
+- [x] CI sharded by case group (`scripts/case_group.py`), ANSI configuration on push, unit job (tests, inventory, generated files up to date),
+  nightly workflow with the other configurations, `--conf-fuzz`, signatures re-recording
+- [x] `scripts/coverage_report.py` settings table and per-matrix tables, `COVERAGE.md`, README testing section and limitations
+- [ ] COVERAGE.md is generated locally (CI runs files by group, which writes no `summary.txt`)
+- [ ] TPC-H benchmark not re-run (the `tpch` extension needs network); other smoke benchmarks pass `bench/baseline.json`
+
+**Definition of done (section 10)**
+1. [x] `check_inventory.py` passes
+2. [x] every matrix generated, recorded and run in both dialects under the default configuration and each configuration that runs
+3. [x] rows, column types and error phase compared in every case file
+4. [ ] zero FAIL / XPASS holds, but the remaining XFAIL ids are not only `conf-rejected`, `types-ntz`, `types-interval`: open ids remain (`types-open-c*`, `corpus-open`, `ansi-implicit-cast`, `names-generated`, `view-captures-settings`, `phase-*`, ...)
+5. [x] `SET` of a semantic setting is emulated or rejected, never silently ignored
+6. [ ] `args_sweep.py --types` is recorded; `differential.py --conf-fuzz` ran only with small budgets (known differences cover the fixed smoke seeds)
+7. [x] README and COVERAGE.md describe the state
+8. [x] benchmarks within `bench/baseline.json` (TPC-H not re-run offline)
+
 ## 1. Goal
 
 Every observable behaviour of Spark SQL 3.5 that this extension claims to reproduce is checked against a
