@@ -2406,7 +2406,8 @@ ExprP BindNarrowInt(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto value = Arg(input, 0);
 	auto type = Normalize(value->GetReturnType());
-	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT) {
+	if (type.id() == LogicalTypeId::BIGINT || type.id() == LogicalTypeId::HUGEINT || IsFloating(type) || IsDecimal(type)) {
+		// Spark's implicit cast to INT: wraps a BIGINT, truncates a fraction (a string argument may be a format: unchanged)
 		return SparkCast(b, std::move(value), LogicalType::INTEGER);
 	}
 	return value;
@@ -2666,7 +2667,7 @@ void CastToCommonType(Builder &b, vector<ExprP> &args) {
 		return;
 	}
 	for (auto &arg : args) {
-		if (arg->GetReturnType() != common && !IsNull(Normalize(arg->GetReturnType()))) {
+		if (arg->GetReturnType() != common) {
 			arg = b.Cast(std::move(arg), common);
 		}
 	}

@@ -533,7 +533,10 @@ def instants(rows, spark_types, zone):
             v = row[i]
             if v is not None and v[0] == "ts":
                 wall = v[1].replace(tzinfo=zone)
-                row[i] = ("ts", wall.astimezone(dt.timezone.utc).replace(tzinfo=None))
+                try:
+                    row[i] = ("ts", wall.astimezone(dt.timezone.utc).replace(tzinfo=None))
+                except OverflowError:
+                    pass  # an instant outside Python's range (year 1 / 9999 in a zone with an offset): left as the wall clock
         out.append(row)
     return out
 
@@ -650,6 +653,9 @@ import fnmatch  # noqa: E402
 import tomllib  # noqa: E402
 
 XFAIL_FILE = ROOT / "xfail.toml"
+
+
+RUN_COMBOS = set()  # (case file name, configuration slug) pairs that run in this process, for the stale-entry check
 
 
 class XfailEntry:

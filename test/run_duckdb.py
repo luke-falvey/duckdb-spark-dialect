@@ -52,6 +52,7 @@ def run_file(path, verbose, keyword, dialect="spark", extra=(), duck_sets=(), xf
     directives = file_directives(path)
     golden = load_golden(path, extra)
     slug = config_slug(extra)
+    harness.RUN_COMBOS.add((harness.case_file_name(path), slug))
     duck = DuckRunner(dialect=dialect, timeout=CASE_TIMEOUT, extension=EXTENSION)
     # file-level `-- @config key=value`, matrix values and --config: the same setting in the dialect (Spark's SET)
     # as in the golden run
@@ -127,6 +128,8 @@ def main():
     parser.add_argument("--dialect", choices=["spark", "spark_strict"], default="spark")
     parser.add_argument("--config", action="append", default=[])
     parser.add_argument("--duck-set", action="append", default=[])
+    parser.add_argument("--no-xfail", action="store_true", help="ignore test/xfail.toml (to regenerate it from the failures)")
+    parser.add_argument("--results", help="write the result files here instead of test/results/ (parallel runs)")
     parser.add_argument("files", nargs="*")
     args = parser.parse_args()
     files = [Path(f).resolve() for f in args.files] or sorted((ROOT / "cases").rglob("*.sql"))
@@ -136,7 +139,7 @@ def main():
     # statements that write files (COPY, EXPORT DATABASE, ...) must not write into the repository
     os.chdir(scratch_dir("duck-cases-"))
 
-    xfail = load_xfail()
+    xfail = () if args.no_xfail else load_xfail()
     total = Counter()
     by_function = defaultdict(Counter)
     failures = []
@@ -162,8 +165,8 @@ def main():
     total_line = f"{'TOTAL':44} " + "  ".join(f"{k}={total[k]}" for k in KINDS if k != "SKIP" or total[k])
     print(total_line)
     summary_lines.append(total_line)
-    out = ROOT / "results"
-    out.mkdir(exist_ok=True)
+    out = Path(args.results).resolve() if args.results else ROOT / "results"
+    out.mkdir(parents=True, exist_ok=True)
     suffix = "" if args.dialect == "spark" else "_" + args.dialect
     (out / f"failures{suffix}.txt").write_text("\n".join(failures))
     (out / f"cases{suffix}.json").write_text(json.dumps(records))
@@ -179,7 +182,8 @@ def main():
     for entry in xfail:
         if args.keyword or args.dialect not in entry.dialects:
             continue
-        if any(fnmatch.fnmatchcase(n, entry.file) for n in run_names) and not getattr(entry, "fails", 0):
+        if (any(entry.applies_to_file(n, slug) for n, slug in harness.RUN_COMBOS)
+                and not getattr(entry, "fails", 0)):
             stale.append(entry)
     for entry in stale:
         print(f"STALE xfail entry (matched no failing case): id={entry.id} file={entry.file} reason={entry.reason}")

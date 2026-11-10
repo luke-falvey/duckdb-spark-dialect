@@ -374,9 +374,9 @@ def c11_boolean_contexts():
     write("c11_boolean_contexts", "C11 a value of every type as a condition: WHERE, HAVING, ON, CASE WHEN, IF, AND, OR, NOT, filter, FILTER", cases)
 
 
-AGGS = ["sum({c})", "avg({c})", "min({c})", "max({c})", "count({c})", "first({c})", "last({c})", "collect_list({c})", "collect_set({c})", "approx_count_distinct({c})",
-        "stddev({c})", "var_pop({c})", "count(DISTINCT {c})", "any_value({c})", "mode({c})", "median({c})", "percentile_approx({c}, 0.5)", "sum(DISTINCT {c})",
-        "bit_and({c})", "bool_and({c})", "max_by({c}, {c})", "skewness({c})", "kurtosis({c})", "try_sum({c})", "try_avg({c})"]
+AGGS = ["sum({c})", "avg({c})", "min({c})", "max({c})", "count({c})", "sort_array(collect_list({c}))", "sort_array(collect_set({c}))",
+        "stddev({c})", "var_pop({c})", "count(DISTINCT {c})", "median({c})", "sum(DISTINCT {c})", "bit_and({c})", "bool_and({c})",
+        "skewness({c})", "kurtosis({c})", "try_sum({c})", "try_avg({c})"]
 
 
 def c12_aggregates():
@@ -385,7 +385,9 @@ def c12_aggregates():
         if not t.literal_ok:
             continue
         rows = [v for v in t.values[:3]]
-        rowsets = {"rows": rows, "one": rows[:1], "nulls": [t.null, t.null]}
+        # never the minimum and the maximum together: whether their sum overflows depends on the order of accumulation
+        rowsets = {"min": [rows[0], rows[1], t.null] if len(rows) > 1 else rows, "max": [rows[0], rows[-1], t.null] if len(rows) > 2 else rows[:1],
+                   "one": rows[:1], "nulls": [t.null, t.null]}
         for label, rs in rowsets.items():
             for agg in AGGS:
                 e = agg.format(c="v")

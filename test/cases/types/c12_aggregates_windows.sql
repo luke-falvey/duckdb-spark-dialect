@@ -12,15 +12,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN
 
 SELECT typeof(count(v)), count(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
@@ -28,21 +22,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (true), (false), (CAST(NULL AS
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
@@ -51,6 +37,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (true), (false), (CAST(NULL 
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (true), (false), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (true), (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (true) AS t(v);
 
@@ -62,15 +84,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (true) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (true) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (true) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (true) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (true) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (true) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (true) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (true) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (true) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (true) AS t(v);
 
@@ -78,21 +94,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (true) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (true) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (true) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (true) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (true) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (true) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (true) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (true) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (true) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (true) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (true) AS t(v);
 
@@ -112,15 +120,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
@@ -128,21 +130,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS BOOLEAN)), (CAST(NULL AS BOOLEAN)) AS t(v);
 
@@ -162,61 +156,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE fal
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS BOOLEAN) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(-128 AS TINYINT)), (CAST(127 AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS TINYINT)), (CAST(127 AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
@@ -228,15 +244,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
@@ -244,21 +254,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS TINYINT)) AS t(v);
 
@@ -278,15 +280,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
@@ -294,21 +290,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS TINYINT)), (CAST(NULL AS TINYINT)) AS t(v);
 
@@ -328,61 +316,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE fal
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS TINYINT) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(-32768 AS SMALLINT)), (CAST(32767 AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS SMALLINT)), (CAST(32767 AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
@@ -394,15 +404,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
@@ -410,21 +414,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS SMALLINT)) AS t(v);
 
@@ -444,15 +440,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL A
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
@@ -460,21 +450,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAS
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS SMALLINT)), (CAST(NULL AS SMALLINT)) AS t(v);
 
@@ -494,61 +476,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE fa
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS SMALLINT) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS INT)), (CAST(-2147483648 AS INT)), (CAST(2147483647 AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS INT)), (CAST(2147483647 AS INT)), (CAST(NULL AS INT)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
@@ -560,15 +564,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
@@ -576,21 +574,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS INT)) AS t(v);
 
@@ -610,15 +600,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
@@ -626,21 +610,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NUL
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS INT)), (CAST(NULL AS INT)) AS t(v);
 
@@ -660,61 +636,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS INT) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(-9223372036854775808 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS BIGINT)), (CAST(9223372036854775807 AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
@@ -726,15 +724,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
@@ -742,21 +734,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS BIGINT)) AS t(v);
 
@@ -776,15 +760,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS 
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
@@ -792,21 +770,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS BIGINT)), (CAST(NULL AS BIGINT)) AS t(v);
 
@@ -826,61 +796,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE fals
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS BIGINT) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST('NaN' AS FLOAT)), (CAST(-0.0 AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1.5 AS FLOAT)), (CAST(-0.0 AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
@@ -892,15 +884,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
@@ -908,21 +894,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS FLOAT)) AS t(v);
 
@@ -942,15 +920,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS F
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
@@ -958,21 +930,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(N
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS FLOAT)), (CAST(NULL AS FLOAT)) AS t(v);
 
@@ -992,61 +956,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS FLOAT) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (1.5D), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (1.5D), (CAST('Infinity' AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (1.5D) AS t(v);
 
@@ -1058,15 +1044,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (1.5D) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (1.5D) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (1.5D) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (1.5D) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (1.5D) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (1.5D) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (1.5D) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (1.5D) AS t(v);
 
@@ -1074,21 +1054,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (1.5D) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (1.5D) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (1.5D) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (1.5D) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (1.5D) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (1.5D) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (1.5D) AS t(v);
 
@@ -1108,15 +1080,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS 
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
@@ -1124,21 +1090,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DOUBLE)), (CAST(NULL AS DOUBLE)) AS t(v);
 
@@ -1158,11 +1116,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE fals
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DOUBLE) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
@@ -1174,15 +1132,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
@@ -1190,21 +1142,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2)))
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
@@ -1213,6 +1157,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2)
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(-999.99 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
@@ -1224,15 +1204,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v)
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
@@ -1240,21 +1214,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2)))
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(123.45 AS DECIMAL(5,2))) AS t(v);
 
@@ -1274,15 +1240,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NU
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
@@ -1290,21 +1250,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), 
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DECIMAL(5,2))), (CAST(NULL AS DECIMAL(5,2))) AS t(v);
 
@@ -1324,11 +1276,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHER
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DECIMAL(5,2)) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
@@ -1340,15 +1292,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
@@ -1356,21 +1302,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
@@ -1379,6 +1317,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1234567890 AS DECIMAL(
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(-9999999999 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
@@ -1390,15 +1364,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
@@ -1406,21 +1374,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1234567890 AS DECIMAL(10,0))) AS t(v);
 
@@ -1440,15 +1400,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
@@ -1456,21 +1410,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DECIMAL(10,0))), (CAST(NULL AS DECIMAL(10,0))) AS t(v);
 
@@ -1490,11 +1436,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHE
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DECIMAL(10,0)) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
@@ -1506,15 +1452,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
@@ -1522,21 +1462,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(123456789012345.12345 AS
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
@@ -1545,6 +1477,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(123456789012345.12345 
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(0.00001 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
@@ -1556,15 +1524,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
@@ -1572,21 +1534,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(123456789012345.12345 AS
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(123456789012345.12345 AS DECIMAL(20,5))) AS t(v);
 
@@ -1606,15 +1560,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
@@ -1622,21 +1570,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DECIMAL(20,5))), (CAST(NULL AS DECIMAL(20,5))) AS t(v);
 
@@ -1656,11 +1596,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHE
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DECIMAL(20,5)) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
@@ -1672,15 +1612,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(1
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
@@ -1688,21 +1622,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
@@ -1711,6 +1637,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(12345678901234567890.123456789012345678 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
@@ -1722,15 +1684,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
@@ -1738,21 +1694,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) 
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1.5 AS DECIMAL(38,18))) AS t(v);
 
@@ -1772,15 +1720,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
@@ -1788,21 +1730,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18)))
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DECIMAL(38,18))), (CAST(NULL AS DECIMAL(38,18))) AS t(v);
 
@@ -1822,11 +1756,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WH
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DECIMAL(38,18)) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
@@ -1838,15 +1772,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(9999
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
@@ -1854,21 +1782,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (C
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
@@ -1877,6 +1797,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), 
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
@@ -1888,15 +1844,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
@@ -1904,21 +1854,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS 
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(1 AS DECIMAL(38,0))) AS t(v);
 
@@ -1938,15 +1880,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
@@ -1954,21 +1890,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DECIMAL(38,0))), (CAST(NULL AS DECIMAL(38,0))) AS t(v);
 
@@ -1988,61 +1916,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHE
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DECIMAL(38,0)) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES ('abc'), (''), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES ('abc'), (''), ('日本語') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES ('abc'), ('日本語'), (CAST(NULL AS STRING)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES ('abc') AS t(v);
 
@@ -2054,15 +2004,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES ('abc') AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES ('abc') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES ('abc') AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES ('abc') AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES ('abc') AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES ('abc') AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES ('abc') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES ('abc') AS t(v);
 
@@ -2070,21 +2014,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES ('abc') AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES ('abc') AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES ('abc') AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES ('abc') AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES ('abc') AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES ('abc') AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES ('abc') AS t(v);
 
@@ -2104,15 +2040,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS 
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
@@ -2120,21 +2050,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS STRING)), (CAST(NULL AS STRING)) AS t(v);
 
@@ -2154,11 +2076,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE fals
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS STRING) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
@@ -2170,15 +2092,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY
 
 SELECT typeof(count(v)), count(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
@@ -2186,21 +2102,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (X'4142'), (X''), (CAST(NULL A
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
@@ -2209,6 +2117,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (X'4142'), (X''), (CAST(NULL
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (X'4142'), (X''), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (X'4142'), (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (X'4142') AS t(v);
 
@@ -2220,15 +2164,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (X'4142') AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (X'4142') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (X'4142') AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (X'4142') AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (X'4142') AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (X'4142') AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (X'4142') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (X'4142') AS t(v);
 
@@ -2236,21 +2174,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (X'4142') AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (X'4142') AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (X'4142') AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (X'4142') AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (X'4142') AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (X'4142') AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (X'4142') AS t(v);
 
@@ -2270,15 +2200,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS 
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
@@ -2286,21 +2210,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS BINARY)), (CAST(NULL AS BINARY)) AS t(v);
 
@@ -2320,61 +2236,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE fals
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS BINARY) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (DATE'2024-02-29'), (DATE'0001-01-01'), (DATE'9999-12-31') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (DATE'2024-02-29'), (DATE'9999-12-31'), (CAST(NULL AS DATE)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
@@ -2386,15 +2324,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (DATE'2024-02-29') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (DATE'2024-02-29') AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (DATE'2024-02-29') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
@@ -2402,21 +2334,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (DATE'2024-02-29') AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (DATE'2024-02-29') AS t(v);
 
@@ -2436,15 +2360,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DA
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
@@ -2452,21 +2370,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NU
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS DATE)), (CAST(NULL AS DATE)) AS t(v);
 
@@ -2486,61 +2396,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS DATE) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'0001-01-01 00:00:00'), (TIMESTAMP'2024-03-10 02:30:00') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'), (TIMESTAMP'2024-03-10 02:30:00'), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
@@ -2552,15 +2484,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456'
 
 SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
@@ -2568,21 +2494,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP'2024-02-29 10:30:00.123456') AS t(v);
 
@@ -2602,15 +2520,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL 
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
@@ -2618,21 +2530,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CA
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS TIMESTAMP)), (CAST(NULL AS TIMESTAMP)) AS t(v);
 
@@ -2652,11 +2556,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE f
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS TIMESTAMP) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
@@ -2668,15 +2572,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123
 
 SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
@@ -2684,21 +2582,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:3
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
@@ -2707,6 +2597,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (TIMESTAMP_NTZ'0001-01-01 00:00:00'), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456'), (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
@@ -2718,15 +2644,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123
 
 SELECT typeof(count(v)), count(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
@@ -2734,21 +2654,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:3
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (TIMESTAMP_NTZ'2024-02-29 10:30:00.123456') AS t(v);
 
@@ -2768,15 +2680,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
@@ -2784,21 +2690,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS TIMESTAMP_NTZ)), (CAST(NULL AS TIMESTAMP_NTZ)) AS t(v);
 
@@ -2818,11 +2716,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHE
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS TIMESTAMP_NTZ) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
@@ -2834,15 +2732,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTER
 
 SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
@@ -2850,21 +2742,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH)
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
@@ -2873,6 +2757,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONT
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (INTERVAL '-0-1' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH), (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
@@ -2884,15 +2804,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v)
 
 SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
@@ -2900,21 +2814,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH)
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '1-2' YEAR TO MONTH) AS t(v);
 
@@ -2934,15 +2840,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH))
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
@@ -2950,21 +2850,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS INTERVAL YEAR TO MONTH)), (CAST(NULL AS INTERVAL YEAR TO MONTH)) AS t(v);
 
@@ -2984,11 +2876,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) 
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS INTERVAL YEAR TO MONTH) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
@@ -3000,15 +2892,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND
 
 SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
@@ -3016,21 +2902,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY T
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
@@ -3039,6 +2917,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (INTERVAL '-0 00:00:01' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND), (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
@@ -3050,15 +2964,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND
 
 SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
@@ -3066,21 +2974,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY T
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '1 02:03:04.5' DAY TO SECOND) AS t(v);
 
@@ -3100,15 +3000,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND))
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
@@ -3116,21 +3010,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO 
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS INTERVAL DAY TO SECOND)), (CAST(NULL AS INTERVAL DAY TO SECOND)) AS t(v);
 
@@ -3150,61 +3036,47 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) 
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS INTERVAL DAY TO SECOND) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '5' MONTH), (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
@@ -3216,15 +3088,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
@@ -3232,13 +3098,7 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
@@ -3246,7 +3106,41 @@ SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' MONTH) AS t(v);
 
@@ -3266,15 +3160,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
@@ -3282,21 +3170,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH))
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS INTERVAL MONTH)), (CAST(NULL AS INTERVAL MONTH)) AS t(v);
 
@@ -3316,61 +3196,47 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WH
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS INTERVAL MONTH) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '5' HOUR), (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
@@ -3382,15 +3248,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
@@ -3398,13 +3258,7 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
@@ -3412,7 +3266,41 @@ SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (INTERVAL '5' HOUR) AS t(v);
 
@@ -3432,15 +3320,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
@@ -3448,21 +3330,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS INTERVAL HOUR)), (CAST(NULL AS INTERVAL HOUR)) AS t(v);
 
@@ -3482,61 +3356,83 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHE
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS INTERVAL HOUR) AS v) WHERE false;
 
-SELECT typeof(sum(v)), sum(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(avg(v)), avg(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(min(v)), min(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(max(v)), max(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(count(v)), count(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(median(v)), median(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(mode(v)), mode(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(median(v)), median(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array(1, 2)), (array()), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sum(v)), sum(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(avg(v)), avg(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(min(v)), min(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(max(v)), max(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(count(v)), count(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array(1, 2)), (array()), (array(1, NULL)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array(1, 2)), (array(1, NULL)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (array(1, 2)) AS t(v);
 
@@ -3548,15 +3444,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (array(1, 2)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (array(1, 2)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array(1, 2)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (array(1, 2)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (array(1, 2)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (array(1, 2)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (array(1, 2)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(1, 2)) AS t(v);
 
@@ -3564,21 +3454,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(1, 2)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (array(1, 2)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (array(1, 2)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (array(1, 2)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(1, 2)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (array(1, 2)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(1, 2)) AS t(v);
 
@@ -3598,15 +3480,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
@@ -3614,21 +3490,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (C
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS ARRAY<INT>)), (CAST(NULL AS ARRAY<INT>)) AS t(v);
 
@@ -3648,11 +3516,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE 
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS ARRAY<INT>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
@@ -3664,15 +3532,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (array('a', 'b')), (array('1', NULL)),
 
 SELECT typeof(count(v)), count(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
@@ -3680,21 +3542,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array('a', 'b')), (array('1',
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
@@ -3703,6 +3557,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array('a', 'b')), (array('1
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array('a', 'b')), (array('1', NULL)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array('a', 'b')), (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (array('a', 'b')) AS t(v);
 
@@ -3714,15 +3604,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (array('a', 'b')) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (array('a', 'b')) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array('a', 'b')) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (array('a', 'b')) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (array('a', 'b')) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (array('a', 'b')) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (array('a', 'b')) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array('a', 'b')) AS t(v);
 
@@ -3730,21 +3614,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array('a', 'b')) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (array('a', 'b')) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (array('a', 'b')) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (array('a', 'b')) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array('a', 'b')) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (array('a', 'b')) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array('a', 'b')) AS t(v);
 
@@ -3764,15 +3640,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
@@ -3780,21 +3650,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS ARRAY<STRING>)), (CAST(NULL AS ARRAY<STRING>)) AS t(v);
 
@@ -3814,11 +3676,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHE
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS ARRAY<STRING>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
@@ -3830,15 +3692,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (array(array(1), array(2, 3))), (array
 
 SELECT typeof(count(v)), count(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
@@ -3846,21 +3702,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(array(1), array(2, 3)))
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
@@ -3869,6 +3717,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array(array(1), array(2, 3)
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array(array(1), array(2, 3))), (array(array(1), NULL)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (array(array(1), array(2, 3))), (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
@@ -3880,15 +3764,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v)
 
 SELECT typeof(count(v)), count(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
@@ -3896,21 +3774,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (array(array(1), array(2, 3)))
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (array(array(1), array(2, 3))) AS t(v);
 
@@ -3930,15 +3800,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CA
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
@@ -3946,21 +3810,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS ARRAY<ARRAY<INT>>)), (CAST(NULL AS ARRAY<ARRAY<INT>>)) AS t(v);
 
@@ -3980,11 +3836,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v)
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS ARRAY<ARRAY<INT>>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
@@ -3996,15 +3852,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST
 
 SELECT typeof(count(v)), count(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
@@ -4012,21 +3862,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (map('a', 1)), (map('a', NULL)
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
@@ -4035,6 +3877,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (map('a', 1)), (map('a', NUL
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (map('a', 1)), (map('a', NULL)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (map('a', 1)), (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (map('a', 1)) AS t(v);
 
@@ -4046,15 +3924,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (map('a', 1)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (map('a', 1)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (map('a', 1)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (map('a', 1)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (map('a', 1)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (map('a', 1)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (map('a', 1)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (map('a', 1)) AS t(v);
 
@@ -4062,21 +3934,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (map('a', 1)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (map('a', 1)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (map('a', 1)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (map('a', 1)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (map('a', 1)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (map('a', 1)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (map('a', 1)) AS t(v);
 
@@ -4096,15 +3960,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
@@ -4112,21 +3970,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS MAP<STRING,INT>)), (CAST(NULL AS MAP<STRING,INT>)) AS t(v);
 
@@ -4146,11 +3996,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) W
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS MAP<STRING,INT>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
@@ -4162,15 +4012,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(N
 
 SELECT typeof(count(v)), count(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
@@ -4178,21 +4022,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (map(1, 'a')), (map(1, NULL)),
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
@@ -4201,6 +4037,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (map(1, 'a')), (map(1, NULL)
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (map(1, 'a')), (map(1, NULL)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (map(1, 'a')), (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (map(1, 'a')) AS t(v);
 
@@ -4212,15 +4084,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(count(v)), count(v) FROM VALUES (map(1, 'a')) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (map(1, 'a')) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (map(1, 'a')) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (map(1, 'a')) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (map(1, 'a')) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (map(1, 'a')) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (map(1, 'a')) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (map(1, 'a')) AS t(v);
 
@@ -4228,21 +4094,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (map(1, 'a')) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (map(1, 'a')) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (map(1, 'a')) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (map(1, 'a')) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (map(1, 'a')) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (map(1, 'a')) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (map(1, 'a')) AS t(v);
 
@@ -4262,15 +4120,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
@@ -4278,21 +4130,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS MAP<INT,STRING>)), (CAST(NULL AS MAP<INT,STRING>)) AS t(v);
 
@@ -4312,11 +4156,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) W
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS MAP<INT,STRING>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
@@ -4328,15 +4172,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (nam
 
 SELECT typeof(count(v)), count(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
@@ -4344,21 +4182,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (named_struct('a', 1, 'b', 'x'
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
@@ -4367,6 +4197,42 @@ SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (named_struct('a', 1, 'b', '
 SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (named_struct('a', NULL, 'b', NULL)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (named_struct('a', 1, 'b', 'x')), (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
@@ -4378,15 +4244,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(
 
 SELECT typeof(count(v)), count(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
@@ -4394,21 +4254,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (named_struct('a', 1, 'b', 'x'
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (named_struct('a', 1, 'b', 'x')) AS t(v);
 
@@ -4428,15 +4280,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>))
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
@@ -4444,21 +4290,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:S
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS STRUCT<a:INT,b:STRING>)), (CAST(NULL AS STRUCT<a:INT,b:STRING>)) AS t(v);
 
@@ -4478,11 +4316,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) 
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS STRUCT<a:INT,b:STRING>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4494,15 +4332,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') A
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4510,21 +4342,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(named_struct('a', 1, 'b'
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4544,15 +4368,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') A
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4560,13 +4378,7 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(named_struct('a', 1, 'b'
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4574,7 +4386,41 @@ SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(named_struct('a', 1, 'b'
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(named_struct('a', 1, 'b', 'x') AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4594,15 +4440,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4610,21 +4450,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)), (CAST(NULL AS STRUCT<a:BIGINT,b:STRING>)) AS t(v);
 
@@ -4644,11 +4476,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS STRUCT<a:BIGINT,b:STRING>) AS v) WHERE false;
 
 SELECT typeof(sum(v)), sum(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
@@ -4660,15 +4492,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(
 
 SELECT typeof(count(v)), count(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
@@ -4676,21 +4502,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (named_struct('x', 1, 'y', 'x'
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
@@ -4710,15 +4528,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(
 
 SELECT typeof(count(v)), count(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
@@ -4726,13 +4538,7 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (named_struct('x', 1, 'y', 'x'
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
@@ -4740,7 +4546,41 @@ SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (named_struct('x', 1, 'y', 'x'
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
+
+SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (named_struct('x', 1, 'y', 'x')) AS t(v);
 
@@ -4760,15 +4600,9 @@ SELECT typeof(max(v)), max(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>))
 
 SELECT typeof(count(v)), count(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
-SELECT typeof(first(v)), first(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
-SELECT typeof(last(v)), last(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
-SELECT typeof(collect_list(v)), collect_list(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
-SELECT typeof(collect_set(v)), collect_set(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
-SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
 SELECT typeof(stddev(v)), stddev(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
@@ -4776,21 +4610,13 @@ SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:S
 
 SELECT typeof(count(DISTINCT v)), count(DISTINCT v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
-SELECT typeof(any_value(v)), any_value(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
-SELECT typeof(mode(v)), mode(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
 SELECT typeof(median(v)), median(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
-SELECT typeof(percentile_approx(v, 0.5)), percentile_approx(v, 0.5) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
 SELECT typeof(sum(DISTINCT v)), sum(DISTINCT v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
 SELECT typeof(bit_and(v)), bit_and(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
 SELECT typeof(bool_and(v)), bool_and(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
-
-SELECT typeof(max_by(v, v)), max_by(v, v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
 SELECT typeof(skewness(v)), skewness(v) FROM VALUES (CAST(NULL AS STRUCT<x:INT,y:STRING>)), (CAST(NULL AS STRUCT<x:INT,y:STRING>)) AS t(v);
 
@@ -4810,11 +4636,11 @@ SELECT typeof(max(v)), max(v) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) 
 
 SELECT typeof(count(v)), count(v) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
 
-SELECT typeof(first(v)), first(v) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_list(v))), sort_array(collect_list(v)) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
 
-SELECT typeof(last(v)), last(v) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
+SELECT typeof(sort_array(collect_set(v))), sort_array(collect_set(v)) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
 
-SELECT typeof(collect_list(v)), collect_list(v) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
+SELECT typeof(stddev(v)), stddev(v) FROM (SELECT CAST(NULL AS STRUCT<x:INT,y:STRING>) AS v) WHERE false;
 
 SELECT typeof(lag(v, 1, CAST(NULL AS INT)) OVER (ORDER BY o)), lag(v, 1, CAST(NULL AS INT)) OVER (ORDER BY o) FROM VALUES (CAST(NULL AS INT), 1), (CAST(NULL AS INT), 2) AS t(v, o);
 

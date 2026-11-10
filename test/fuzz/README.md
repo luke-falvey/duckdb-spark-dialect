@@ -23,6 +23,14 @@ python test/fuzz/replay.py                                     # crash regressio
 python test/fuzz/mutate.py --seed 1 --budget 20000 --jobs 3    # mutation fuzzing
 python test/fuzz/args_sweep.py --seed 1                        # ~14,000 queries, ~10 minutes
 python test/fuzz/differential.py --seed 1 --budget 2000        # ~10 queries/s (Spark is the bottleneck)
+python test/fuzz/differential.py --seed 1 --budget 2000 --conf-fuzz   # each batch of 100 queries under a random assignment
+                                                               # of the emulated semantic settings (recorded in the finding)
+python test/fuzz/differential.py --conf "spark.sql.legacy.sizeOfNull=false,spark.sql.mapKeyDedupPolicy=LAST_WIN" --sql-file q.sql
+                                                               # replay under fixed settings
+python test/fuzz/args_sweep.py --types --emit                  # write test/cases/types/c6_function_args.sql (plan C6):
+python test/make_golden.py test/cases/types/c6_function_args.sql   # every slot of every documented example x every type,
+python test/fuzz/args_sweep.py --types --record                # summarized in test/golden/signatures.json.gz
+python scripts/check_int_parameters.py                         # compare the INT_PARAMETERS table with Spark's answers
 python test/fuzz/isolation.py --duckdb-src /path/to/duckdb --budget 300
 python test/fuzz/spark_corpus.py fetch && python test/fuzz/spark_corpus.py run
 ```

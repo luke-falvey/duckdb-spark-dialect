@@ -1111,6 +1111,35 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		    {"locate", {2}},            {"factorial", {0}},         {"nth_value", {1}},         {"ntile", {0}},
 		    {"levenshtein", {2}},       {"lag", {1}},               {"lead", {1}},              {"make_timestamp", {0, 1, 2, 3, 4}},
 		    {"make_timestamp_ntz", {0, 1, 2, 3, 4}}, {"make_timestamp_ltz", {0, 1, 2, 3, 4}}};
+		// STRING parameters: Spark's implicit cast turns any atomic value into a string (upper(1) is '1'); DuckDB's
+		// string functions accept only strings. as_string leaves strings alone.
+		static const unordered_map<string, vector<idx_t>> STRING_PARAMETERS = {
+		    {"upper", {0}},        {"lower", {0}},         {"ucase", {0}},        {"lcase", {0}},          {"initcap", {0}},
+		    {"trim", {0}},         {"ltrim", {0}},         {"rtrim", {0}},        {"btrim", {0}},          {"replace", {0, 1, 2}},
+		    {"translate", {0, 1, 2}}, {"unhex", {0}},      {"luhn_check", {0}},   {"repeat", {0}},         {"instr", {0, 1}},
+		    {"locate", {0, 1}},    {"position", {0, 1}},   {"find_in_set", {0, 1}}, {"levenshtein", {0, 1}}, {"sentences", {0}},
+		    {"split_part", {0, 1}}, {"soundex", {0}},      {"ascii", {0}},
+		    {"substring_index", {0, 1}}};
+		auto string_entry = STRING_PARAMETERS.find(name);
+		if (string_entry != STRING_PARAMETERS.end()) {
+			auto &arguments = func.GetArgumentsMutable();
+			for (auto position : string_entry->second) {
+				if (position < arguments.size()) {
+					auto &argument = arguments[position].GetExpressionMutable();
+					argument = SparkCall("as_string", std::move(argument));
+				}
+			}
+		}
+		// DOUBLE parameters of the math functions: a string is converted (NULL when malformed), decimals widen
+		static const unordered_set<string> DOUBLE_FUNCTIONS = {
+		    "acos", "acosh", "asin", "asinh", "atan", "atanh", "cbrt", "cos", "cosh", "cot", "csc", "degrees", "exp", "expm1",
+		    "ln", "log10", "log1p", "log2", "radians", "rint", "sec", "sin", "sinh", "sqrt", "tan", "tanh"};
+		if (DOUBLE_FUNCTIONS.count(name)) {
+			for (auto &argument_entry : func.GetArgumentsMutable()) {
+				auto &argument = argument_entry.GetExpressionMutable();
+				argument = SparkCall("as_double", std::move(argument));
+			}
+		}
 		auto entry = INT_PARAMETERS.find(name);
 		if (entry != INT_PARAMETERS.end()) {
 			auto &arguments = func.GetArgumentsMutable();
@@ -1121,7 +1150,8 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 				auto &argument = arguments[position].GetExpressionMutable();
 				if (argument->GetExpressionClass() == ExpressionClass::CONSTANT) {
 					// small literals are INT already; only a literal with many digits can be out of range
-					if (argument->ToString().size() < 10) {
+					auto text = argument->ToString();
+					if (text.size() < 10 && text.find_first_not_of("-+0123456789") == string::npos) {
 						continue;
 					}
 				}
