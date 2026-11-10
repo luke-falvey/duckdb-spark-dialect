@@ -70,7 +70,9 @@ Appendix A lists the witnesses. Appendix B explains how the 478 settings fall in
    `bench/baseline.json`. A setting must be read at bind time, not per row.
 6. Commit per step (one generator plus its cases, or one fix plus its regression case), in the style of
    the existing history (`fix: ...; golden cases from Spark`). Push to the working branch.
-7. Stop and ask the user when a decision in section 9 comes up, instead of choosing silently.
+7. Section 9 holds the decisions that were open. They have defaults: follow them without asking. Stop and
+   ask the user only when something not covered there would change user-visible behaviour of the
+   default DuckDB dialect or remove an existing feature.
 
 ### Environment
 
@@ -98,7 +100,7 @@ Appendix A lists the witnesses. Appendix B explains how the 478 settings fall in
 
 Phases 2 and 3 are independent after phase 1. Fix bugs as they are found when the fix is local
 (a kernel, a bind function, a cast). Leave larger features (a new emulated setting, ANSI implicit casts,
-a distinct `TIMESTAMP_NTZ`) as `@xfail` until phase 6, then do them in the priority order of section 9.
+a distinct `TIMESTAMP_NTZ`) as `@xfail` until phase 6, then do them in the order of section 9.2.
 
 ## 5. Workstream A: harness
 
@@ -120,7 +122,7 @@ Add `test/test_harness.py` (plain `pytest`, no engines) for the new pure functio
 - A case fails when the types differ. The comparison is on by default for every file.
 - Representation limits must be visible, not silently equal. Do not map DuckDB `TIMESTAMP` to "either
   timestamp or timestamp_ntz" and do not map `INTERVAL` to "any interval type". Let those cases fail and
-  mark them `@xfail types-ntz` / `@xfail types-interval` until section 9 decides.
+  mark them `@xfail types-ntz` / `@xfail types-interval` until sections 9.3 and 9.4 are carried out.
 - Spark `void` (untyped NULL), `char(n)` and `varchar(n)` (Spark reports `string` in query results) need
   explicit rules; write them down in the function's docstring.
 
@@ -137,8 +139,8 @@ cells are Spark errors, so this would hide missing features.
 - New rule: Spark analysis error must meet a DuckDB parse / bind / catalog error; Spark runtime error must
   meet a DuckDB execution error. A mismatch is a FAIL in `spark_strict` and is reported as `PHASE` in
   `spark` (counted, not failing, like `LENIENT`).
-- Report-only metric, not a gate: the share of cases where the extension's message starts with the same
-  error class as Spark's. Print it in `COVERAGE.md`.
+- Error class: the share of cases where the extension's message starts with the same error class as
+  Spark's is printed in `COVERAGE.md`. It is gating only where section 9.6 says so.
 - Spark folds constants, so an error can move from run time to analysis time between a literal and a
   column argument. That is why matrices use both forms (section 7.1); do not special-case it in the
   harness.
@@ -181,8 +183,8 @@ cells are Spark errors, so this would hide missing features.
 
 ### 5.6 Other harness items
 
-- Column names: add `--check-names` that compares Spark's output column names with DuckDB's. Report-only
-  (a count in `COVERAGE.md`). See section 9, decision 5.
+- Column names: add a comparison of Spark's output column names with DuckDB's, gating for aliases and
+  plain column references and report-only for generated names (a share in `COVERAGE.md`). Section 9.5 says which names are gating.
 - Time zones: `engines.py` forces `TZ=UTC` in both processes and `SET TimeZone = 'UTC'`. Keep that as the
   process default; a time-zone test changes only the session setting. PySpark returns timestamps as naive
   local datetimes; with the process in UTC the existing normalization holds. In time-zone files also
@@ -279,6 +281,10 @@ Content of each file, in this order:
 4. A negative control: a statement the setting must not change.
 
 Sizes: expect 10 to 60 cases per setting, about 2,500 cases in total.
+
+For a setting that section 9.2 puts in tier 3 (rejected), the file holds only the witness under the
+non-default value, matched by the `conf-rejected` entry of `test/xfail.toml`, plus the same statements
+under the default value. Write items 2 to 4 only for tiers 1 and 2.
 
 Settings that need more than a short file:
 
@@ -435,7 +441,9 @@ documented example with one typical value of every type of 7.1, as a literal and
 | `spark.sql.storeAssignmentPolicy` = `LEGACY`, `STRICT` | C7 (already a matrix inside the file) |
 | `spark.sql.caseSensitive=true` | `queries.sql`, `ddl_dml.sql`, C13 |
 
-Use `--config` (5.4); do not copy files. ANSI is the large one: Spark's `AnsiTypeCoercion` replaces the
+Use `--config` (5.4); do not copy files. Run a configuration only while its setting is emulated: the
+`timestampType` row applies only if the remap of section 9.3 is kept, and the
+`legacy.typeCoercion.datetimeToString.enabled` row only if that setting is moved out of tier 3. ANSI is the large one: Spark's `AnsiTypeCoercion` replaces the
 rules behind C3, C4, C5 and C6 (strings are no longer promoted to `DOUBLE`, string with integer gives
 `BIGINT`, fewer implicit casts are legal, casts raise instead of returning NULL). Expect most
 ANSI failures to share one `@xfail` id until ANSI implicit casts are implemented.
@@ -474,37 +482,97 @@ ANSI failures to share one `@xfail` id until ANSI implicit casts are implemented
   xfail), a table per type matrix (cells, pass, xfail by id), and the report-only metrics (error class
   agreement, column names).
 
-## 9. Decisions for the user
+## 9. Decisions (defaults chosen)
 
-Ask before acting on these. The plan's default is given first.
+These are decided. Follow them without asking. The user may override any of them; an override replaces
+the text here. Ask only if a measurement contradicts the premise stated with a decision.
 
-1. **Settings that are not emulated.** Default: a `semantic` setting the dialect does not implement
-   raises an error on `SET` to a non-default value (`[UNSUPPORTED_FEATURE] spark_dialect does not emulate
-   ...`), in both dialects, and is listed in the README. Setting it to its default value succeeds. This
-   differs from Spark (which accepts it) but can never give silently different results. Alternative:
-   accept and warn.
-2. **Which settings to implement.** Default priority: (1) `ansi.enabled` including implicit casts,
-   `session.timeZone`, `storeAssignmentPolicy`, `mapKeyDedupPolicy`, `caseSensitive`,
-   `legacy.timeParserPolicy`, `timestampType`; (2) the cheap bind-time switches: `legacy.sizeOfNull`,
-   `groupByOrdinal`, `orderByOrdinal`, `groupByAliases`, `jsonGenerator.ignoreNullFields`,
-   `function.concatBinaryAsString`, `function.eltOutputAsString`, `legacy.statisticalAggregate`,
-   `legacy.negativeIndexInArrayInsert`, `legacy.nullInEmptyListBehavior`, `chunkBase64String.enabled`,
-   `decimalOperations.allowPrecisionLoss`, `legacy.setopsPrecedence.enabled`, `crossJoin.enabled`,
-   `parser.escapedStringLiterals`, `parser.quotedRegexColumnNames`, the three `ansi.*` parser settings,
-   `variable.substitute`; (3) everything else `semantic`: rejected as in decision 1.
-3. **`TIMESTAMP_NTZ` as a distinct type.** Spark `TIMESTAMP` is an instant and `TIMESTAMP_NTZ` a wall
-   clock time; the dialect maps both to DuckDB `TIMESTAMP`. Under UTC the values agree and only `typeof`
-   and the schema differ; under another time zone results differ. Parity needs Spark `TIMESTAMP` mapped
-   to `TIMESTAMP WITH TIME ZONE`. This is a large change with performance impact.
-4. **Interval types.** Spark has year-month and day-time intervals with field ranges; DuckDB has one
-   `INTERVAL`. Default: keep one type, report Spark's type name from `typeof` where the kind is known
-   statically, and list the rest as a known difference.
-5. **Column names.** Spark names unaliased columns from the expression (`(1 + 1)`,
-   `CAST(a AS INT)`). They are visible in CTAS, views and `SELECT *` over subqueries. Default: measure
-   only (5.6), decide after seeing the number.
-6. **Error classes.** Default: `spark_strict` should raise the same error class for analysis errors in
-   the type matrices (`DATATYPE_MISMATCH.*`, `CAST_INVALID_INPUT`, `ARITHMETIC_OVERFLOW`,
-   `DIVIDE_BY_ZERO`, ...); message text is not compared.
+### 9.1 Settings the dialect does not emulate: reject, never ignore
+
+- `SET <key> = <value>` for a `semantic` setting that is not emulated raises
+  `[UNSUPPORTED_FEATURE.SET_CONF] spark_dialect does not emulate <key> = <value>` in both dialects when
+  the value differs from Spark's default. Setting the default value succeeds and is stored.
+- A setting emulated for some values only (`status = "partial"`) rejects the other values the same way.
+- Settings of class `execution`, `storage`, `client` and `command` are accepted, stored and returned by
+  `SET <key>`, with no other effect. Unknown keys are stored like Spark does.
+- `static` keys and Spark core keys raise `CANNOT_MODIFY_CONFIG` like Spark.
+- Every rejected setting is listed in the README and has one case in its settings file that expects the
+  rejection, marked in `test/xfail.toml` with id `conf-rejected` (Spark accepts the statement, so the
+  case differs from Spark by design). This is the only id allowed to remain for settings at the end.
+
+Reason: a rejected `SET` is visible and cannot produce a wrong result; an ignored one can.
+
+### 9.2 Which settings to implement
+
+Implement tiers 1 and 2. Reject tier 3 (9.1).
+
+| tier | settings | notes |
+|---|---|---|
+| 1 | `ansi.enabled` including ANSI implicit casts, `session.timeZone`, `storeAssignmentPolicy`, `mapKeyDedupPolicy`, `caseSensitive`, `legacy.timeParserPolicy` | set in real workloads; each is large; do them in this order |
+| 2 | `legacy.sizeOfNull`, `groupByOrdinal`, `orderByOrdinal`, `groupByAliases`, `jsonGenerator.ignoreNullFields`, `function.concatBinaryAsString`, `function.eltOutputAsString`, `legacy.statisticalAggregate`, `legacy.negativeIndexInArrayInsert`, `legacy.nullInEmptyListBehavior`, `chunkBase64String.enabled`, `decimalOperations.allowPrecisionLoss`, `legacy.setopsPrecedence.enabled`, `crossJoin.enabled`, `parser.escapedStringLiterals`, `parser.quotedRegexColumnNames`, `ansi.doubleQuotedIdentifiers`, `ansi.enforceReservedKeywords`, `ansi.relationPrecedence`, `variable.substitute`, `lateralColumnAlias.enableImplicitResolution`, `legacy.castComplexTypesToString.enabled`, `legacy.followThreeValuedLogicInArrayExists`, `legacy.allowParameterlessCount`, `legacy.createHiveTableByDefault`, `legacy.ctePrecedencePolicy`, `charAsVarchar` | a switch read once at parse or bind time |
+| 3 | every other `semantic` setting, including `timestampType` (see 9.3), `legacy.interval.enabled` (see 9.4), `legacy.allowNegativeScaleOfDecimal`, `legacy.exponentLiteralAsDecimal.enabled`, `sources.partitionOverwriteMode`, `defaultColumn.*`, the view and partition-spec legacy keys | rejected |
+
+Rules for moving a setting between tiers without asking:
+
+- A tier 2 setting whose implementation turns out to need more than about 150 lines, or a per-row check,
+  moves to tier 3. Say so in the commit message and in `inventory.toml`.
+- A tier 3 setting that turns out to be a one-line switch at bind time may be implemented.
+- A tier 1 setting is never dropped. If one cannot be finished, it stays `partial` with its failing cases
+  under one `@xfail` id and the unsupported values rejected.
+
+### 9.3 `TIMESTAMP` and `TIMESTAMP_NTZ`: one type unless a measured remap is cheap
+
+Spark `TIMESTAMP` is an instant and `TIMESTAMP_NTZ` a wall clock time; the dialect maps both to DuckDB
+`TIMESTAMP`. Under UTC the values agree and only `typeof` and the schema differ; under another session
+time zone the results differ.
+
+1. First, with the single type: make `session.timeZone` correct for Spark `TIMESTAMP` (tier 1), and make
+   `typeof` and the harness type mapping report `timestamp_ntz` wherever the kind is known from the
+   expression (a `TIMESTAMP_NTZ` literal, `CAST(... AS TIMESTAMP_NTZ)`, `to_timestamp_ntz`,
+   `make_timestamp_ntz`, `localtimestamp`). Cases that still differ carry `@xfail types-ntz`.
+2. Then try the remap on a separate branch of work: Spark `TIMESTAMP` to DuckDB
+   `TIMESTAMP WITH TIME ZONE`, `TIMESTAMP_NTZ` to `TIMESTAMP`. Keep it only if all three hold: the
+   existing suite and the new matrices pass in both dialects; no smoke benchmark exceeds its threshold in
+   `bench/baseline.json`; and the TPC-H and TPC-DS geometric means move by less than 5%.
+3. If the remap is kept, implement `timestampType` (it moves to tier 1) and remove the `types-ntz` id.
+   If not, revert it, keep step 1, reject `timestampType=TIMESTAMP_NTZ` (9.1), and add one entry to
+   `known_differences.toml`: `TIMESTAMP_NTZ` values behave like `TIMESTAMP` under a non-UTC session time
+   zone. Record the measured numbers in `docs/perf-log.md` either way.
+
+### 9.4 Interval types: one DuckDB type, Spark's name where it is known
+
+Keep DuckDB's single `INTERVAL`. `typeof` and the harness type mapping report Spark's name
+(`interval year to month`, `interval day`, `interval hour to second`, ...) where the kind and fields are
+known from the expression: interval literals, `make_ym_interval`, `make_dt_interval`, casts to an
+interval type, `date - date`, `timestamp - timestamp`, and arithmetic over these. Interval values read
+from a table column keep the year-month or day-time distinction the extension already derives from the
+value (`IsYearMonth` in `src/spark_extras.cpp`) but not the field range; those cases carry
+`@xfail types-interval` and one entry in `known_differences.toml`. `legacy.interval.enabled=true` and
+`legacy.fromDayTimeString.enabled=true` are rejected (9.1).
+
+### 9.5 Column names: gate the names a user chose, measure the generated ones
+
+- Gating in both dialects, for every case file: the number of columns, and the name of every column that
+  is an explicit alias or a plain column reference.
+- Report-only: names Spark generates from an expression (`(1 + 1)`, `CAST(a AS INT)`, `count(1)`).
+  `COVERAGE.md` prints the share that match. Do not implement Spark's name generation in this work.
+- Exception, gating: a generated name that a later statement in the same case file refers to (CTAS or a
+  view over an unaliased expression, then `SELECT` of that column by name). Add 20 such cases to
+  `test/cases/settings/` or `queries.sql`; fix what they show.
+
+### 9.6 Errors: phase everywhere, error class in `spark_strict` for the type and settings cases
+
+- The error phase (5.2) is gating in `spark_strict` for every file and reported in `spark`.
+- The error class is gating in `spark_strict` for the files under `test/cases/types/` and
+  `test/cases/settings/`, for these classes and their sub-classes: `DATATYPE_MISMATCH`,
+  `CAST_INVALID_INPUT`, `CAST_OVERFLOW`, `CANNOT_CAST_DATATYPE`, `ARITHMETIC_OVERFLOW`,
+  `DIVIDE_BY_ZERO`, `INTERVAL_DIVIDED_BY_ZERO`, `NUMERIC_VALUE_OUT_OF_RANGE`,
+  `INVALID_ARRAY_INDEX`, `INVALID_ARRAY_INDEX_IN_ELEMENT_AT`, `DUPLICATED_MAP_KEY`, `NULL_MAP_KEY`,
+  `INCOMPATIBLE_DATA_FOR_TABLE`, `INVALID_CONF_VALUE`, `CANNOT_MODIFY_CONFIG`, `WRONG_NUM_ARGS`,
+  `UNRESOLVED_COLUMN`, `UNRESOLVED_ROUTINE`. The comparison is on the class up to the first `.` unless the
+  extension already emits the sub-class.
+- Everywhere else, and in `spark`, the class is report-only. Message text, SQLSTATE and query context are
+  never compared.
 
 ## 10. Definition of done
 
@@ -513,10 +581,10 @@ Ask before acting on these. The plan's default is given first.
 2. Every matrix of section 7.2 is generated, recorded from Spark, and run in both dialects under the
    default configuration and each configuration of workstream D.
 3. The harness compares rows, column types and error phase for every case file, old and new.
-4. Zero `FAIL` and zero `XPASS` in CI in both dialects. Every remaining `XFAIL` id is one of: a decision
-   of section 9 the user took, or an entry of `known_differences.toml` with a reason and a reproducing
+4. Zero `FAIL` and zero `XPASS` in CI in both dialects. Every remaining `XFAIL` id is one of: `conf-rejected`,
+   `types-ntz` or `types-interval` as section 9 allows them, or an entry of `known_differences.toml` with a reason and a reproducing
    example. The count per id is printed in `COVERAGE.md`.
-5. `SET` of a `semantic` setting never silently has no effect (emulated, or rejected per decision 1).
+5. `SET` of a `semantic` setting never silently has no effect (emulated, or rejected per section 9.1).
 6. Fuzzers: `args_sweep.py --types` and `differential.py --conf-fuzz --budget 20000` end with every
    finding fixed or known. `isolation.py` and `replay.py` pass.
 7. `README.md` ("Testing", "Limitations") and `COVERAGE.md` describe the new state; the README no longer
