@@ -643,8 +643,10 @@ AggregateFunction MakeDoubleAvg();
 template <bool IS_SUM>
 unique_ptr<FunctionData> BindCastToDouble(BindAggregateFunctionInput &input) {
 	auto &function = input.GetBoundFunction();
-	input.GetArguments()[0] = BoundCastExpression::AddCastToType(input.GetClientContext(),
-	                                                              std::move(input.GetArguments()[0]), LogicalType::DOUBLE);
+	// Spark's implicit cast: a string that is not a number is NULL (non-ANSI); under ANSI it is an error
+	bool try_cast = !SparkAnsiEnabled(input.GetClientContext());
+	input.GetArguments()[0] = BoundCastExpression::AddCastToType(
+	    input.GetClientContext(), std::move(input.GetArguments()[0]), LogicalType::DOUBLE, try_cast);
 	function.ReplaceImplementation(IS_SUM ? MakeDoubleSum() : MakeDoubleAvg());
 	function.SetName(Identifier(IS_SUM ? "spark_sum" : "spark_avg"));
 	function.GetArguments()[0] = LogicalType::DOUBLE;
@@ -762,7 +764,7 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	sum.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<true>));
 	sum.AddFunction(IntegerSum<int8_t>(LogicalType::TINYINT));
 	sum.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<true>));
-	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB}) {
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB, LogicalType::BOOLEAN}) {
 		sum.AddFunction(CastingOverload(type, BindUnsupported<true>));
 	}
 	loader.RegisterFunction(sum);
@@ -780,7 +782,7 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	avg.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<false>));
 	avg.AddFunction(DoubleAvg<int8_t>(LogicalType::TINYINT));
 	avg.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<false>));
-	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB}) {
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB, LogicalType::BOOLEAN}) {
 		avg.AddFunction(CastingOverload(type, BindUnsupported<false>));
 	}
 	loader.RegisterFunction(avg);

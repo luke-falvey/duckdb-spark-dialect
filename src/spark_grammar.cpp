@@ -1951,6 +1951,18 @@ ExprPtr TransformStructType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("STRUCT", std::move(children));
 }
 
+//! spark_strict: CHAR / VARCHAR / CHARACTER without a length is Spark's DATATYPE_MISSING_SIZE
+ExprPtr TransformCharTypeStrict(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	if (!HasOptional(list.GetChild(1))) {
+		auto name = StringUtil::Upper(Literal(list.GetChild(0)));
+		throw ParserException("[DATATYPE_MISSING_SIZE] DataType \"%s\" requires a length parameter, for example "
+		                      "\"%s\"(10). Please specify the length.",
+		                      name, name);
+	}
+	return TypeNamed("VARCHAR");
+}
+
 //! SpTypeAlias <- 'STRING' / 'LONG' / ...
 ExprPtr TransformTypeAlias(PEGTransformer &t, ParseResult &pr) {
 	auto name = StringUtil::Upper(Literal(pr));
@@ -1983,7 +1995,7 @@ ExprPtr TransformDecimalType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("DECIMAL", std::move(children));
 }
 
-//! SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') '(' NumberLiteral ')' : Spark strings have no length limit here
+//! SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') SpCharLength? : Spark strings have no length limit here
 ExprPtr TransformCharType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("VARCHAR");
 }
@@ -2067,6 +2079,8 @@ bool IsSparkTableFunction(const string &name) {
 }
 
 void ApplyStrictGrammar(ParsedGrammar &g) {
+	// CHAR / VARCHAR without a length is a Spark parse error (DuckDB: a string type)
+	g.SetTransformProcess("SpCharType", ExprProcess<TransformCharTypeStrict>, false);
 	// ---- expressions ----
 	RejectRule(g, "ListExpression <- ArrayBoundedListExpression / ArrayParensSelect",
 	           "Spark SQL does not support DuckDB's list literals; use array(...)");
@@ -2273,7 +2287,8 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	     ExprProcess<TransformTypeAlias>},
 	    {"SpDecimalType <- ('DECIMAL' / 'DEC' / 'NUMERIC') SpDecimalModifiers?", ExprProcess<TransformDecimalType>},
 	    {"SpDecimalModifiers <- '(' List(NumberLiteral) ')'", nullptr},
-	    {"SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') '(' NumberLiteral ')'", ExprProcess<TransformCharType>},
+	    {"SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') SpCharLength?", ExprProcess<TransformCharType>},
+	    {"SpCharLength <- '(' NumberLiteral ')'", nullptr},
 	};
 	// levels of the precedence ladder that return their only child unchanged when nothing else matched (no
 	// operator tail, no predicate, no indirection): collapsible, so the matcher skips building a result for them

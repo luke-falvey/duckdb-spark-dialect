@@ -3698,6 +3698,43 @@ ExprP BindAsDoubleParam(FunctionBindExpressionInput &input) {
 	return SparkCast(b, std::move(e), LogicalType::DOUBLE);
 }
 
+//! The argument of sum / avg / try_sum / try_avg: numbers and intervals unchanged, a string or an untyped NULL as
+//! DOUBLE (NULL when it is not a number), anything else Spark's analysis error
+ExprP BindAsSumOperand(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "as_sum_operand", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	if (IsNull(type) || IsString(type)) {
+		return SparkCast(b, std::move(e), LogicalType::DOUBLE);
+	}
+	if (!(IsNumeric(type) || type.id() == LogicalTypeId::INTERVAL)) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the aggregate due to data type "
+		                      "mismatch: Parameter 1 requires the \"NUMERIC\" or \"ANSI INTERVAL\" type, however "
+		                      "the argument has the type \"%s\".",
+		                      StringUtil::Upper(SparkTypeName(type)));
+	}
+	return e;
+}
+
+//! to_date / to_timestamp* (value, format): Spark parses only a string with the format; a DATE or TIMESTAMP value is
+//! cast and the format ignored (ParseToDate / ParseToTimestamp). The third argument carries the result type.
+ExprP BindParseWithFormat(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "parse_with_format", 3, 3);
+	Builder b(input.context);
+	auto target = input.children[2]->GetReturnType();
+	auto value = Arg(input, 0);
+	auto type = Normalize(value->GetReturnType());
+	if (type.id() == LogicalTypeId::DATE || type.id() == LogicalTypeId::TIMESTAMP) {
+		return SparkCast(b, std::move(value), target);
+	}
+	if (type.id() == LogicalTypeId::TIMESTAMP_TZ) {
+		return b.Cast(std::move(value), target);
+	}
+	auto parsed = b.Spark("parse_datetime", b.Spark("as_string", std::move(value)), Arg(input, 1));
+	return target.id() == LogicalTypeId::DATE ? b.Cast(std::move(parsed), LogicalType::DATE) : std::move(parsed);
+}
+
 //! the value argument of round / bround: an untyped NULL or a string is a DOUBLE (Spark's implicit cast), numbers are
 //! unchanged
 ExprP BindAsRoundOperand(FunctionBindExpressionInput &input) {
@@ -4315,6 +4352,8 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"typed_literal", BindTypedLiteral},
 	    {"check_arg", BindCheckArg},
 	    {"as_double_param", BindAsDoubleParam},
+	    {"as_sum_operand", BindAsSumOperand},
+	    {"parse_with_format", BindParseWithFormat},
 	    {"as_long", BindAsType<LogicalTypeId::BIGINT>},
 	    {"as_int", BindAsType<LogicalTypeId::INTEGER>},
 	    {"as_string", BindAsType<LogicalTypeId::VARCHAR>},
