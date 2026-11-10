@@ -476,7 +476,7 @@ note = ""
 
 [keys."spark.sql.caseSensitive"]
 class = "semantic"
-tier = 1
+tier = 3
 status = "rejected"
 kind = "boolean"
 default = "false"
@@ -484,7 +484,7 @@ values = ["true", "false"]
 cases = "test/cases/settings/caseSensitive.sql"
 witness = true
 differs = true
-note = ""
+note = "DuckDB resolves identifiers case-insensitively in its binder; case-sensitive resolution needs a binder change (moved from tier 1 to tier 3)"
 
 [keys."spark.sql.catalog.spark_catalog"]
 class = "storage"
@@ -2548,7 +2548,7 @@ note = ""
 
 [keys."spark.sql.legacy.timeParserPolicy"]
 class = "semantic"
-tier = 1
+tier = 3
 status = "rejected"
 kind = "enum"
 default = "EXCEPTION"
@@ -2556,7 +2556,7 @@ values = ["CORRECTED", "EXCEPTION", "LEGACY"]
 cases = "test/cases/settings/legacy_timeParserPolicy.sql"
 witness = true
 differs = true
-note = ""
+note = "LEGACY uses java SimpleDateFormat parsing, CORRECTED / EXCEPTION the datetime pattern parser; only the default parser exists (moved from tier 1 to tier 3)"
 
 [keys."spark.sql.legacy.typeCoercion.datetimeToString.enabled"]
 class = "semantic"
@@ -4131,7 +4131,7 @@ note = ""
 
 [keys."spark.sql.storeAssignmentPolicy"]
 class = "semantic"
-tier = 1
+tier = 3
 status = "rejected"
 kind = "enum"
 default = "ANSI"
@@ -4139,7 +4139,7 @@ values = ["ANSI", "LEGACY", "STRICT"]
 cases = "test/cases/settings/storeAssignmentPolicy.sql"
 witness = true
 differs = true
-note = ""
+note = "INSERT assignment casts are planned by DuckDB's binder, which the dialect cannot hook; ANSI (default) deviations are listed in test/xfail.toml (moved from tier 1 to tier 3)"
 
 [keys."spark.sql.streaming.aggregation.stateFormatVersion"]
 class = "execution"

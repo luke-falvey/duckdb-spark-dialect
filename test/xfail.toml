@@ -538,53 +538,10 @@ config = "variable.substitute=false"
 cases = [2]
 
 [[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__caseSensitive.sql"
-config = "caseSensitive=true"
-dialects = ["spark_strict"]
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__legacy_timeParserPolicy.sql"
-config = "legacy.timeParserPolicy=CORRECTED"
-cases = ["1-2"]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__legacy_timeParserPolicy.sql"
-config = "legacy.timeParserPolicy=LEGACY"
-cases = ["1-2"]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__storeAssignmentPolicy.sql"
-config = "storeAssignmentPolicy=LEGACY"
-cases = [5, 8]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__storeAssignmentPolicy.sql"
-config = "storeAssignmentPolicy=STRICT"
-cases = [5, 8]
-
-[[xfail]]
 id = "settings-allowNamedFunctionArguments"
 reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
 file = "settings__allowNamedFunctionArguments.sql"
 config = "allowNamedFunctionArguments=true"
-cases = [1]
-
-[[xfail]]
-id = "settings-caseSensitive"
-reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
-file = "settings__caseSensitive.sql"
-config = "caseSensitive=false"
 cases = [1]
 
 [[xfail]]
@@ -722,14 +679,6 @@ config = "legacy.statisticalAggregate=true"
 cases = [10]
 
 [[xfail]]
-id = "settings-legacy_timeParserPolicy"
-reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
-file = "settings__legacy_timeParserPolicy.sql"
-config = "legacy.timeParserPolicy=EXCEPTION"
-dialects = ["spark_strict"]
-cases = ["1-2"]
-
-[[xfail]]
 id = "settings-legacy_useCurrentConfigsForView"
 reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
 file = "settings__legacy_useCurrentConfigsForView.sql"
@@ -821,13 +770,6 @@ reason = "the statement differs from Spark under this setting value (a missing f
 file = "settings__set_command.sql"
 dialects = ["spark_strict"]
 cases = ["1-2", 37, 53]
-
-[[xfail]]
-id = "settings-storeAssignmentPolicy"
-reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
-file = "settings__storeAssignmentPolicy.sql"
-config = "storeAssignmentPolicy=ANSI"
-cases = ["2-3", 5]
 
 [[xfail]]
 id = "settings-variable_substitute"
@@ -947,3 +889,61 @@ reason = "zone abbreviations (z) and long names (zzzz) of region zones need the 
 file = "settings__session_timeZone.sql"
 config = "session.timeZone=UTC"
 cases = [14]
+
+[[xfail]]
+id = "conf-rejected"
+reason = "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it"
+file = "settings__caseSensitive.sql"
+config = "caseSensitive=true"
+dialects = ["spark_strict"]
+cases = [1]
+
+[[xfail]]
+id = "conf-rejected"
+reason = "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it"
+file = "settings__legacy_timeParserPolicy.sql"
+config = "legacy.timeParserPolicy=CORRECTED"
+cases = ["1-2"]
+
+[[xfail]]
+id = "conf-rejected"
+reason = "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it"
+file = "settings__legacy_timeParserPolicy.sql"
+config = "legacy.timeParserPolicy=LEGACY"
+cases = ["1-2"]
+
+[[xfail]]
+id = "conf-rejected"
+reason = "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it"
+file = "settings__storeAssignmentPolicy.sql"
+config = "storeAssignmentPolicy=LEGACY"
+cases = [5, 8]
+
+[[xfail]]
+id = "conf-rejected"
+reason = "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it"
+file = "settings__storeAssignmentPolicy.sql"
+config = "storeAssignmentPolicy=STRICT"
+cases = [5, 8]
+
+[[xfail]]
+id = "settings-caseSensitive"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__caseSensitive.sql"
+config = "caseSensitive=false"
+cases = [1]
+
+[[xfail]]
+id = "settings-legacy_timeParserPolicy"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__legacy_timeParserPolicy.sql"
+config = "legacy.timeParserPolicy=EXCEPTION"
+dialects = ["spark_strict"]
+cases = ["1-2"]
+
+[[xfail]]
+id = "settings-storeAssignmentPolicy"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__storeAssignmentPolicy.sql"
+config = "storeAssignmentPolicy=ANSI"
+cases = ["2-3", 5]
