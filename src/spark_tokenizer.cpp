@@ -596,6 +596,14 @@ void RewriteLiterals(Tokens &ts) {
 		} else if (!suffix.empty() && consumed == 1) {
 			// e.g. 1E3 is a single number token - leave alone
 			continue;
+		} else if (suffix.empty() && number.find('.') != string::npos &&
+		           number.find_first_of("eE") == string::npos) {
+			// 0.1 is DECIMAL(1,1) in Spark (the leading zero does not count), DuckDB makes it DECIMAL(2,1)
+			auto int_part = number.substr(0, number.find('.'));
+			if (int_part.find_first_not_of('0') != string::npos) {
+				continue;
+			}
+			type = DecimalTypeForLiteral(number);
 		} else {
 			// plain integer literal larger than BIGINT: Spark makes it a DECIMAL(n, 0)
 			bool all_digits = number.find_first_not_of("0123456789") == string::npos;

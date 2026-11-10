@@ -1612,6 +1612,10 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 	Builder b(input.context);
 	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
 	auto right_decimal = DecimalOperandType(*input.children[1], ArgType(input, 1));
+	if (IsNull(Normalize(input.children[0]->GetReturnType())) && IsNull(Normalize(input.children[1]->GetReturnType()))) {
+		// NULL + NULL: both untyped operands are DOUBLE in Spark
+		return b.NullOf(LogicalType::DOUBLE);
+	}
 	auto left = NumericOperand(b, Arg(input, 0));
 	auto right = NumericOperand(b, Arg(input, 1));
 	auto lt = Normalize(left->GetReturnType());
@@ -2148,6 +2152,8 @@ ExprP BindDiv(FunctionBindExpressionInput &input) {
 ExprP BindRemainder(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "%", 2, 2);
 	Builder b(input.context);
+	auto left_decimal = DecimalOperandType(*input.children[0], ArgType(input, 0));
+	auto right_decimal = DecimalOperandType(*input.children[1], ArgType(input, 1));
 	auto left = NumericOperand(b, Arg(input, 0));
 	auto right = NumericOperand(b, Arg(input, 1));
 	auto lt = Normalize(left->GetReturnType());
@@ -2185,8 +2191,17 @@ ExprP BindRemainder(FunctionBindExpressionInput &input) {
 		throw BinderException("[DATATYPE_MISMATCH] %% requires numeric operands, got %s and %s", SparkTypeName(lt),
 		                      SparkTypeName(rt));
 	}
-	// decimals: NULL when dividing by zero
-	return b.Op("%", std::move(left), ZeroToNull(b, std::move(right)));
+	// decimals: NULL when dividing by zero; the type is Spark's DecimalPrecision rule for `%`:
+	// scale max(s1, s2), precision min(p1 - s1, p2 - s2) + scale, reduced to 38 digits
+	auto ld = IsDecimal(lt) ? lt : left_decimal;
+	auto rd = IsDecimal(rt) ? rt : right_decimal;
+	int s1 = DecimalType::GetScale(ld), s2 = DecimalType::GetScale(rd);
+	int scale = MaxValue(s1, s2);
+	int precision = MinValue(DecimalType::GetWidth(ld) - s1, DecimalType::GetWidth(rd) - s2) + scale;
+	auto result_type = AdjustDecimal(precision, scale);
+	auto common = LogicalType::DECIMAL(38, uint8_t(scale));
+	auto remainder = b.Op("%", b.Cast(std::move(left), common), ZeroToNull(b, b.Cast(std::move(right), common)));
+	return b.Cast(std::move(remainder), result_type);
 }
 
 ExprP BindNegative(FunctionBindExpressionInput &input) {
@@ -3126,6 +3141,39 @@ ExprP BindSign(FunctionBindExpressionInput &input) {
 
 //! floor / ceil with one argument: BIGINT for integral and floating input (Java's (long) of Math.floor, so NaN
 //! is 0 and huge values saturate), DECIMAL(p - s + 1, 0) for decimals
+//! date_part / datepart / extract(field FROM source): the field must be a foldable string (like in Spark), which makes
+//! the result type known at bind time: INT for calendar fields, DECIMAL(8,6) for the seconds
+ExprP BindDatePart(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "date_part", 2, 2);
+	Builder b(input.context);
+	if (!input.children[0]->IsFoldable()) {
+		throw BinderException("[NON_FOLDABLE_INPUT] The input field must be a foldable string expression");
+	}
+	auto field = StringUtil::Upper(ExpressionExecutor::EvaluateScalar(input.context, *input.children[0]).ToString());
+	auto source = Arg(input, 1);
+	static const unordered_map<string, string> CALENDAR = {
+	    {"YEAR", "year"}, {"Y", "year"}, {"YEARS", "year"}, {"YR", "year"}, {"YRS", "year"}, {"YEAROFWEEK", "isoyear"},
+	    {"QUARTER", "quarter"}, {"QTR", "quarter"}, {"MONTH", "month"}, {"MON", "month"}, {"MONS", "month"},
+	    {"MONTHS", "month"}, {"WEEK", "weekofyear"}, {"W", "weekofyear"}, {"WEEKS", "weekofyear"}, {"DAY", "day"},
+	    {"D", "day"}, {"DAYS", "day"}, {"DAYOFWEEK_ISO", "isodow"}, {"DOW_ISO", "isodow"}, {"DOY", "dayofyear"},
+	    {"HOUR", "hour"}, {"H", "hour"}, {"HOURS", "hour"}, {"HR", "hour"}, {"HRS", "hour"}, {"MINUTE", "minute"},
+	    {"M", "minute"}, {"MIN", "minute"}, {"MINS", "minute"}, {"MINUTES", "minute"}};
+	static const unordered_set<string> SECONDS = {"SECOND", "S", "SEC", "SECONDS", "SECS"};
+	auto found = CALENDAR.find(field);
+	if (found != CALENDAR.end()) {
+		return b.Cast(b.Call(found->second, std::move(source)), LogicalType::INTEGER);
+	}
+	if (field == "DAYOFWEEK" || field == "DOW") {
+		return b.Cast(b.Op("+", b.Call("dayofweek", std::move(source)), b.Constant(Value::BIGINT(1))), LogicalType::INTEGER);
+	}
+	if (SECONDS.count(field)) {
+		auto micros = b.Cast(b.Call("microsecond", std::move(source)), LogicalType::DECIMAL(14, 0));
+		auto seconds = b.Op("/", std::move(micros), b.Constant(Value::BIGINT(1000000)));
+		return b.Cast(std::move(seconds), LogicalType::DECIMAL(8, 6));
+	}
+	throw BinderException("[INVALID_EXTRACT_FIELD] Cannot extract %s from the source", field);
+}
+
 template <bool CEIL>
 ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
 	CheckArgs(input, CEIL ? "ceil" : "floor", 1, 1);
@@ -3136,7 +3184,13 @@ ExprP BindFloorCeil(FunctionBindExpressionInput &input) {
 		return b.Cast(std::move(e), LogicalType::BIGINT);
 	}
 	if (IsDecimal(type)) {
-		return b.Call(CEIL ? "ceil" : "floor", std::move(e));
+		// Spark: scale 0 keeps the type, otherwise DECIMAL(p - s + 1, 0)
+		int scale = DecimalType::GetScale(type);
+		if (scale == 0) {
+			return e;
+		}
+		int digits = MinValue(38, DecimalType::GetWidth(type) - scale + 1);
+		return b.Cast(b.Call(CEIL ? "ceil" : "floor", std::move(e)), LogicalType::DECIMAL(uint8_t(digits), 0));
 	}
 	return b.Kernel(ScalarFunction(Identifier(CEIL ? "spark_ceil_to_long" : "spark_floor_to_long"), {LogicalType::DOUBLE},
 	                               LogicalType::BIGINT, FloorCeilToLongKernel<CEIL>),
@@ -3272,6 +3326,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"as_boolean", BindAsType<LogicalTypeId::BOOLEAN>},
 	    {"as_binary", BindAsBinary},
 	    {"size", BindSize},
+	    {"date_part_value", BindDatePart},
 	    {"cardinality", BindSize},
 	    {"reverse", BindReverse},
 	    {"length", BindLength},

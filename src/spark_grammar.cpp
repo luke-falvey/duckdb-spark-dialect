@@ -1533,6 +1533,10 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 			// Spark accepts (and ignores) arguments here
 			window_args.clear();
 		}
+		if (name == "rank" || name == "dense_rank" || name == "row_number" || name == "ntile") {
+			// Spark's ranking functions return INT (DuckDB: BIGINT)
+			return make_uniq<CastExpression>(LogicalType::INTEGER, std::move(expr));
+		}
 		if ((name == "first_value" || name == "last_value" || name == "first" || name == "last" ||
 		     name == "nth_value") &&
 		    window_args.size() >= 2) {
@@ -1628,6 +1632,18 @@ ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto expr = Expr(t, alt);
 	if (!expr->GetAlias().empty()) {
 		RenameGeneratorColumns(*expr, expr->GetAlias().GetIdentifierName());
+	}
+	return expr;
+}
+
+//! GROUPING(...) is a BYTE in Spark (DuckDB: BIGINT); GROUPING_ID stays BIGINT
+ExprPtr TransformGroupingHook(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	auto &inner = AsList(list.GetChild(0));
+	bool is_grouping = StringUtil::CIEquals(Literal(inner.GetChild(0)), "GROUPING");
+	auto expr = Expr(t, list.GetChild(0));
+	if (is_grouping) {
+		return make_uniq<CastExpression>(LogicalType::TINYINT, std::move(expr));
 	}
 	return expr;
 }
@@ -2203,6 +2219,14 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	g.AddRule("DuckAliasedExpression <- ColIdExpression / ExpressionAsCollabel / ExpressionOptIdentifier",
 	          aliased_rule->transform_process);
 	g.ReplaceRule("AliasedExpression <- SpAliasList / DuckAliasedExpression", ExprProcess<TransformAliasedHook>);
+
+	auto grouping_rule = g.GetRule("GroupingExpression");
+	if (!grouping_rule) {
+		throw InternalException("spark dialect: GroupingExpression rule not found");
+	}
+	g.AddRule("DuckGroupingExpression <- GroupingOrGroupingId Parens(List(Expression)?)",
+	          grouping_rule->transform_process);
+	g.ReplaceRule("GroupingExpression <- DuckGroupingExpression", ExprProcess<TransformGroupingHook>);
 
 	auto case_rule = g.GetRule("CaseExpression");
 	if (!case_rule) {

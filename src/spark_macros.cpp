@@ -218,7 +218,7 @@ const SparkMacro SPARK_MACROS[] = {
      "WHEN 'HOUR' THEN date_trunc('hour', " S "as_timestamp(t)) WHEN 'MINUTE' THEN date_trunc('minute', " S "as_timestamp(t)) "
      "WHEN 'SECOND' THEN date_trunc('second', " S "as_timestamp(t)) WHEN 'MILLISECOND' THEN date_trunc('millisecond', " S "as_timestamp(t)) "
      "WHEN 'MICROSECOND' THEN date_trunc('microsecond', " S "as_timestamp(t)) END"},
-    {"date_part",
+    {"date_part_dynamic",
      "(f, t) AS CASE upper(f) WHEN 'YEAR' THEN year(t) WHEN 'Y' THEN year(t) WHEN 'YEARS' THEN year(t) WHEN 'YR' THEN year(t) WHEN 'YRS' THEN year(t) "
      "WHEN 'YEAROFWEEK' THEN isoyear(t) WHEN 'QUARTER' THEN quarter(t) WHEN 'QTR' THEN quarter(t) "
      "WHEN 'MONTH' THEN month(t) WHEN 'MON' THEN month(t) WHEN 'MONS' THEN month(t) WHEN 'MONTHS' THEN month(t) "
@@ -231,7 +231,10 @@ const SparkMacro SPARK_MACROS[] = {
      "WHEN 'SECOND' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) WHEN 'S' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) "
      "WHEN 'SEC' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) WHEN 'SECONDS' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) "
      "WHEN 'SECS' THEN CAST(CAST(microsecond(t) AS DECIMAL(14, 0)) / 1000000 AS DECIMAL(8, 6)) END"},
-    {"datepart", "(f, t) AS " S "date_part(f, t)"},
+    {"date_part", "(f, t) AS " S "date_part_value(f, t)"},
+    {"datepart", "(f, t) AS " S "date_part_value(f, t)"},
+    {"regr_count", "(y, x) AS CAST(regr_count(y, x) AS BIGINT)"},
+    {"uuid", "() AS CAST(uuid() AS VARCHAR)"},
     {"make_timestamp", "(y, mo, d, h, mi, s) AS TRY(make_timestamp(CAST(y AS BIGINT), CAST(mo AS BIGINT), CAST(d AS BIGINT), CAST(h AS BIGINT), CAST(mi AS BIGINT), CAST(s AS DOUBLE))), "
                        "(y, mo, d, h, mi, s, tz) AS CAST(timezone(current_setting('TimeZone'), timezone(tz, TRY(make_timestamp(CAST(y AS BIGINT), CAST(mo AS BIGINT), CAST(d AS BIGINT), CAST(h AS BIGINT), CAST(mi AS BIGINT), CAST(s AS DOUBLE))))) AS TIMESTAMP)"},
     
