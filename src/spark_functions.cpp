@@ -3735,6 +3735,40 @@ ExprP BindParseWithFormat(FunctionBindExpressionInput &input) {
 	return target.id() == LogicalTypeId::DATE ? b.Cast(std::move(parsed), LogicalType::DATE) : std::move(parsed);
 }
 
+//! pivot_key(x): the text PIVOT compares a value by (see RewritePivotValues): numbers as canonical decimals (1, 1.0
+//! and 1.00 are the same key, like Spark's comparison after casting the value to the column's type), other values as
+//! DuckDB renders them
+void CanonicalNumberKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t input) {
+		auto text = input.GetString();
+		if (text.find('.') != string::npos && text.find_first_of("eE") == string::npos) {
+			auto last = text.find_last_not_of('0');
+			text = text.substr(0, last + 1);
+			if (!text.empty() && text.back() == '.') {
+				text.pop_back();
+			}
+			if (text == "-0") {
+				text = "0";
+			}
+		}
+		return StringVector::AddString(result, text);
+	});
+}
+
+ExprP BindPivotKey(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "pivot_key", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	auto text = b.Cast(std::move(e), LogicalType::VARCHAR);
+	if (IsDecimal(type) || IsFloating(type)) {
+		return b.Kernel(ScalarFunction(Identifier("spark_canonical_number"), {LogicalType::VARCHAR},
+		                               LogicalType::VARCHAR, CanonicalNumberKernel),
+		                std::move(text));
+	}
+	return text;
+}
+
 //! the value argument of round / bround: an untyped NULL or a string is a DOUBLE (Spark's implicit cast), numbers are
 //! unchanged
 ExprP BindAsRoundOperand(FunctionBindExpressionInput &input) {
@@ -4354,6 +4388,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"as_double_param", BindAsDoubleParam},
 	    {"as_sum_operand", BindAsSumOperand},
 	    {"parse_with_format", BindParseWithFormat},
+	    {"pivot_key", BindPivotKey},
 	    {"as_long", BindAsType<LogicalTypeId::BIGINT>},
 	    {"as_int", BindAsType<LogicalTypeId::INTEGER>},
 	    {"as_string", BindAsType<LogicalTypeId::VARCHAR>},
