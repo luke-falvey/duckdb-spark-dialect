@@ -1801,6 +1801,32 @@ void CheckNullLiteralArguments(const ParsedExpression &expr) {
 	}
 }
 
+//! spark_strict: arguments whose type Spark's analyzer may reject are wrapped in check_arg(value, 'function',
+//! position), checked at bind time against the rules generated from Spark (lambdas and named arguments are left alone)
+void WrapArgTypeChecks(ParsedExpression &expr) {
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return;
+	}
+	auto &func = expr.Cast<FunctionExpression>();
+	if (!func.GetQualifiedName().Schema().empty()) {
+		return;
+	}
+	auto name = StringUtil::Lower(func.FunctionName().GetIdentifierName());
+	auto &args = func.GetArgumentsMutable();
+	for (idx_t i = 0; i < args.size(); i++) {
+		auto &argument = args[i].GetExpressionMutable();
+		if (!HasArgTypeRule(name, i) || argument->GetExpressionClass() == ExpressionClass::LAMBDA ||
+		    args[i].HasName()) {
+			continue;
+		}
+		vector<ExprPtr> check;
+		check.push_back(std::move(argument));
+		check.push_back(ConstantExpression::String(name));
+		check.push_back(ConstantExpression::Integer(int64_t(i)));
+		argument = SparkCall("check_arg", std::move(check));
+	}
+}
+
 //! FunctionExpression in spark_strict: the name the user wrote must be a Spark function (checked before DuckDB's
 //! own rewrites such as count() -> count_star)
 ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
@@ -1815,6 +1841,7 @@ ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	auto expr = Expr(t, list.GetChild(0));
 	CheckFoldableArguments(*expr);
 	CheckNullLiteralArguments(*expr);
+	WrapArgTypeChecks(*expr);
 	return FinalizeFunctionHookResult(std::move(expr));
 }
 

@@ -675,10 +675,13 @@ void RewriteLiterals(Tokens &ts) {
 				                      StringUtil::Lower(type));
 			}
 		}
-		Tokens replacement = Lex("CAST (", offset);
+		// 1L / 1S / 1Y stay literals for Spark's decimal precision rules (a literal operand counts with its own
+		// digits, a CAST(1 AS INT) with the type's ten): typed_literal folds the cast back to a constant
+		bool typed_integral = upper == "L" || upper == "S" || upper == "Y";
+		Tokens replacement = Lex(typed_integral ? "system . spark . typed_literal ( CAST (" : "CAST (", offset);
 		replacement.emplace_back(as_string ? DuckStringLiteral(number) : number, offset,
 		                         as_string ? TokenType::STRING_LITERAL : TokenType::NUMBER_LITERAL);
-		auto tail = Lex("AS " + type + " )", offset);
+		auto tail = Lex(typed_integral ? "AS " + type + " ) )" : "AS " + type + " )", offset);
 		replacement.insert(replacement.end(), tail.begin(), tail.end());
 		// keep the number token itself so error messages still point at it
 		Replace(ts, i, i + consumed, replacement);

@@ -77,9 +77,103 @@ bool CombineLiteralWithSmallInteger(LogicalTypeResolver &resolver, const Logical
 	return resolver.Operation(IntegerLiteral::GetType(literal), other, result);
 }
 
+//! BIGINT with a DECIMAL: Spark widens through DECIMAL(20,0), DuckDB through DECIMAL(19,0) (the other integer types
+//! have the same digit counts in both)
+bool MatchesBigintWithDecimal(const LogicalType &left, const LogicalType &right) {
+	return (left.id() == LogicalTypeId::BIGINT && right.id() == LogicalTypeId::DECIMAL) ||
+	       (right.id() == LogicalTypeId::BIGINT && left.id() == LogicalTypeId::DECIMAL);
+}
+
+bool CombineBigintWithDecimal(LogicalTypeResolver &resolver, const LogicalType &left, const LogicalType &right,
+                              LogicalType &result) {
+	auto &decimal = left.id() == LogicalTypeId::DECIMAL ? left : right;
+	auto as_decimal = LogicalType::DECIMAL(InSparkDialect(resolver.context) ? 20 : 19, 0);
+	return resolver.Operation(as_decimal, decimal, result);
+}
+
+bool InStrictDialect(optional_ptr<ClientContext> context) {
+	if (!context) {
+		return false;
+	}
+	auto &dialect = ClientConfig::GetConfig(*context).current_dialect;
+	return dialect.has_value() && *dialect == "spark_strict";
+}
+
+enum class SparkKind { NONE, NUMBER, BOOLEAN, DATETIME, BINARY, INTERVAL, STRING, LIST, MAP, STRUCT, OTHER };
+
+SparkKind KindOf(const LogicalType &type) {
+	switch (type.id()) {
+	case LogicalTypeId::TINYINT:
+	case LogicalTypeId::SMALLINT:
+	case LogicalTypeId::INTEGER:
+	case LogicalTypeId::BIGINT:
+	case LogicalTypeId::INTEGER_LITERAL:
+	case LogicalTypeId::FLOAT:
+	case LogicalTypeId::DOUBLE:
+	case LogicalTypeId::DECIMAL:
+		return SparkKind::NUMBER;
+	case LogicalTypeId::BOOLEAN:
+		return SparkKind::BOOLEAN;
+	case LogicalTypeId::DATE:
+	case LogicalTypeId::TIMESTAMP:
+	case LogicalTypeId::TIMESTAMP_TZ:
+		return SparkKind::DATETIME;
+	case LogicalTypeId::BLOB:
+		return SparkKind::BINARY;
+	case LogicalTypeId::INTERVAL:
+		return SparkKind::INTERVAL;
+	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::STRING_LITERAL:
+		return SparkKind::STRING;
+	case LogicalTypeId::LIST:
+	case LogicalTypeId::ARRAY:
+		return SparkKind::LIST;
+	case LogicalTypeId::MAP:
+		return SparkKind::MAP;
+	case LogicalTypeId::STRUCT:
+		return SparkKind::STRUCT;
+	case LogicalTypeId::SQLNULL:
+	case LogicalTypeId::UNKNOWN:
+		return SparkKind::NONE;
+	default:
+		return SparkKind::OTHER;
+	}
+}
+
+//! Set while the rule below asks DuckDB's built-in rules (outside spark_strict), so it does not match again
+thread_local bool combining_without_spark_rule = false;
+
+//! Two types that have no common type in Spark in any context (findWiderTypeForTwo and the stricter variants
+//! alike): a boolean with a number, a number or a datetime with binary data, a struct with a scalar, ... Pairs with
+//! a string are left out: whether a string promotes depends on the context (UNION yes, VALUES no).
+bool MatchesNoSparkCommonType(const LogicalType &left, const LogicalType &right) {
+	if (combining_without_spark_rule) {
+		return false;
+	}
+	auto a = KindOf(left), b = KindOf(right);
+	if (a == b || a == SparkKind::NONE || b == SparkKind::NONE || a == SparkKind::OTHER || b == SparkKind::OTHER ||
+	    a == SparkKind::STRING || b == SparkKind::STRING) {
+		return false;
+	}
+	return true;
+}
+
+bool CombineNoSparkCommonType(LogicalTypeResolver &resolver, const LogicalType &left, const LogicalType &right,
+                              LogicalType &result) {
+	if (InStrictDialect(resolver.context)) {
+		return false; // Spark's analysis error ("Cannot combine types")
+	}
+	combining_without_spark_rule = true;
+	bool ok = LogicalType::DefaultTryGetMaxLogicalTypeUnchecked(left, right, result);
+	combining_without_spark_rule = false;
+	return ok;
+}
+
 } // namespace
 
 void RegisterSparkTypeRules(ExtensionLoader &loader) {
+	loader.RegisterCombineTypesRule(CombineTypesRule {MatchesNoSparkCommonType, CombineNoSparkCommonType});
+	loader.RegisterCombineTypesRule(CombineTypesRule {MatchesBigintWithDecimal, CombineBigintWithDecimal});
 	loader.RegisterCombineTypesRule(CombineTypesRule {MatchesDecimals, CombineDecimals});
 	loader.RegisterCombineTypesRule(CombineTypesRule {MatchesLiteralWithSmallInteger, CombineLiteralWithSmallInteger});
 }
