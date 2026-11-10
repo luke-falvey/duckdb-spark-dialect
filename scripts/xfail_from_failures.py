@@ -78,7 +78,7 @@ def _tiers():
 TIERS = None
 
 
-def classify(sql, detail, file=""):
+def classify(sql, detail, file="", config=""):
     global TIERS
     if "UNSUPPORTED_FEATURE.SET_CONF" in detail:
         if TIERS is None:
@@ -86,6 +86,14 @@ def classify(sql, detail, file=""):
         if TIERS.get(file, 3) >= 3:
             return ("conf-rejected", "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it")
         return ("conf-todo", "tier 1 / 2 setting not implemented yet (plan 9.2)")
+    if file.startswith(("types__", "settings__interactions", "spark_corpus__")):
+        # the two types the dialect cannot represent (plan 9.3, 9.4) explain every case that mentions them
+        if re.search(r"\binterval\b", sql, re.I):
+            return "types-interval", "DuckDB has one INTERVAL type, so Spark's interval ranges are not representable (plan 9.4)"
+        if re.search(r"timestamp_ntz", sql, re.I):
+            return "types-ntz", "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+    if "ansi.enabled=true" in config and not file.startswith("settings__"):
+        return "ansi-implicit-cast", "ANSI mode changes Spark's implicit casts (AnsiTypeCoercion); the dialect keeps the non-ANSI rules"
     for ident, reason, sql_re, detail_re in RULES:
         if sql_re and not re.search(sql_re, sql, re.S | re.I):
             continue
@@ -94,9 +102,23 @@ def classify(sql, detail, file=""):
         return ident, reason
     if file == "settings__ansi_enabled.sql" or (file.startswith("types__") and "ansi" in file):
         return "ansi-implicit-cast", "ANSI mode changes Spark's implicit casts (AnsiTypeCoercion); the dialect keeps the non-ANSI rules"
+    if file.startswith("spark_corpus__"):
+        if "ansi" in file:
+            return "ansi-implicit-cast", "ANSI mode changes Spark's implicit casts (AnsiTypeCoercion); the dialect keeps the non-ANSI rules"
+        return "corpus-open", "difference from Spark found by a promoted Spark SQL test input, not yet fixed (see the case and docs/plans/spark-parity/known_differences.md)"
+    if file == "generated_names.sql":
+        return "names-generated", "Spark's generated column names (plan 9.5) are not implemented: a later statement cannot refer to them"
+    if file == "settings__session_behaviour.sql":
+        return "view-captures-settings", "Spark captures the settings in force when a view is created; the dialect expands views with the current settings"
+    if file.startswith("types__"):
+        matrix = file[len("types__"):].split("_")[0]
+        return f"types-open-{matrix}", "difference from Spark found by the type matrix, not yet fixed (see the case and docs/plans/spark-parity/known_differences.md)"
     if file.startswith("settings__"):
         ident = "settings-" + file[len("settings__"):-len(".sql")]
         return ident, "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+    if config:
+        key = config.split("=")[0]
+        return f"config-{key}", f"difference from Spark under {key}, found by rerunning the case files under the setting (workstream D)"
     return "unclassified", "no rule matches this failure: classify or fix it"
 
 
@@ -145,7 +167,7 @@ def main():
         if args.files and not any(fnmatch.fnmatchcase(file, g.replace("/", "__")) for g in args.files):
             continue
         info = spark.get(key) or strict.get(key)
-        ident, reason = classify(info[0], info[1], file)
+        ident, reason = classify(info[0], info[1], file, config)
         dialects = tuple(d for d, found in (("spark", key in spark), ("spark_strict", key in strict)) if found)
         groups[(ident, reason, file, config, dialects)].append(index)
     lines = []

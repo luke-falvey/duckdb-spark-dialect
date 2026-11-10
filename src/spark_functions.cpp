@@ -1457,6 +1457,15 @@ ExprP WallToInstant(Builder &b, ExprP e) {
 	return e;
 }
 
+bool SessionZoneIsUtc(Builder &b) {
+	Value zone;
+	if (b.context.TryGetCurrentSetting(Identifier("TimeZone"), zone) && !zone.IsNull()) {
+		auto name = zone.ToString();
+		return name == "UTC" || name == "Etc/UTC" || name == "GMT";
+	}
+	return true;
+}
+
 ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	auto source = Normalize(e->GetReturnType());
 	if (source == target) {
@@ -1579,12 +1588,21 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.Case(is_kind(0), wall(e->Copy()),
 			              b.Case(is_kind(1), std::move(offset_case), std::move(named_case)));
 		}
+		if (IsIntegral(source) && SessionZoneIsUtc(b)) {
+			// seconds since the epoch as the wall clock of a UTC session; the TIMESTAMPTZ path below depends on the
+			// ICU calendar setting
+			auto micros = b.Op("*", b.Cast(std::move(e), LogicalType::HUGEINT), b.Constant(Value::HUGEINT(1000000)));
+			return b.Call("make_timestamp", b.Cast(std::move(micros), LogicalType::BIGINT, true));
+		}
 		if (IsNumeric(source)) {
 			auto tz = b.Call("to_timestamp", b.Cast(std::move(e), LogicalType::DOUBLE));
 			return b.Cast(std::move(tz), target, true);
 		}
 		if (source.id() == LogicalTypeId::BOOLEAN) {
-			return b.NullOf(target);
+			// true is one microsecond after the epoch, false the epoch itself
+			auto micros = b.Case(e->Copy(), b.Constant(Value::BIGINT(1)), b.Constant(Value::BIGINT(0)));
+			auto ts = b.Call("make_timestamp", std::move(micros));
+			return b.Case(b.IsNull(std::move(e)), b.NullOf(target), std::move(ts));
 		}
 	}
 	if (target.id() == LogicalTypeId::BLOB && IsString(source)) {
@@ -1736,6 +1754,10 @@ ExprP BindAddSubMul(FunctionBindExpressionInput &input, const char *duck_op) {
 		if (op == "-" && lt.id() == LogicalTypeId::DATE && rt.id() == LogicalTypeId::INTERVAL) {
 			return b.Cast(b.Op("-", std::move(left), std::move(right)), LogicalType::DATE);
 		}
+	}
+	if ((IsDecimal(lt) && IsFloating(rt)) || (IsFloating(lt) && IsDecimal(rt))) {
+		// Spark: decimal with FLOAT or DOUBLE is DOUBLE (DuckDB: FLOAT)
+		return b.Op(duck_op, b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
 	}
 	bool decimal_math = (IsDecimal(lt) || IsDecimal(rt)) && (IsDecimal(lt) || IsIntegral(lt) || IsLargeIntegral(lt)) &&
 	                    (IsDecimal(rt) || IsIntegral(rt) || IsLargeIntegral(rt));
@@ -2632,12 +2654,41 @@ ExprP BindTypeOf(FunctionBindExpressionInput &input) {
 	return b.Constant(Value(SparkTypeName(input.children[0]->GetReturnType())));
 }
 
+LogicalType SparkWiderType(ClientContext &context, const LogicalType &a_p, const LogicalType &b_p);
+
+//! The operands cast to their common type, found pairwise from the left like Spark's findWiderTypeForTwo
+void CastToCommonType(Builder &b, vector<ExprP> &args) {
+	LogicalType common = LogicalType::SQLNULL;
+	for (auto &arg : args) {
+		common = SparkWiderType(b.context, common, arg->GetReturnType());
+	}
+	if (IsNull(common)) {
+		return;
+	}
+	for (auto &arg : args) {
+		if (arg->GetReturnType() != common && !IsNull(Normalize(arg->GetReturnType()))) {
+			arg = b.Cast(std::move(arg), common);
+		}
+	}
+}
+
+ExprP BindCoalesceValue(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	vector<ExprP> args;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		args.push_back(Arg(input, i));
+	}
+	CastToCommonType(b, args);
+	return b.Coalesce(std::move(args));
+}
+
 ExprP BindArray(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	vector<ExprP> args;
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
 	}
+	CastToCommonType(b, args);
 	if (args.empty()) {
 		return b.Constant(Value::LIST(LogicalType::SQLNULL, {}));
 	}
@@ -3579,6 +3630,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"ceil_value", BindFloorCeil<true>},
 	    {"typeof", BindTypeOf},
 	    {"array", BindArray},
+    {"coalesce_value", BindCoalesceValue},
 	    {"map_from_arrays", BindMapFromArrays},
     {"map_concat", BindMapConcat},
     {"conf_bool", BindConfBool},

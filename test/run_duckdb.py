@@ -21,6 +21,7 @@ Outcome per case:
 Files with `-- @matrix` lines run once per combination of the values.
 """
 import argparse
+import re
 import fnmatch
 import json
 import os
@@ -56,6 +57,8 @@ def run_file(path, verbose, keyword, dialect="spark", extra=(), duck_sets=(), xf
     # as in the golden run
     conf_error = None
     for key, value in [*directives["config"], *extra, *duck_sets]:
+        if (key, value) in duck_sets and not re.fullmatch(r"-?[0-9.]+|true|false", value, re.I):
+            value = "'" + value.replace("'", "''") + "'"  # DuckDB keywords such as desc are not valid unquoted
         r = duck.run(f"SET {key} = {value}")
         if r.ok:
             duck.replay.append(f"SET {key} = {value}")

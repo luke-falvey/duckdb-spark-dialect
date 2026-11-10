@@ -641,7 +641,13 @@ void RewriteLiterals(Tokens &ts) {
 			if (stripped.size() < 19 || (stripped.size() == 19 && stripped <= "9223372036854775807")) {
 				continue;
 			}
-			type = "DECIMAL(" + to_string(stripped.size()) + ",0)";
+			if (number == "9223372036854775808" && i > 0 && IsOp(ts[i - 1], "-") && UnaryMinusAt(ts, i - 1)) {
+				// -9223372036854775808 is a BIGINT: the minus belongs to the literal
+				type = "BIGINT";
+				upper = "L";
+			} else {
+				type = "DECIMAL(" + to_string(stripped.size()) + ",0)";
+			}
 			consumed = 1;
 		}
 		auto offset = t.offset;

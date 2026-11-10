@@ -1290,6 +1290,11 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		                      Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
 		return expr;
 	}
+	if (name == "coalesce" && func.GetArguments().size() >= 2) {
+		// the operands are brought to Spark's common type first (a string with a number is a string)
+		auto args = TakeArguments(func);
+		return SparkCall("coalesce_value", std::move(args));
+	}
 	if (name == "if" || name == "iff") {
 		auto args = TakeArguments(func);
 		if (args.size() != 3) {
@@ -1792,6 +1797,10 @@ ExprPtr TransformCaseHook(PEGTransformer &t, ParseResult &pr) {
 arena_ptr<TransformResultValue> FinalizeOrderByHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
 	auto node = t.Transform<OrderByNode>(list.GetChild(0));
+	if (node.type == OrderType::ORDER_DEFAULT) {
+		// independent of DuckDB's default_order setting
+		node.type = OrderType::ASCENDING;
+	}
 	if (node.null_order == OrderByNullType::ORDER_DEFAULT) {
 		node.null_order = node.type == OrderType::DESCENDING ? OrderByNullType::NULLS_LAST : OrderByNullType::NULLS_FIRST;
 	}

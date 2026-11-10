@@ -33,8 +33,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"json_tuple_field", "(j, k) AS json_extract_string(TRY(CAST(j AS JSON)), '$.\"' || k || '\"')"},
 
     // ---- conditional / null handling ----
-    {"nvl", "(a, b) AS coalesce(a, b)"},
-    {"ifnull", "(a, b) AS coalesce(a, b)"},
+    {"nvl", "(a, b) AS " S "coalesce_value(a, b)"},
+    {"ifnull", "(a, b) AS " S "coalesce_value(a, b)"},
     {"nvl2", "(a, b, c) AS CASE WHEN a IS NOT NULL THEN b ELSE c END"},
     {"isnull", "(a) AS a IS NULL"},
     // 0 (not NULL) when no row is true

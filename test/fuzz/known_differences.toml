@@ -47,3 +47,16 @@ signature = "duck_error|Invalid Input Error: Map keys can not be NULL*"
 reason = """Spark raises NULL_MAP_KEY only when a map with a NULL key is materialized; when the optimizer removes the
 map (size(map(NULL, 1)) is folded to 1) the query succeeds. DuckDB always rejects the NULL key."""
 example = "SELECT size(map(CAST(NULL AS STRING), 1))"
+
+# ---- found by the type-aware fuzzers (plan E.3 - E.5: new column types, mixed kinds, types and phases compared) ----
+
+[[difference]]
+signature = "lenient_runtime|year N is out of range"
+reason = "Timestamp arithmetic past year 9999: Spark raises a run-time error, DuckDB represents the timestamp."
+example = "SELECT tn + INTERVAL 90 MINUTE FROM VALUES (TIMESTAMP_NTZ '9999-12-31 23:59:59') AS t(tn)"
+
+[[difference]]
+signature = "duck_error|Binder Error: Cannot mix values of type*"
+reason = "COALESCE / CASE over operands of types without a common type in DuckDB (BLOB and VARCHAR, BOOLEAN and VARCHAR): Spark casts to string."
+example = "SELECT coalesce(X'41', 'a')"
+

@@ -1,0 +1,1 @@
+test/cases/spark_corpus/: statements derived from the SQL test inputs of Apache Spark v3.5.9 (https://github.com/apache/spark, Apache License 2.0).

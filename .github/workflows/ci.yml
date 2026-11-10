@@ -61,10 +61,42 @@ jobs:
           name: spark_dialect-${{ env.DUCKDB_VERSION }}-linux_amd64
           path: build/extension/spark_dialect/spark_dialect.duckdb_extension
 
+  unit:
+    name: Harness unit tests and settings inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages
+        run: pip install "duckdb==${DUCKDB_VERSION#v}" pandas pytz pytest
+
+      - name: Harness unit tests
+        run: python test/test_harness.py
+
+      - name: Settings inventory (plan B1)
+        run: python test/settings/check_inventory.py
+
+      - name: Generated case files are up to date
+        run: |
+          python scripts/gen_setting_cases.py
+          python scripts/gen_type_cases.py
+          git diff --exit-code -- test/cases
+
   golden:
-    name: Record expected results with Spark 3.5
+    name: Record expected results with Spark 3.5 (${{ matrix.group }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [base, settings, types-casts, types-operators, types-common, types-args, types-rest, corpus]
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4
@@ -85,24 +117,25 @@ jobs:
 
       - name: Record expected results with Apache Spark
         # Re-runs every case in Spark so the comparison is against a live Spark 3.5,
-        # not only the results committed in test/golden/. Done once; both dialects compare against it.
-        run: python test/make_golden.py
+        # not only the results committed in test/golden/. Done once per group; both dialects compare against it.
+        run: python test/make_golden.py $(python scripts/case_group.py ${{ matrix.group }})
 
       - name: Upload the expected results
         uses: actions/upload-artifact@v4
         with:
-          name: golden
-          path: test/golden/*.pkl
+          name: golden-${{ matrix.group }}
+          path: test/golden/
 
   test:
-    name: Compare DuckDB (${{ matrix.dialect }}) with Spark
+    name: Compare DuckDB (${{ matrix.dialect }}, ${{ matrix.group }}) with Spark
     needs: [build, golden]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         dialect: [spark, spark_strict]
+        group: [base, settings, types-casts, types-operators, types-common, types-args, types-rest, corpus]
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4
@@ -116,7 +149,7 @@ jobs:
       - name: Download the expected results
         uses: actions/download-artifact@v4
         with:
-          name: golden
+          name: golden-${{ matrix.group }}
           path: test/golden
 
       - name: Set up Python
@@ -131,10 +164,16 @@ jobs:
         # spark_strict also fails on LENIENT cases: SQL that Spark rejects but DuckDB accepts
         env:
           SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
-        run: python test/run_duckdb.py -v --dialect ${{ matrix.dialect }}
+        run: python test/run_duckdb.py -v --dialect ${{ matrix.dialect }} $(python scripts/case_group.py ${{ matrix.group }})
+
+      - name: DuckDB settings must not leak (plan B5)
+        if: matrix.group == 'base'
+        env:
+          SPARK_EXTENSION: ${{ github.workspace }}/build/spark_dialect.duckdb_extension
+        run: python scripts/check_duckdb_leaks.py --dialect ${{ matrix.dialect }}
 
       - name: Coverage report
-        if: always() && matrix.dialect == 'spark'
+        if: always() && matrix.dialect == 'spark' && matrix.group == 'base'
         run: |
           if [ -f test/results/functions.json ]; then
             python scripts/coverage_report.py
@@ -145,7 +184,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.dialect }}
+          name: test-results-${{ matrix.dialect }}-${{ matrix.group }}
           path: |
             test/results/
             COVERAGE.md
