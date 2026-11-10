@@ -29,6 +29,10 @@
 #include "duckdb/parser/statement/select_statement.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/parser/result_modifier.hpp"
+#include <atomic>
+#include "duckdb/parser/tableref/basetableref.hpp"
+#include "duckdb/parser/tableref/subqueryref.hpp"
+#include "duckdb/parser/query_node/select_node.hpp"
 
 #include <functional>
 #include <exception>
@@ -1688,6 +1692,121 @@ void SetCoalesceColumnName(ParsedExpression &expr) {
 	expr.SetAlias(Identifier(name + ")"));
 }
 
+//===----------------------------------------------------------------------===//
+// Window functions inside window definitions (rank() OVER (ORDER BY sum(x) OVER (...))): Spark evaluates the inner
+// window first. DuckDB cannot nest window calls, so a query block with one is split: the inner windows are computed
+// in a derived table, and the outer query reads them as columns.
+//===----------------------------------------------------------------------===//
+//! Replace window calls found inside another window call by column references, collecting them (with their alias)
+void LiftInnerWindows(unique_ptr<ParsedExpression> &expr, bool inside_window, vector<unique_ptr<ParsedExpression>> &lifted,
+                      idx_t &counter) {
+	if (!expr) {
+		return;
+	}
+	auto cls = expr->GetExpressionClass();
+	if (cls == ExpressionClass::SUBQUERY) {
+		return; // its own query block
+	}
+	if (cls == ExpressionClass::WINDOW) {
+		if (inside_window) {
+			auto name = "__spark_w" + to_string(counter++);
+			expr->SetAlias(Identifier(name));
+			lifted.push_back(std::move(expr));
+			expr = make_uniq<ColumnRefExpression>(Identifier(name));
+			return;
+		}
+		ParsedExpressionIterator::EnumerateChildren(*expr, [&](unique_ptr<ParsedExpression> &child) {
+			LiftInnerWindows(child, true, lifted, counter);
+		});
+		return;
+	}
+	ParsedExpressionIterator::EnumerateChildren(*expr, [&](unique_ptr<ParsedExpression> &child) {
+		LiftInnerWindows(child, inside_window, lifted, counter);
+	});
+}
+
+bool HasQualifiedColumn(const ParsedExpression &expr) {
+	if (expr.GetExpressionClass() == ExpressionClass::COLUMN_REF) {
+		return expr.Cast<ColumnRefExpression>().IsQualified();
+	}
+	if (expr.GetExpressionClass() == ExpressionClass::SUBQUERY) {
+		return false;
+	}
+	bool found = false;
+	ParsedExpressionIterator::EnumerateChildren(expr, [&](const ParsedExpression &child) {
+		found = found || HasQualifiedColumn(child);
+	});
+	return found;
+}
+
+void LiftNestedWindows(SelectNode &node) {
+	static std::atomic<idx_t> counter {0};
+	idx_t local = counter.fetch_add(1000);
+	vector<unique_ptr<ParsedExpression>> lifted;
+	for (auto &item : node.select_list) {
+		LiftInnerWindows(item, false, lifted, local);
+	}
+	LiftInnerWindows(node.qualify, false, lifted, local);
+	if (lifted.empty()) {
+		return;
+	}
+	if (!node.groups.group_expressions.empty() || !node.groups.grouping_sets.empty() || node.having) {
+		throw ParserException("[UNSUPPORTED_FEATURE] spark_dialect does not support a window function inside a window "
+		                      "definition in a query with GROUP BY or HAVING; compute the inner window in a subquery");
+	}
+	// the outer query reads the source's columns through the derived table: it keeps the source's alias
+	Identifier alias;
+	if (node.from_table) {
+		alias = node.from_table->alias;
+		if (alias.empty() && node.from_table->type == TableReferenceType::BASE_TABLE) {
+			alias = node.from_table->Cast<BaseTableRef>().GetQualifiedName().Name();
+		}
+	}
+	if (alias.empty() && node.from_table && node.from_table->type != TableReferenceType::EMPTY_FROM) {
+		for (auto &item : node.select_list) {
+			if (HasQualifiedColumn(*item)) {
+				throw ParserException("[UNSUPPORTED_FEATURE] spark_dialect does not support a window function inside a "
+				                      "window definition over a join with qualified column references; compute the "
+				                      "inner window in a subquery");
+			}
+		}
+	}
+	auto inner = make_uniq<SelectNode>();
+	inner->select_list.push_back(make_uniq<StarExpression>());
+	vector<Identifier> names;
+	for (auto &window : lifted) {
+		names.push_back(window->GetAlias());
+		inner->select_list.push_back(std::move(window));
+	}
+	inner->from_table = std::move(node.from_table);
+	inner->where_clause = std::move(node.where_clause);
+	LiftNestedWindows(*inner); // windows nested deeper
+	auto statement = make_uniq<SelectStatement>();
+	statement->node = std::move(inner);
+	node.from_table = make_uniq<SubqueryRef>(std::move(statement), alias);
+	// SELECT * of the outer query does not show the helper columns
+	for (auto &item : node.select_list) {
+		if (item->GetExpressionClass() == ExpressionClass::STAR) {
+			auto &star = item->Cast<StarExpression>();
+			for (auto &name : names) {
+				star.ExcludeListMutable().insert(QualifiedColumnName(name));
+			}
+		}
+	}
+}
+
+arena_ptr<TransformResultValue> FinalizeSimpleSelect(PEGTransformer &t, ParseResult &pr) {
+	auto statement = t.Transform<unique_ptr<SelectStatement>>(AsList(pr).GetChild(0));
+	if (statement->node && statement->node->type == QueryNodeType::SELECT_NODE) {
+		LiftNestedWindows(statement->node->Cast<SelectNode>());
+	}
+	return t.MakeResult<unique_ptr<SelectStatement>>(std::move(statement));
+}
+
+arena_ptr<TransformProcess> SimpleSelectProcess(PEGTransformer &t, ParseResult &pr) {
+	return t.MakeProcess<FinalizeTransformProcess>(t, pr, FinalizeSimpleSelect);
+}
+
 //! AliasedExpression: `generator AS name` and `generator AS (a, b)` name the generated columns
 ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
@@ -1727,9 +1846,19 @@ ExprPtr TransformGroupingHook(PEGTransformer &t, ParseResult &pr) {
 	return expr;
 }
 
+//! Transform a function call; a window function inside another window's definition is allowed (Spark evaluates the
+//! inner window first, see LiftNestedWindows), so DuckDB's "inside a window definition" state is cleared for it
+ExprPtr TransformFunctionCall(PEGTransformer &t, ParseResult &pr) {
+	bool in_window_definition = t.in_window_definition;
+	t.in_window_definition = false;
+	auto expr = Expr(t, pr);
+	t.in_window_definition = in_window_definition;
+	return expr;
+}
+
 ExprPtr TransformFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
-	return FinalizeFunctionHookResult(Expr(t, list.GetChild(0)));
+	return FinalizeFunctionHookResult(TransformFunctionCall(t, list.GetChild(0)));
 }
 
 //! Does a parsed expression reference no columns, subqueries or lambda parameters (Spark: "foldable")?
@@ -1856,7 +1985,7 @@ ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	if (tokens.size() == 1) {
 		CheckSparkFunctionName(tokens[0]);
 	}
-	auto expr = Expr(t, list.GetChild(0));
+	auto expr = TransformFunctionCall(t, list.GetChild(0));
 	CheckFoldableArguments(*expr);
 	CheckNullLiteralArguments(*expr);
 	WrapArgTypeChecks(*expr);
@@ -2336,6 +2465,16 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	          "RowExpression / SubstringExpression / TrimExpression / OverlayExpression",
 	          special_rule->transform_process);
 	g.ReplaceRule("SpecialFunctionExpression <- DuckSpecialFunctionExpression", ExprProcess<TransformFunctionHook>);
+
+	// window functions inside window definitions: SimpleSelect results go through LiftNestedWindows
+	auto simple_select_rule = g.GetRule("SimpleSelect");
+	if (!simple_select_rule) {
+		throw InternalException("spark dialect: SimpleSelect rule not found");
+	}
+	g.AddRule("DuckSimpleSelect <- SelectFrom WhereClause? GroupByClause? HavingClause? WindowClause? QualifyClause? "
+	          "SelectSampleClause?",
+	          simple_select_rule->transform_process);
+	g.ReplaceRule("SimpleSelect <- DuckSimpleSelect", SimpleSelectProcess);
 
 	auto aliased_rule = g.GetRule("AliasedExpression");
 	if (!aliased_rule) {
