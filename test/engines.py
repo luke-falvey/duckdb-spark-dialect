@@ -113,7 +113,6 @@ class SparkOracle:
         self.spark = (SparkSession.builder.master("local[2]")
                       .config("spark.ui.enabled", "false")
                       .config("spark.sql.session.timeZone", "UTC")
-                      .config("spark.sql.shuffle.partitions", "2")
                       .config("spark.sql.warehouse.dir", str(self.warehouse))
                       .config("spark.driver.memory", os.environ.get("SPARK_DRIVER_MEMORY", "2g"))
                       .getOrCreate())

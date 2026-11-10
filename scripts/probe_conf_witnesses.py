@@ -21,12 +21,16 @@ from engines import SparkOracle  # noqa: E402
 DEFAULT = ROOT / "docs" / "plans" / "spark-parity" / "conf_witnesses.json"
 
 
-def run(oracle, statements):
+def run(oracle, statements, cleanup=()):
+    """Run the statements; the result of the last one is recorded. `cleanup` statements run afterwards (for example a
+    SET inside the witness that must not leak into the next witness) and their results are ignored."""
     result = None
     for sql in statements:
         result = oracle.run(sql)
         if not result.ok:
             break
+    for sql in cleanup:
+        oracle.run(sql)
     if result.ok:
         return {"ok": True, "schema": result.schema, "rows": repr(result.rows)[:400]}
     return {"ok": False, "error": re.sub(r"#\d+", "#N", result.error)[:200], "phase": result.phase}
@@ -42,14 +46,14 @@ def main():
         oracle.reset()
         for key, value in requires.items():
             conf.set(key, value)
-        entry["spark_default"] = run(oracle, entry["statements"])
+        entry["spark_default"] = run(oracle, entry["statements"], entry.get("cleanup", ()))
         oracle.reset()
         entry["set_error"] = None
         try:
             conf.set(entry["key"], entry["value"])
         except Exception as e:  # noqa: BLE001  (static and core settings cannot be changed in a session)
             entry["set_error"] = str(e).split("\n")[0][:200]
-        entry["spark_flipped"] = None if entry["set_error"] else run(oracle, entry["statements"])
+        entry["spark_flipped"] = None if entry["set_error"] else run(oracle, entry["statements"], entry.get("cleanup", ()))
         for key in [entry["key"], *requires]:
             try:
                 conf.unset(key)

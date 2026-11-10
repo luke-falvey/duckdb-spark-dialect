@@ -15,7 +15,7 @@
   },
   "spark_flipped": {
    "ok": false,
-   "error": "",
+   "error": "[NAMED_PARAMETER_SUPPORT_DISABLED] Cannot call function `mask` because named argument references are not enabled here. In this case, the named argument reference was `lowerChar`. Set \"spark.sql.allowN",
    "phase": "analysis"
   }
  },
@@ -99,7 +99,7 @@
   },
   "spark_flipped": {
    "ok": false,
-   "error": "",
+   "error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'order'.(line 1, pos 12)",
    "phase": "analysis"
   }
  },
@@ -305,7 +305,7 @@
   },
   "spark_flipped": {
    "ok": false,
-   "error": "",
+   "error": "[UNSUPPORTED_DEFAULT_VALUE.WITH_SUGGESTION] DEFAULT column values is not supported. Enable it by setting \"spark.sql.defaultColumn.enabled\" to \"true\".(line 1, pos 26)",
    "phase": "analysis"
   }
  },
@@ -563,7 +563,7 @@
   "set_error": null,
   "spark_default": {
    "ok": false,
-   "error": "An error occurred while calling o25181.collectToPython.",
+   "error": "An error occurred while calling o25196.collectToPython.",
    "phase": "runtime"
   },
   "spark_flipped": {
@@ -847,7 +847,7 @@
   "set_error": null,
   "spark_default": {
    "ok": false,
-   "error": "",
+   "error": "Interval string does not match day-time format of `[+|-]d h`, `INTERVAL [+|-]'[+|-]d h' DAY TO HOUR` when cast to interval day to hour: 20 15:40:32.99899999, set spark.sql.legacy.fromDayTimeString.ena",
    "phase": "analysis"
   },
   "spark_flipped": {
@@ -1113,7 +1113,7 @@
   "set_error": null,
   "spark_default": {
    "ok": false,
-   "error": "",
+   "error": "[UNSUPPORTED_FEATURE.SET_TABLE_PROPERTY] The feature is not supported: provider is a reserved table property, please use the USING clause to specify it.(line 1, pos 40)",
    "phase": "analysis"
   },
   "spark_flipped": {
@@ -1504,7 +1504,7 @@
   },
   "spark_flipped": {
    "ok": false,
-   "error": "An error occurred while calling o67778.collectToPython.",
+   "error": "An error occurred while calling o67810.collectToPython.",
    "phase": "runtime"
   }
  },
@@ -1880,5 +1880,76 @@
    "rows": "[[('num', Decimal('1'))]]"
   },
   "spark_flipped": null
+ },
+ {
+  "key": "spark.sql.legacy.useCurrentConfigsForView",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "SET spark.sql.ansi.enabled=false",
+   "CREATE OR REPLACE VIEW w_ucv AS SELECT CAST('a' AS INT) AS c",
+   "SET spark.sql.ansi.enabled=true",
+   "SELECT * FROM w_ucv"
+  ],
+  "cleanup": [
+   "SET spark.sql.ansi.enabled=false",
+   "DROP VIEW IF EXISTS w_ucv"
+  ],
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<c:int>",
+   "rows": "[[None]]"
+  },
+  "set_error": null,
+  "spark_flipped": {
+   "ok": false,
+   "error": "[CAST_INVALID_INPUT] The value 'a' of the type \"STRING\" cannot be cast to \"INT\" because it is malformed. Correct the value as per the syntax, or change its target type. Use `try_cast` to tolerate malf",
+   "phase": "runtime"
+  },
+  "differs": true
+ },
+ {
+  "key": "spark.sql.legacy.noCharPaddingInPredicate",
+  "value": "true",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_np (c CHAR(5)) USING parquet",
+   "INSERT INTO w_np VALUES ('ab')",
+   "SELECT count(*) FROM w_np WHERE c = 'ab   '"
+  ],
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<count(1):bigint>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "set_error": null,
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<count(1):bigint>",
+   "rows": "[[('num', Decimal('1'))]]"
+  },
+  "differs": false
+ },
+ {
+  "key": "spark.sql.readSideCharPadding",
+  "value": "false",
+  "requires": {},
+  "statements": [
+   "CREATE TABLE w_rp (c CHAR(5)) USING parquet",
+   "INSERT INTO w_rp VALUES ('ab')",
+   "SELECT length(c) FROM w_rp"
+  ],
+  "spark_default": {
+   "ok": true,
+   "schema": "struct<length(c):int>",
+   "rows": "[[('num', Decimal('5'))]]"
+  },
+  "set_error": null,
+  "spark_flipped": {
+   "ok": true,
+   "schema": "struct<length(c):int>",
+   "rows": "[[('num', Decimal('5'))]]"
+  },
+  "differs": false
  }
 ]

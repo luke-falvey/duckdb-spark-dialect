@@ -77,6 +77,7 @@ def main():
             print(f"{label}: {len(golden)} cases, {failed} error in Spark", flush=True)
             # each file starts from a clean catalog and the default confs
             spark.reset()
+            spark.spark.sql("RESET")  # a SET inside the file must not leak into the next one
             for key, _ in conf:
                 spark.spark.conf.unset(key)
 

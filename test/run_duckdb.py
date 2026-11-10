@@ -54,8 +54,15 @@ def run_file(path, verbose, keyword, dialect="spark", extra=(), duck_sets=(), xf
     duck = DuckRunner(dialect=dialect, timeout=CASE_TIMEOUT, extension=EXTENSION)
     # file-level `-- @config key=value`, matrix values and --config: the same setting in the dialect (Spark's SET)
     # as in the golden run
-    duck.setup([f"SET {key} = {value}" for key, value in [*directives["config"], *extra]]
-               + [f"SET {key} = {value}" for key, value in duck_sets])
+    conf_error = None
+    for key, value in [*directives["config"], *extra, *duck_sets]:
+        r = duck.run(f"SET {key} = {value}")
+        if r.ok:
+            duck.replay.append(f"SET {key} = {value}")
+        elif conf_error is None:
+            # the dialect rejects the setting (plan 9.1): every case of this configuration reports that error, so
+            # that test/xfail.toml can expect it (`conf-rejected`)
+            conf_error = r
     results = []
     for case in load_cases([path]):
         expected = golden.get(case.index)
@@ -73,9 +80,12 @@ def run_file(path, verbose, keyword, dialect="spark", extra=(), duck_sets=(), xf
             if not r.ok:
                 set_error = r
                 break
-        if set_error is not None:
+        if conf_error is not None:
+            r = conf_error
+            r.extra = dict(r.extra or {}, stage="bind")
+        elif set_error is not None:
             r = set_error
-            r.extra = dict(r.extra or {}, stage="exec")
+            r.extra = dict(r.extra or {}, stage="bind")
         else:
             r = duck.run(case.sql)
         for key, _ in case.sets:
@@ -83,8 +93,9 @@ def run_file(path, verbose, keyword, dialect="spark", extra=(), duck_sets=(), xf
         if r.ok and (case.has("setup") or is_command(case.sql)) and not case.sets:
             duck.replay.append(case.sql)  # restored if the worker has to restart
         if case.has("setup"):
-            if not r.ok:
-                results.append((case, "FAIL", f"setup failed: {r.error}", {}))
+            if not r.ok and conf_error is None:
+                outcome = apply_xfail(case, slug, dialect, harness.Outcome("FAIL", f"setup failed: {r.error}"), xfail)
+                results.append((case, outcome.kind, outcome.detail, outcome.notes))
             continue
         outcome = judge(case.sql, case.ordered, case.directives, expected, r, dialect, case.file,
                         exact=directives["exact"])

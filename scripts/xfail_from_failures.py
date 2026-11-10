@@ -60,13 +60,39 @@ RULES = [
 ]
 
 
-def classify(sql, detail):
+def _tiers():
+    """{case file folded name: tier} from the settings inventory (semantic keys)."""
+    import tomllib
+    inv = tomllib.loads((ROOT / "test" / "settings" / "inventory.toml").read_text())["keys"]
+    out = {}
+    for key, e in inv.items():
+        if e.get("class") == "semantic":
+            out[Path(e["cases"]).relative_to("test/cases").as_posix().replace("/", "__")] = e["tier"]
+    return out
+
+
+TIERS = None
+
+
+def classify(sql, detail, file=""):
+    global TIERS
+    if "UNSUPPORTED_FEATURE.SET_CONF" in detail:
+        if TIERS is None:
+            TIERS = _tiers()
+        if TIERS.get(file, 3) >= 3:
+            return ("conf-rejected", "a setting the dialect does not emulate is rejected by SET (plan 9.1); Spark accepts it")
+        return ("conf-todo", "tier 1 / 2 setting not implemented yet (plan 9.2)")
     for ident, reason, sql_re, detail_re in RULES:
         if sql_re and not re.search(sql_re, sql, re.S | re.I):
             continue
         if detail_re and not re.search(detail_re, detail, re.S):
             continue
         return ident, reason
+    if file == "settings__ansi_enabled.sql" or (file.startswith("types__") and "ansi" in file):
+        return "ansi-implicit-cast", "ANSI mode changes Spark's implicit casts (AnsiTypeCoercion); the dialect keeps the non-ANSI rules"
+    if file.startswith("settings__"):
+        ident = "settings-" + file[len("settings__"):-len(".sql")]
+        return ident, "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
     return "unclassified", "no rule matches this failure: classify or fix it"
 
 
@@ -112,7 +138,7 @@ def main():
     for key in sorted(set(spark) | set(strict)):
         file, config, index = key
         info = spark.get(key) or strict.get(key)
-        ident, reason = classify(*info)
+        ident, reason = classify(info[0], info[1], file)
         dialects = tuple(d for d, found in (("spark", key in spark), ("spark_strict", key in strict)) if found)
         groups[(ident, reason, file, config, dialects)].append(index)
     lines = []
