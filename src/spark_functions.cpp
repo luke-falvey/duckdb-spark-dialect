@@ -1104,8 +1104,15 @@ bool ParseSparkTimestamp(const string &trimmed, timestamp_t &out) {
 	if (trimmed.empty()) {
 		return false;
 	}
-	if (Timestamp::TryConvertTimestamp(trimmed.c_str(), trimmed.size(), out, true) == TimestampCastResult::SUCCESS) {
-		return true;
+	{
+		// a zone designator (`Z`, `+05:30`) is applied: the result is then the instant as a naive UTC timestamp, which
+		// the cast's bound expression converts to the session zone (see StringZoneKind); a zone name is left unapplied
+		bool has_offset = false;
+		string_t tz("", 0);
+		if (Timestamp::TryConvertTimestampTZ(trimmed.c_str(), trimmed.size(), out, true, has_offset, tz) ==
+		    TimestampCastResult::SUCCESS) {
+			return true;
+		}
 	}
 	auto sep = trimmed.find_first_of(" T");
 	auto date_part = sep == string::npos ? trimmed : trimmed.substr(0, sep);
@@ -1122,6 +1129,42 @@ bool ParseSparkTimestamp(const string &trimmed, timestamp_t &out) {
 		}
 	}
 	return Timestamp::TryFromDatetime(date, time, out);
+}
+
+//! 0: no zone designator in the string, 1: an offset (`Z`, `+05:30`; the parsed value is then a UTC instant),
+//! 2: a zone name (`America/New_York`; the parsed value is the wall clock time in that zone)
+int32_t StringZoneKind(const string &trimmed, string &name) {
+	bool has_offset = false;
+	string_t tz("", 0);
+	timestamp_t ts;
+	if (Timestamp::TryConvertTimestampTZ(trimmed.c_str(), trimmed.size(), ts, true, has_offset, tz) !=
+	    TimestampCastResult::SUCCESS) {
+		return 0;
+	}
+	if (tz.GetSize() > 0) {
+		name = tz.GetString();
+		return 2;
+	}
+	return has_offset ? 1 : 0;
+}
+
+void StringZoneKindKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, int32_t>(args.data[0], result, args.size(), [](string_t s) {
+		auto str = s.GetString();
+		StringUtil::Trim(str);
+		string name;
+		return StringZoneKind(str, name);
+	});
+}
+
+void StringZoneNameKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t s) {
+		auto str = s.GetString();
+		StringUtil::Trim(str);
+		string name;
+		StringZoneKind(str, name);
+		return StringVector::AddString(result, name);
+	});
 }
 
 void StringToTimestampKernel(DataChunk &args, ExpressionState &, Vector &result) {
@@ -1401,6 +1444,18 @@ ExprP ToSparkString(Builder &b, ExprP e) {
 //===----------------------------------------------------------------------===//
 // CAST
 //===----------------------------------------------------------------------===//
+//! The wall clock TIMESTAMP of the Spark TIMESTAMP type as an instant in the session time zone (unchanged under UTC)
+ExprP WallToInstant(Builder &b, ExprP e) {
+	Value zone;
+	if (b.context.TryGetCurrentSetting(Identifier("TimeZone"), zone) && !zone.IsNull()) {
+		auto name = zone.ToString();
+		if (name != "UTC" && name != "Etc/UTC" && name != "GMT") {
+			return b.Call("timezone", b.Constant(Value(name)), std::move(e));
+		}
+	}
+	return e;
+}
+
 ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	auto source = Normalize(e->GetReturnType());
 	if (source == target) {
@@ -1434,6 +1489,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.Kernel(NarrowFunction(LogicalType::BIGINT, target), std::move(as_long));
 		}
 		if (source.id() == LogicalTypeId::TIMESTAMP || source.id() == LogicalTypeId::TIMESTAMP_TZ) {
+			if (source.id() == LogicalTypeId::TIMESTAMP) {
+				e = WallToInstant(b, std::move(e));
+			}
 			auto seconds = b.Call("floor", b.Call("epoch", std::move(e)));
 			auto as_long = b.Cast(std::move(seconds), LogicalType::BIGINT, true);
 			if (target.id() == LogicalTypeId::BIGINT) {
@@ -1450,6 +1508,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.Cast(b.Call("trim", std::move(e)), target, true);
 		}
 		if (source.id() == LogicalTypeId::TIMESTAMP || source.id() == LogicalTypeId::TIMESTAMP_TZ) {
+			if (source.id() == LogicalTypeId::TIMESTAMP) {
+				e = WallToInstant(b, std::move(e));
+			}
 			return b.Cast(b.Call("epoch", std::move(e)), target, true);
 		}
 		if (source.id() == LogicalTypeId::DATE) {
@@ -1468,6 +1529,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			return b.NullOf(target);
 		}
 		if (source.id() == LogicalTypeId::TIMESTAMP || source.id() == LogicalTypeId::TIMESTAMP_TZ) {
+			if (source.id() == LogicalTypeId::TIMESTAMP) {
+				e = WallToInstant(b, std::move(e));
+			}
 			return b.Cast(b.Call("epoch", std::move(e)), target, true);
 		}
 	}
@@ -1493,9 +1557,26 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 	}
 	if (target.id() == LogicalTypeId::TIMESTAMP) {
 		if (IsString(source)) {
-			return b.Kernel(ScalarFunction(Identifier("spark_string_to_timestamp"), {LogicalType::VARCHAR},
-			                               LogicalType::TIMESTAMP, StringToTimestampKernel),
-			                std::move(e));
+			auto wall = [&](ExprP arg) {
+				return b.Kernel(ScalarFunction(Identifier("spark_string_to_timestamp"), {LogicalType::VARCHAR},
+				                               LogicalType::TIMESTAMP, StringToTimestampKernel),
+				                std::move(arg));
+			};
+			// a zone designator in the string (offset or zone name) is applied: the result is the wall clock time of
+			// the instant in the session time zone
+			auto kind = b.Kernel(ScalarFunction(Identifier("spark_string_zone_kind"), {LogicalType::VARCHAR},
+			                                    LogicalType::INTEGER, StringZoneKindKernel),
+			                     e->Copy());
+			auto name = b.Kernel(ScalarFunction(Identifier("spark_string_zone_name"), {LogicalType::VARCHAR},
+			                                    LogicalType::VARCHAR, StringZoneNameKernel),
+			                     e->Copy());
+			auto offset_case = b.Cast(b.Call("timezone", b.Constant(Value("UTC")), wall(e->Copy())), LogicalType::TIMESTAMP);
+			auto named_case = b.Cast(b.Call("timezone", std::move(name), wall(e->Copy())), LogicalType::TIMESTAMP, true);
+			auto is_kind = [&](int32_t k) {
+				return b.Compare(ExpressionType::COMPARE_EQUAL, kind->Copy(), b.Constant(Value::INTEGER(k)));
+			};
+			return b.Case(is_kind(0), wall(e->Copy()),
+			              b.Case(is_kind(1), std::move(offset_case), std::move(named_case)));
 		}
 		if (IsNumeric(source)) {
 			auto tz = b.Call("to_timestamp", b.Cast(std::move(e), LogicalType::DOUBLE));

@@ -25,6 +25,10 @@ XFAIL = ROOT / "test" / "xfail.toml"
 
 # (id, reason, regex over the SQL, regex over the detail); first match wins
 RULES = [
+    ("tz-window", "window() buckets by the UTC epoch in Spark (displayed in the session zone); the extension buckets the session wall clock",
+     r"window\s*\(", r"rows differ"),
+    ("tz-zone-names", "zone abbreviations (z) and long names (zzzz) of region zones need the time zone database; the extension prints the zone id",
+     r"date_format\(|from_unixtime\(", r"rows differ"),
     ("phase-element-at-zero", "Spark raises the index-zero error at run time; the extension folds the constant at bind time",
      r"element_at\(", r"error phase"),
     ("phase-div-literal", "Spark raises division by a literal zero at analysis time; the extension at run time",
@@ -135,8 +139,11 @@ def main():
     strict = parse(RESULTS / "failures_spark_strict.txt", "spark_strict") or parse(RESULTS / "failures_strict.txt", "x")
     # (id, reason, file, config, dialects) -> [indexes]
     groups = defaultdict(list)
+    import fnmatch
     for key in sorted(set(spark) | set(strict)):
         file, config, index = key
+        if args.files and not any(fnmatch.fnmatchcase(file, g.replace("/", "__")) for g in args.files):
+            continue
         info = spark.get(key) or strict.get(key)
         ident, reason = classify(info[0], info[1], file)
         dialects = tuple(d for d, found in (("spark", key in spark), ("spark_strict", key in strict)) if found)
@@ -164,7 +171,7 @@ def main():
     # keep the entries of files this run did not cover
     kept = []
     if XFAIL.exists():
-        covered = {k[0] for k in groups}
+        covered = {k[0] for k in groups} | {f for f in (args.files or []) if "*" not in f}
         block = []
         for line in XFAIL.read_text().splitlines():
             if line.startswith("[[xfail]]") and block:

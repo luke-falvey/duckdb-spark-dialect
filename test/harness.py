@@ -403,7 +403,8 @@ def gating_names(spark_names, sql=""):
     flat = re.sub(r"'(?:[^']|'')*'", "''", sql)
     gating = []
     for i, name in enumerate(spark_names):
-        if not PLAIN_NAME.match(name):
+        if not PLAIN_NAME.match(name) or spark_names.count(name) > 1:
+            # duplicates cannot all be aliases or references (Spark names `CAST(ts AS STRING)` as `ts`)
             continue
         quoted = re.escape(name)
         alias = re.search(rf"\bAS\s+`?{quoted}`?(?![A-Za-z0-9_])", flat, re.I)
@@ -493,7 +494,51 @@ class Outcome:
         return f"Outcome({self.kind!r}, {self.detail!r})"
 
 
-def judge(sql, ordered, directives, expected, result, dialect="spark", relative_file="", exact=False):
+def zone_from_spark(zone_id):
+    """A tzinfo for a Spark session time zone id (region ids, `Z`, `+h`, `+hh:mm`, `UTC+05:30`, short ids), or None for
+    UTC / an id this helper does not know."""
+    import datetime as dt
+    import re as _re
+    import zoneinfo
+    if not zone_id or zone_id in ("UTC", "Z", "GMT", "UT"):
+        return None
+    short = {"EST": "-05:00", "MST": "-07:00", "HST": "-10:00", "PST": "America/Los_Angeles", "IST": "Asia/Kolkata",
+             "JST": "Asia/Tokyo", "CST": "America/Chicago", "AET": "Australia/Sydney"}
+    zone_id = short.get(zone_id, zone_id)
+    offset = _re.sub(r"^(UTC|GMT|UT)(?=[+-])", "", zone_id)
+    m = _re.fullmatch(r"([+-])(\d{1,2})(?::?(\d{2}))?(?::?(\d{2}))?", offset)
+    if m:
+        seconds = int(m.group(2)) * 3600 + int(m.group(3) or 0) * 60 + int(m.group(4) or 0)
+        return dt.timezone(dt.timedelta(seconds=-seconds if m.group(1) == "-" else seconds))
+    try:
+        return zoneinfo.ZoneInfo(zone_id)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def instants(rows, spark_types, zone):
+    """DuckDB returns a Spark TIMESTAMP as the wall clock time in the session zone (one naive TIMESTAMP type);
+    PySpark returns the instant as a naive datetime in the process time zone (UTC in the tests). For the columns whose
+    Spark type is `timestamp` convert the wall clock time to the instant, so that equal instants compare equal."""
+    if zone is None or not spark_types:
+        return rows
+    import datetime as dt
+    columns = [i for i, t in enumerate(spark_types) if t == "timestamp"]
+    if not columns:
+        return rows
+    out = []
+    for row in rows:
+        row = list(row)
+        for i in columns:
+            v = row[i]
+            if v is not None and v[0] == "ts":
+                wall = v[1].replace(tzinfo=zone)
+                row[i] = ("ts", wall.astimezone(dt.timezone.utc).replace(tzinfo=None))
+        out.append(row)
+    return out
+
+
+def judge(sql, ordered, directives, expected, result, dialect="spark", relative_file="", exact=False, session_zone=None):
     """Compare Spark's recorded result with one DuckDB result.
 
     expected: golden entry (ok, rows, types, names, error, phase, error_class).
@@ -532,8 +577,9 @@ def judge(sql, ordered, directives, expected, result, dialect="spark", relative_
         # DDL / DML: Spark returns no rows, DuckDB a row count; the data is checked by later queries
         return Outcome("PASS", "")
     if "nondeterministic" not in directives:
+        actual_rows = instants(result.rows, expected.get("types"), zone_from_spark(session_zone))
         with exact_mode(exact):
-            same = results_equal(expected["rows"], result.rows, ordered)
+            same = results_equal(expected["rows"], actual_rows, ordered)
         if not same:
             return Outcome("FAIL", f"rows differ\n      spark:  {expected['rows'][:5]}\n      duckdb: {result.rows[:5]}")
     if not command and not is_schema_exempt(sql):

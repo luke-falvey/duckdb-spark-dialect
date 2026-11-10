@@ -172,7 +172,51 @@ bool IsCoreKey(const string &key) {
 	       !StringUtil::StartsWith(key, "spark.hadoop.") && !StringUtil::StartsWith(key, "spark.hive.");
 }
 
-}  // namespace
+} // namespace
+
+//! Spark's session time zone string (`ZoneId.of(id, ZoneId.SHORT_IDS)` forms) as a time zone DuckDB accepts:
+//! region ids as they are, short ids (PST, EST, ...) mapped, `Z` and the offset forms (`+5`, `+05:30`, `-0800`,
+//! `UTC+05:30`, `GMT-8`) as `GMT+hh:mm`. Returns the empty string for a string that is no such form (DuckDB then
+//! decides whether it is a region id).
+string SparkNormalizeTimeZone(const string &raw) {
+	static const unordered_map<string, string> SHORT_IDS = {
+	    {"ACT", "Australia/Darwin"}, {"AET", "Australia/Sydney"}, {"AGT", "America/Argentina/Buenos_Aires"},
+	    {"ART", "Africa/Cairo"}, {"AST", "America/Anchorage"}, {"BET", "America/Sao_Paulo"}, {"BST", "Asia/Dhaka"},
+	    {"CAT", "Africa/Harare"}, {"CNT", "America/St_Johns"}, {"CST", "America/Chicago"}, {"CTT", "Asia/Shanghai"},
+	    {"EAT", "Africa/Addis_Ababa"}, {"ECT", "Europe/Paris"}, {"IET", "America/Indiana/Indianapolis"},
+	    {"IST", "Asia/Kolkata"}, {"JST", "Asia/Tokyo"}, {"MIT", "Pacific/Apia"}, {"NET", "Asia/Yerevan"},
+	    {"NST", "Pacific/Auckland"}, {"PLT", "Asia/Karachi"}, {"PNT", "America/Phoenix"},
+	    {"PRT", "America/Puerto_Rico"}, {"PST", "America/Los_Angeles"}, {"SST", "Pacific/Guadalcanal"},
+	    {"VST", "Asia/Ho_Chi_Minh"}, {"EST", "GMT-05:00"}, {"MST", "GMT-07:00"}, {"HST", "GMT-10:00"}};
+	auto id = Trim(raw);
+	auto short_id = SHORT_IDS.find(id);
+	if (short_id != SHORT_IDS.end()) {
+		return short_id->second;
+	}
+	if (id == "Z") {
+		return "UTC";
+	}
+	string offset = id;
+	for (auto prefix : {"UTC", "GMT", "UT"}) {
+		if (StringUtil::StartsWith(id, prefix) && id.size() > strlen(prefix) && (id[strlen(prefix)] == '+' || id[strlen(prefix)] == '-')) {
+			offset = id.substr(strlen(prefix));
+			break;
+		}
+	}
+	static const std::regex pattern("([+-])([0-9]{1,2})(?::?([0-9]{2}))?(?::?([0-9]{2}))?");
+	std::smatch m;
+	if (std::regex_match(offset, m, pattern)) {
+		int hours = std::stoi(m[2].str());
+		int minutes = m[3].matched ? std::stoi(m[3].str()) : 0;
+		if (hours > 18 || minutes > 59) {
+			return "";
+		}
+		char buffer[16];
+		snprintf(buffer, sizeof(buffer), "GMT%s%02d:%02d", m[1].str().c_str(), hours, minutes);
+		return buffer;
+	}
+	return "";
+}
 
 //! The checks of `SET key = value` that do not depend on the session: static keys, the value's type and legal values,
 //! and the rejection of a setting the dialect does not emulate. Raised at parse time by the tokenizer.
@@ -246,6 +290,31 @@ void ConfGetKernel(DataChunk &args, ExpressionState &state, Vector &result) {
 		}
 		return StringVector::AddString(result, "<undefined>");
 	});
+}
+
+//! The session time zone as Spark reports it: the value of spark.sql.session.timeZone when it was set, else the
+//! connection's time zone
+void SessionTimeZoneKernel(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &context = state.GetContext();
+	string zone;
+	{
+		auto &conf = State(context);
+		std::lock_guard<std::mutex> guard(conf.lock);
+		auto it = conf.values.find("spark.sql.session.timeZone");
+		if (it != conf.values.end()) {
+			zone = Trim(it->second);
+		}
+	}
+	if (zone.empty()) {
+		Value setting;
+		zone = context.TryGetCurrentSetting(Identifier("TimeZone"), setting) && !setting.IsNull() ? setting.ToString()
+		                                                                                         : string("UTC");
+		if (zone == "Z" || zone == "Etc/UTC" || zone == "Etc/Zulu" || zone == "Zulu") {
+			zone = "UTC";
+		}
+	}
+	result.SetValue(0, Value(zone));
+	result.SetVectorType(VectorType::CONSTANT_VECTOR);
 }
 
 void ConfResetKernel(DataChunk &args, ExpressionState &state, Vector &result) {
@@ -333,6 +402,9 @@ void RegisterSparkConf(ExtensionLoader &loader) {
 	reset.SetVolatile();
 	reset.SetFallible();
 	loader.RegisterFunction(reset);
+	ScalarFunction zone(Identifier("spark_session_timezone"), {}, varchar, SessionTimeZoneKernel);
+	zone.SetVolatile();
+	loader.RegisterFunction(zone);
 	child_list_t<LogicalType> fields;
 	fields.emplace_back(Identifier("key"), varchar);
 	fields.emplace_back(Identifier("value"), varchar);

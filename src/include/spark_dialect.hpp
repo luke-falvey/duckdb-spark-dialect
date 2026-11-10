@@ -75,6 +75,8 @@ void RegisterSparkConf(ExtensionLoader &loader);
 string SparkConfGet(ClientContext &context, const string &key);
 //! Static checks of `SET key = value` (raises ParserException-like errors; see spark_conf.cpp)
 void SparkConfCheck(const string &key, const string &value);
+//! A Spark session time zone id as a time zone name for DuckDB's TimeZone setting (empty: use it as is)
+string SparkNormalizeTimeZone(const string &id);
 bool SparkConfBool(ClientContext &context, const string &key);
 bool SparkConfEquals(ClientContext &context, const string &key, const string &expected);
 

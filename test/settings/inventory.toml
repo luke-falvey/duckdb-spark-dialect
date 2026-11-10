@@ -3766,10 +3766,10 @@ note = ""
 [keys."spark.sql.session.timeZone"]
 class = "semantic"
 tier = 1
-status = "rejected"
+status = "emulated"
 kind = "string"
 default = "UTC"
-values = ["+05:30", "America/Los_Angeles"]
+values = ["UTC", "America/Los_Angeles", "Asia/Kolkata", "Australia/Lord_Howe", "+05:30", "-08:00"]
 cases = "test/cases/settings/session_timeZone.sql"
 witness = true
 differs = true

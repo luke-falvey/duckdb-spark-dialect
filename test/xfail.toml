@@ -625,20 +625,6 @@ cases = [1]
 [[xfail]]
 id = "conf-todo"
 reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__session_timeZone.sql"
-config = "session.timeZone=+05-30"
-cases = ["1-2"]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__session_timeZone.sql"
-config = "session.timeZone=America-Los_Angeles"
-cases = ["1-2"]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
 file = "settings__storeAssignmentPolicy.sql"
 config = "storeAssignmentPolicy=LEGACY"
 cases = [5, 8]
@@ -870,3 +856,142 @@ file = "settings__legacy_percentileDiscCalculation.sql"
 config = "legacy.percentileDiscCalculation=false"
 cases = [1]
 
+[[xfail]]
+id = "settings-session_timeZone"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=+05-30"
+cases = [15]
+
+[[xfail]]
+id = "settings-session_timeZone"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=-08-00"
+cases = [15]
+
+[[xfail]]
+id = "settings-session_timeZone"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=America-Los_Angeles"
+cases = [15, 17]
+
+[[xfail]]
+id = "settings-session_timeZone"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Asia-Kolkata"
+cases = [15]
+
+[[xfail]]
+id = "settings-session_timeZone"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Australia-Lord_Howe"
+cases = [15]
+
+[[xfail]]
+id = "types-ntz"
+reason = "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=+05-30"
+cases = [24]
+
+[[xfail]]
+id = "types-ntz"
+reason = "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=-08-00"
+cases = [24]
+
+[[xfail]]
+id = "types-ntz"
+reason = "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=America-Los_Angeles"
+cases = [24]
+
+[[xfail]]
+id = "types-ntz"
+reason = "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Asia-Kolkata"
+cases = [24]
+
+[[xfail]]
+id = "types-ntz"
+reason = "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Australia-Lord_Howe"
+cases = [24]
+
+[[xfail]]
+id = "types-ntz"
+reason = "TIMESTAMP_NTZ and TIMESTAMP are one DuckDB type (plan 9.3)"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=UTC"
+cases = [24]
+
+[[xfail]]
+id = "tz-window"
+reason = "window() buckets by the UTC epoch in Spark (displayed in the session zone); the extension buckets the session wall clock"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=+05-30"
+cases = [20]
+
+[[xfail]]
+id = "tz-window"
+reason = "window() buckets by the UTC epoch in Spark (displayed in the session zone); the extension buckets the session wall clock"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=-08-00"
+cases = [20]
+
+[[xfail]]
+id = "tz-window"
+reason = "window() buckets by the UTC epoch in Spark (displayed in the session zone); the extension buckets the session wall clock"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=America-Los_Angeles"
+cases = [20]
+
+[[xfail]]
+id = "tz-window"
+reason = "window() buckets by the UTC epoch in Spark (displayed in the session zone); the extension buckets the session wall clock"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Asia-Kolkata"
+cases = [20]
+
+[[xfail]]
+id = "tz-window"
+reason = "window() buckets by the UTC epoch in Spark (displayed in the session zone); the extension buckets the session wall clock"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Australia-Lord_Howe"
+cases = [20]
+
+[[xfail]]
+id = "tz-zone-names"
+reason = "zone abbreviations (z) and long names (zzzz) of region zones need the time zone database; the extension prints the zone id"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=America-Los_Angeles"
+cases = [2, 5, 14]
+
+[[xfail]]
+id = "tz-zone-names"
+reason = "zone abbreviations (z) and long names (zzzz) of region zones need the time zone database; the extension prints the zone id"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Asia-Kolkata"
+cases = [2, 5, 14]
+
+[[xfail]]
+id = "tz-zone-names"
+reason = "zone abbreviations (z) and long names (zzzz) of region zones need the time zone database; the extension prints the zone id"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=Australia-Lord_Howe"
+cases = [2, 5, 14]
+
+[[xfail]]
+id = "tz-zone-names"
+reason = "zone abbreviations (z) and long names (zzzz) of region zones need the time zone database; the extension prints the zone id"
+file = "settings__session_timeZone.sql"
+config = "session.timeZone=UTC"
+cases = [14]

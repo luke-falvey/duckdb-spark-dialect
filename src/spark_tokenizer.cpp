@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "spark_dialect.hpp"
+#include <regex>
 
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/parser/peg/matcher_token.hpp"
@@ -519,9 +520,29 @@ bool IsSparkOperator(const string &op) {
 	return ops.count(op) > 0;
 }
 
+//! Does a timestamp literal's text end with a zone designator (`Z`, `+05:30`, `UTC`, `America/New_York`) after a time?
+bool EndsWithZone(const string &literal) {
+	static const std::regex zoned(
+	    R"(^\s*[+-]?[0-9]{1,7}-[0-9]{1,2}-[0-9]{1,2}[ T][0-9:.]+\s*(?:Z|z|[+-][0-9]{1,2}(?::?[0-9]{2}){0,2}|\s[A-Za-z][A-Za-z0-9_/+-]*)\s*$)");
+	return std::regex_match(literal, zoned);
+}
+
 void RewriteLiterals(Tokens &ts) {
 	for (idx_t i = 0; i < ts.size(); i++) {
 		auto &t = ts[i];
+		if (IsWord(t, "TIMESTAMP") && i + 1 < ts.size() &&
+		    ts[i + 1].type == TokenType::STRING_LITERAL && ts[i + 1].text.size() >= 2 && ts[i + 1].text[0] == '\'' &&
+		    EndsWithZone(StringUtil::Replace(ts[i + 1].text.substr(1, ts[i + 1].text.size() - 2), "''", "'"))) {
+			// TIMESTAMP '2024-07-01 12:30:00+05:30': a Spark timestamp is an instant, shown in the session zone
+			auto offset = t.offset;
+			Tokens replacement = Lex("CAST (", offset);
+			replacement.push_back(ts[i + 1]);
+			auto tail = Lex("AS TIMESTAMP )", offset);
+			replacement.insert(replacement.end(), tail.begin(), tail.end());
+			Replace(ts, i, i + 2, replacement);
+			i += replacement.size() - 1;
+			continue;
+		}
 		if (t.type == TokenType::OPERATOR && !t.text.empty() &&
 		    t.text.find_first_not_of('!') == string::npos) {
 			// '!' is NOT in Spark
@@ -1412,10 +1433,71 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 	}
 	if (WordAt(ts, 0, "SET")) {
 		if (WordAt(ts, 1, "TIME") && WordAt(ts, 2, "ZONE") && ts.size() > 3) {
-			string zone = ts[3].type == TokenType::STRING_LITERAL ? ts[3].text : DuckStringLiteral("UTC");
-			string raw = ts[3].type == TokenType::STRING_LITERAL ? ts[3].text : DuckStringLiteral("UTC");
-			ts = Lex("SET TimeZone = " + zone + " ; SELECT \"system\" . spark . spark_conf_set ( 'spark.sql.session.timeZone' , " +
-			             raw + " ) AS value",
+			// SET TIME ZONE 'id' | LOCAL | INTERVAL <offset>: the session time zone (stored like SET of the setting)
+			string id;
+			bool local = false;
+			if (ts[3].type == TokenType::STRING_LITERAL) {
+				id = StringUtil::Replace(ts[3].text.substr(1, ts[3].text.size() - 2), "''", "'");
+			} else if (WordAt(ts, 3, "LOCAL")) {
+				local = true;
+			} else if (WordAt(ts, 3, "INTERVAL")) {
+				idx_t i = 4;
+				bool negative = false;
+				if (OpAt(ts, i, "-") || OpAt(ts, i, "+")) {
+					negative = OpAt(ts, i, "-");
+					i++;
+				}
+				if (i >= ts.size()) {
+					throw ParserException("Invalid time zone displacement value");
+				}
+				int64_t seconds = 0;
+				auto unit_seconds = [&](const string &unit) -> int64_t {
+					auto u = StringUtil::Upper(unit);
+					return u == "HOUR" || u == "HOURS" ? 3600 : u == "MINUTE" || u == "MINUTES" ? 60 : u == "SECOND" || u == "SECONDS" ? 1 : 0;
+				};
+				if (ts[i].type == TokenType::STRING_LITERAL) {
+					auto text = ts[i].text.substr(1, ts[i].text.size() - 2);
+					if (!text.empty() && (text[0] == '-' || text[0] == '+')) {
+						negative = negative != (text[0] == '-');
+						text = text.substr(1);
+					}
+					auto parts = StringUtil::Split(text, ':');
+					int64_t scale[3] = {3600, 60, 1};
+					for (idx_t k = 0; k < parts.size() && k < 3; k++) {
+						seconds += int64_t(std::stoll(parts[k])) * scale[k];
+					}
+				} else {
+					seconds = int64_t(std::stoll(ts[i].text)) * (i + 1 < ts.size() ? unit_seconds(ts[i + 1].text) : 0);
+				}
+				if (negative) {
+					seconds = -seconds;
+				}
+				if (seconds > 18 * 3600 || seconds < -18 * 3600) {
+					throw ParserException("The interval for the time zone displacement must be within -18:00 and +18:00");
+				}
+				char buffer[24];
+				int64_t magnitude = seconds < 0 ? -seconds : seconds;
+				if (magnitude % 60 != 0) {
+					snprintf(buffer, sizeof(buffer), "%c%02d:%02d:%02d", seconds < 0 ? '-' : '+', int(magnitude / 3600),
+					         int(magnitude / 60 % 60), int(magnitude % 60));
+				} else {
+					snprintf(buffer, sizeof(buffer), "%c%02d:%02d", seconds < 0 ? '-' : '+', int(magnitude / 3600),
+					         int(magnitude / 60 % 60));
+				}
+				id = buffer;
+			} else {
+				throw ParserException("syntax error at or near \"%s\"", ts[3].text);
+			}
+			if (local) {
+				ts = Lex("RESET TimeZone ; SELECT 'spark.sql.session.timeZone' AS key , \"system\" . spark . spark_session_timezone ( ) AS value "
+			         "FROM ( SELECT \"system\" . spark . spark_conf_reset ( 'spark.sql.session.timeZone' ) )",
+			         offset);
+				return true;
+			}
+			auto normalized = SparkNormalizeTimeZone(id);
+			ts = Lex("SET TimeZone = " + DuckStringLiteral(normalized.empty() ? id : normalized) +
+			             " ; SELECT 'spark.sql.session.timeZone' AS key , \"system\" . spark . spark_conf_set ( 'spark.sql.session.timeZone' , " +
+			             DuckStringLiteral(id) + " ) AS value",
 			         offset);
 			return true;
 		}
@@ -1468,7 +1550,10 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 		}
 		string prefix;
 		if (key == "spark.sql.session.timeZone") {
-			prefix = "SET TimeZone = " + DuckStringLiteral(value) + " ; ";
+			auto normalized = SparkNormalizeTimeZone(value);
+			auto trimmed = value;
+			StringUtil::Trim(trimmed);
+			prefix = "SET TimeZone = " + DuckStringLiteral(normalized.empty() ? trimmed : normalized) + " ; ";
 		} else if (key == "spark.sql.ansi.enabled") {
 			auto lowered = StringUtil::Lower(StringUtil::Replace(StringUtil::Replace(value, " ", ""), "'", ""));
 			if (lowered != "true" && lowered != "false") {

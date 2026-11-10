@@ -97,8 +97,12 @@ def run_file(path, verbose, keyword, dialect="spark", extra=(), duck_sets=(), xf
                 outcome = apply_xfail(case, slug, dialect, harness.Outcome("FAIL", f"setup failed: {r.error}"), xfail)
                 results.append((case, outcome.kind, outcome.detail, outcome.notes))
             continue
+        zone = None
+        for key, value in [*directives["config"], *extra, *case.sets]:
+            if key == "spark.sql.session.timeZone":
+                zone = value
         outcome = judge(case.sql, case.ordered, case.directives, expected, r, dialect, case.file,
-                        exact=directives["exact"])
+                        exact=directives["exact"], session_zone=zone)
         outcome = apply_xfail(case, slug, dialect, outcome, xfail)
         results.append((case, outcome.kind, outcome.detail, outcome.notes))
         if verbose and outcome.kind not in ("PASS", "LENIENT", "PHASE"):

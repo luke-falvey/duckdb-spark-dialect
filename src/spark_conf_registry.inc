@@ -363,7 +363,7 @@
 {"spark.sql.scriptTransformation.exitTimeoutInSeconds", "10000ms", ConfKind::TIME, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.selfJoinAutoResolveAmbiguity", "true", ConfKind::BOOLEAN, ConfClass::CLIENT, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.session.localRelationCacheThreshold", "67108864", ConfKind::INTEGER, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},
-{"spark.sql.session.timeZone", "UTC", ConfKind::STRING, ConfClass::SEMANTIC, ConfStatus::REJECTED, 1, ""},
+{"spark.sql.session.timeZone", "UTC", ConfKind::STRING, ConfClass::SEMANTIC, ConfStatus::EMULATED, 1, ""},
 {"spark.sql.sessionWindow.buffer.in.memory.threshold", "4096", ConfKind::INTEGER, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.sessionWindow.buffer.spill.threshold", "2147483647", ConfKind::INTEGER, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.shuffle.partitions", "200", ConfKind::INTEGER, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},

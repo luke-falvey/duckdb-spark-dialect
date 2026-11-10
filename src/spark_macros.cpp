@@ -155,7 +155,10 @@ const SparkMacro SPARK_MACROS[] = {
     {"current_timestamp", "() AS CAST(now() AS TIMESTAMP)"},
     {"now", "() AS CAST(now() AS TIMESTAMP)"},
     {"localtimestamp", "() AS CAST(now() AS TIMESTAMP)"},
-    {"current_timezone", "() AS current_setting('TimeZone')"},
+    {"current_timezone", "() AS " S "spark_session_timezone()"},
+    {"format_zoned", "(w, f) AS CASE WHEN regexp_matches(f, '[zZXxVO]') THEN " S "format_datetime_zone(w, f, " S "spark_session_timezone(), "
+                     "CAST(epoch(timezone('UTC', w)) - epoch(timezone(current_setting('TimeZone'), w)) AS INTEGER), "
+                     "strftime(timezone(current_setting('TimeZone'), w), '%Z')) ELSE " S "format_datetime(w, f) END"},
     {"date", "(x) AS " S "as_date(x)"},
     {"timestamp", "(x) AS " S "as_timestamp(x)"},
     {"to_date", "(s) AS " S "as_date(s), (s, f) AS CAST(" S "parse_datetime(" S "as_string(s), f) AS DATE)"},
@@ -163,12 +166,13 @@ const SparkMacro SPARK_MACROS[] = {
     {"to_timestamp_ltz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
     {"to_timestamp_ntz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
     {"try_to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
-    {"date_format", "(t, f) AS " S "format_datetime(" S "as_timestamp(t), f)"},
-    {"from_unixtime", "(t) AS " S "format_datetime(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wrap(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
-                      "(t, f) AS " S "format_datetime(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wrap(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
+    {"date_format", "(t, f) AS " S "format_zoned(" S "as_timestamp(t), f)"},
+    {"from_unixtime", "(t) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
+                      "(t, f) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
+    {"epoch_seconds_wall", "(n) AS CAST(timezone('UTC', " S "epoch_seconds_wrap(n)) AS TIMESTAMP)"},
     {"unix_timestamp", "() AS CAST(floor(epoch(now())) AS BIGINT), "
-                       "(t) AS CAST(floor(epoch(CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END)) AS BIGINT), "
-                       "(t, f) AS CAST(floor(epoch(CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), f) ELSE " S "as_timestamp(t) END)) AS BIGINT)"},
+                       "(t) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END))) AS BIGINT), "
+                       "(t, f) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), f) ELSE " S "as_timestamp(t) END))) AS BIGINT)"},
     {"to_unix_timestamp", "(t) AS " S "unix_timestamp(t), (t, f) AS " S "unix_timestamp(t, f)"},
     {"add_months", "(d, n) AS CAST(" S "as_date(d) + to_months(CAST(n AS INTEGER)) AS DATE)"},
     {"date_add", "(d, n) AS " S "as_date(d) + CAST(n AS INTEGER)"},
@@ -178,12 +182,12 @@ const SparkMacro SPARK_MACROS[] = {
     {"date_diff", "(e, s) AS CAST(" S "as_date(e) - " S "as_date(s) AS INTEGER)"},
     {"date_from_unix_date", "(n) AS DATE '1970-01-01' + CAST(n AS INTEGER)"},
     {"unix_date", "(d) AS CAST(" S "as_date(d) - DATE '1970-01-01' AS INTEGER)"},
-    {"unix_seconds", "(t) AS CAST(floor(epoch(" S "as_timestamp(t))) AS BIGINT)"},
-    {"unix_millis", "(t) AS CAST(floor(epoch_us(" S "as_timestamp(t)) / 1000) AS BIGINT)"},
-    {"unix_micros", "(t) AS epoch_us(" S "as_timestamp(t))"},
+    {"unix_seconds", "(t) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), " S "as_timestamp(t)))) AS BIGINT)"},
+    {"unix_millis", "(t) AS CAST(floor(epoch_us(timezone(current_setting('TimeZone'), " S "as_timestamp(t))) / 1000) AS BIGINT)"},
+    {"unix_micros", "(t) AS epoch_us(timezone(current_setting('TimeZone'), " S "as_timestamp(t)))"},
     {"timestamp_seconds", "(n) AS CAST(to_timestamp(CAST(n AS DOUBLE)) AS TIMESTAMP)"},
-    {"timestamp_millis", "(n) AS make_timestamp(CAST(n AS BIGINT) * 1000)"},
-    {"timestamp_micros", "(n) AS make_timestamp(CAST(n AS BIGINT))"},
+    {"timestamp_millis", "(n) AS CAST(timezone('UTC', make_timestamp(CAST(n AS BIGINT) * 1000)) AS TIMESTAMP)"},
+    {"timestamp_micros", "(n) AS CAST(timezone('UTC', make_timestamp(CAST(n AS BIGINT))) AS TIMESTAMP)"},
     {"year", "(d) AS CAST(year(" S "as_date(d)) AS INTEGER)"},
     {"quarter", "(d) AS CAST(quarter(" S "as_date(d)) AS INTEGER)"},
     {"month", "(d) AS CAST(month(" S "as_date(d)) AS INTEGER)"},
@@ -246,8 +250,8 @@ const SparkMacro SPARK_MACROS[] = {
                          "(d, h, m) AS to_days(CAST(d AS INTEGER)) + to_hours(CAST(h AS BIGINT)) + to_minutes(CAST(m AS BIGINT)), "
                          "(d, h, m, s) AS to_days(CAST(d AS INTEGER)) + to_hours(CAST(h AS BIGINT)) + to_minutes(CAST(m AS BIGINT)) + to_microseconds(CAST(round(CAST(s AS DECIMAL(18, 6)) * 1000000) AS BIGINT))"},
     {"make_ym_interval", "() AS INTERVAL 0 MONTH, (y) AS to_years(CAST(y AS INTEGER)), (y, m) AS to_years(CAST(y AS INTEGER)) + to_months(CAST(m AS INTEGER))"},
-    {"from_utc_timestamp", "(t, tz) AS CAST(timezone(tz, timezone('UTC', " S "as_timestamp(t))) AS TIMESTAMP)"},
-    {"to_utc_timestamp", "(t, tz) AS CAST(timezone('UTC', timezone(tz, " S "as_timestamp(t))) AS TIMESTAMP)"},
+    {"from_utc_timestamp", "(t, tz) AS CAST(timezone('UTC', timezone(tz, timezone('UTC', timezone('UTC', timezone(current_setting('TimeZone'), " S "as_timestamp(t)))))) AS TIMESTAMP)"},
+    {"to_utc_timestamp", "(t, tz) AS CAST(timezone(tz, timezone('UTC', timezone(current_setting('TimeZone'), " S "as_timestamp(t)))) AS TIMESTAMP)"},
     {"convert_timezone", "(tgt, t) AS CAST(timezone(tgt, timezone(current_setting('TimeZone'), " S "as_timestamp(t))) AS TIMESTAMP), "
                          "(src, tgt, t) AS CAST(timezone(tgt, timezone(src, " S "as_timestamp(t))) AS TIMESTAMP)"},
     {"window", "(t, d) AS {'start': time_bucket(CAST(d AS INTERVAL), " S "as_timestamp(t), TIMESTAMP '1970-01-01'), "
