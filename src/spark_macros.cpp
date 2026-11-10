@@ -304,8 +304,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"map_keys", "(m) AS map_keys(m)"},
     {"map_values", "(m) AS map_values(m)"},
     {"map_entries", "(m) AS map_entries(m)"},
-    {"str_to_map", "(s, p, k) AS map_from_entries(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, k, 2)[1], 'value': " S "split(kv, k, 2)[2]}))"},
-    {"str_to_map_2", "(s, p) AS map_from_entries(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, ':', 2)[1], 'value': " S "split(kv, ':', 2)[2]}))"},
+    {"str_to_map", "(s, p, k) AS " S "map_from_entries_value(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, k, 2)[1], 'value': " S "split(kv, k, 2)[2]}))"},
+    {"str_to_map_2", "(s, p) AS " S "map_from_entries_value(list_transform(" S "split(s, p), lambda kv: {'key': " S "split(kv, ':', 2)[1], 'value': " S "split(kv, ':', 2)[2]}))"},
     {"array_agg", "(x) AS coalesce(list(x) FILTER (WHERE x IS NOT NULL), [])"},
 
     // ---- json ----

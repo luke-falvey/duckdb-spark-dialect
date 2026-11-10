@@ -24,6 +24,7 @@
 #include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/common/vector/string_vector.hpp"
 #include "duckdb/common/types/time.hpp"
+#include "duckdb/common/value_operations/value_operations.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 
 #include <charconv>
@@ -2631,6 +2632,86 @@ ExprP BindArray(FunctionBindExpressionInput &input) {
 	return b.Call("list_value", std::move(args));
 }
 
+// spark.sql.mapKeyDedupPolicy=LAST_WIN: the 1-based positions of the entries a map keeps, in the order of the first
+// occurrence of every key (LAST = false: the position of the first entry of the key, LAST = true: of its last one)
+template <bool LAST, bool ENTRIES = false>
+void MapDedupIndexKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	idx_t count = args.size();
+	vector<vector<Value>> out(count);
+	vector<bool> nulls(count, false);
+	for (idx_t row = 0; row < count; row++) {
+		auto list = args.data[0].GetValue(row);
+		if (list.IsNull()) {
+			nulls[row] = true;
+			continue;
+		}
+		auto &items = ListValue::GetChildren(list);
+		vector<Value> keys;
+		for (auto &item : items) {
+			keys.push_back(ENTRIES ? (item.IsNull() ? item : StructValue::GetChildren(item)[0]) : item);
+		}
+		vector<idx_t> first, last;
+		for (idx_t i = 0; i < keys.size(); i++) {
+			idx_t found = first.size();
+			for (idx_t j = 0; j < first.size(); j++) {
+				if (ValueOperations::NotDistinctFrom(keys[first[j]], keys[i])) {
+					found = j;
+					break;
+				}
+			}
+			if (found == first.size()) {
+				first.push_back(i);
+				last.push_back(i);
+			} else {
+				last[found] = i;
+			}
+		}
+		for (idx_t j = 0; j < first.size(); j++) {
+			out[row].push_back(Value::BIGINT(int64_t((LAST ? last[j] : first[j]) + 1)));
+		}
+	}
+	for (idx_t row = 0; row < count; row++) {
+		result.SetValue(row, nulls[row] ? Value(LogicalType::LIST(LogicalType::BIGINT))
+		                               : Value::LIST(LogicalType::BIGINT, out[row]));
+	}
+}
+
+// map_from_entries(entries) and the other builders of a map from a list of {key, value} structs
+ExprP BindMapFromEntries(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "map_from_entries", 1, 1);
+	Builder b(input.context);
+	auto entries = Arg(input, 0);
+	if (SparkConfEquals(input.context, "spark.sql.mapKeyDedupPolicy", "LAST_WIN") &&
+	    entries->GetReturnType().id() == LogicalTypeId::LIST &&
+	    ListType::GetChildType(entries->GetReturnType()).id() == LogicalTypeId::STRUCT) {
+		ScalarFunction last_fn(Identifier("map_dedup_entries"), {entries->GetReturnType()},
+		                       LogicalType::LIST(LogicalType::BIGINT), MapDedupIndexKernel<true, true>);
+		auto last = b.Kernel(last_fn, entries->Copy());
+		entries = b.Call("list_select", std::move(entries), std::move(last));
+	}
+	return b.Call("map_from_entries", std::move(entries));
+}
+
+// map_concat: a NULL map makes the result NULL (DuckDB treats it as empty)
+ExprP BindMapConcat(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	vector<ExprP> args;
+	ExprP any_null;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		auto arg = Arg(input, i);
+		auto is_null = b.IsNull(arg->Copy());
+		any_null = any_null ? b.Or(std::move(any_null), std::move(is_null)) : std::move(is_null);
+		args.push_back(std::move(arg));
+	}
+	if (args.empty()) {
+		vector<ExprP> none;
+		return b.Call("map", std::move(none));
+	}
+	auto result = b.Call("map_concat", std::move(args));
+	auto type = result->GetReturnType();
+	return b.Case(std::move(any_null), b.NullOf(type), std::move(result));
+}
+
 ExprP BindMapFromArrays(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "map_from_arrays", 2, 2);
 	Builder b(input.context);
@@ -2641,6 +2722,19 @@ ExprP BindMapFromArrays(FunctionBindExpressionInput &input) {
 		// MAP(): an empty map
 		vector<ExprP> none;
 		return b.Call("map", std::move(none));
+	}
+	if (SparkConfEquals(input.context, "spark.sql.mapKeyDedupPolicy", "LAST_WIN") &&
+	    keys->GetReturnType().id() == LogicalTypeId::LIST) {
+		auto list_type = LogicalType::LIST(LogicalType::BIGINT);
+		ScalarFunction first_fn(Identifier("map_dedup_first"), {keys->GetReturnType()}, list_type,
+		                        MapDedupIndexKernel<false>);
+		ScalarFunction last_fn(Identifier("map_dedup_last"), {keys->GetReturnType()}, list_type,
+		                       MapDedupIndexKernel<true>);
+		auto first = b.Kernel(first_fn, keys->Copy());
+		auto last = b.Kernel(last_fn, keys->Copy());
+		auto new_keys = b.Call("list_select", std::move(keys), std::move(first));
+		auto new_values = b.Call("list_select", std::move(values), std::move(last));
+		return b.Call("map", std::move(new_keys), std::move(new_values));
 	}
 	return b.Call("map", std::move(keys), std::move(values));
 }
@@ -3446,6 +3540,9 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"typeof", BindTypeOf},
 	    {"array", BindArray},
 	    {"map_from_arrays", BindMapFromArrays},
+    {"map_concat", BindMapConcat},
+    {"map_from_entries_value", BindMapFromEntries},
+    {"map_from_entries", BindMapFromEntries},
 	    {"inline_rows", BindInlineRows},
 	    {"inline_outer_rows", BindInlineOuterRows},
 	};

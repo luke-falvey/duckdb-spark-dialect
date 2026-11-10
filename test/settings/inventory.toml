@@ -2627,14 +2627,14 @@ note = ""
 [keys."spark.sql.mapKeyDedupPolicy"]
 class = "semantic"
 tier = 1
-status = "rejected"
+status = "emulated"
 kind = "enum"
 default = "EXCEPTION"
 values = ["EXCEPTION", "LAST_WIN"]
 cases = "test/cases/settings/mapKeyDedupPolicy.sql"
 witness = true
 differs = true
-note = ""
+note = "map(), map_from_arrays: LAST_WIN keeps the first position and the last value"
 
 [keys."spark.sql.maven.additionalRemoteRepositories"]
 class = "client"

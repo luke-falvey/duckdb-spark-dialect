@@ -597,13 +597,6 @@ cases = ["1-2"]
 [[xfail]]
 id = "conf-todo"
 reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__mapKeyDedupPolicy.sql"
-config = "mapKeyDedupPolicy=LAST_WIN"
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
 file = "settings__orderByOrdinal.sql"
 config = "orderByOrdinal=false"
 cases = [1]
@@ -807,14 +800,6 @@ config = "legacy.useCurrentConfigsForView=false"
 cases = [5]
 
 [[xfail]]
-id = "settings-mapKeyDedupPolicy"
-reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
-file = "settings__mapKeyDedupPolicy.sql"
-config = "mapKeyDedupPolicy=EXCEPTION"
-dialects = ["spark_strict"]
-cases = [1]
-
-[[xfail]]
 id = "settings-parser_quotedRegexColumnNames"
 reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
 file = "settings__parser_quotedRegexColumnNames.sql"
@@ -995,3 +980,33 @@ reason = "zone abbreviations (z) and long names (zzzz) of region zones need the 
 file = "settings__session_timeZone.sql"
 config = "session.timeZone=UTC"
 cases = [14]
+
+[[xfail]]
+id = "settings-mapKeyDedupPolicy"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__mapKeyDedupPolicy.sql"
+config = "mapKeyDedupPolicy=EXCEPTION"
+cases = [25]
+
+[[xfail]]
+id = "settings-mapKeyDedupPolicy"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__mapKeyDedupPolicy.sql"
+config = "mapKeyDedupPolicy=EXCEPTION"
+dialects = ["spark_strict"]
+cases = [1, "3-6", "8-10", 12, "14-15", "17-18", 20, "26-29", "31-32"]
+
+[[xfail]]
+id = "settings-mapKeyDedupPolicy"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__mapKeyDedupPolicy.sql"
+config = "mapKeyDedupPolicy=LAST_WIN"
+cases = [25, 29]
+
+[[xfail]]
+id = "settings-mapKeyDedupPolicy"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__mapKeyDedupPolicy.sql"
+config = "mapKeyDedupPolicy=LAST_WIN"
+dialects = ["spark_strict"]
+cases = [6, 10, "26-27"]

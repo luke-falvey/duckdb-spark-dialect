@@ -1457,7 +1457,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		replacements.push_back(StructField("__spark_entry", "key"));
 		replacements.push_back(StructField("__spark_entry", "value"));
 		auto body = InlineLambda(args, 1, "map_filter", std::move(replacements));
-		return DuckCall("map_from_entries",
+		return SparkCall("map_from_entries_value",
 		                DuckCall("list_filter", DuckCall("map_entries", std::move(args[0])),
 		                         MakeLambda({"__spark_entry"}, std::move(body))));
 	}
@@ -1475,7 +1475,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 			fields.emplace_back("key", StructField("__spark_entry", "key"));
 			fields.emplace_back("value", std::move(body));
 		}
-		return DuckCall("map_from_entries",
+		return SparkCall("map_from_entries_value",
 		                DuckCall("list_transform", DuckCall("map_entries", std::move(args[0])),
 		                         MakeLambda({"__spark_entry"}, StructPack(std::move(fields)))));
 	}
@@ -1494,7 +1494,7 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		inputs.push_back(args[1]->Copy());
 		auto keys = SparkCall("array_distinct", DuckCall("list_concat", DuckCall("map_keys", std::move(args[0])),
 		                                                    DuckCall("map_keys", std::move(args[1]))));
-		return NullIfAnyNull(inputs, DuckCall("map_from_entries", DuckCall("list_transform", std::move(keys),
+		return NullIfAnyNull(inputs, SparkCall("map_from_entries_value", DuckCall("list_transform", std::move(keys),
 		                                                                   MakeLambda({"__spark_key"}, StructPack(std::move(fields))))));
 	}
 	if (name == "arrays_zip") {

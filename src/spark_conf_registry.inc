@@ -250,7 +250,7 @@
 {"spark.sql.legacy.v1IdentifierNoCatalog", "false", ConfKind::BOOLEAN, ConfClass::UNOBSERVABLE, ConfStatus::ACCEPTED, 3, ""},
 {"spark.sql.limit.initialNumPartitions", "1", ConfKind::INTEGER, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.limit.scaleUpFactor", "4", ConfKind::INTEGER, ConfClass::EXECUTION, ConfStatus::ACCEPTED, 0, ""},
-{"spark.sql.mapKeyDedupPolicy", "EXCEPTION", ConfKind::ENUM, ConfClass::SEMANTIC, ConfStatus::REJECTED, 1, "EXCEPTION|LAST_WIN"},
+{"spark.sql.mapKeyDedupPolicy", "EXCEPTION", ConfKind::ENUM, ConfClass::SEMANTIC, ConfStatus::EMULATED, 1, "EXCEPTION|LAST_WIN"},
 {"spark.sql.maven.additionalRemoteRepositories", "https://maven-central.storage-download.googleapis.com/maven2/", ConfKind::STRING, ConfClass::CLIENT, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.maxConcurrentOutputFileWriters", "0", ConfKind::INTEGER, ConfClass::STORAGE, ConfStatus::ACCEPTED, 0, ""},
 {"spark.sql.maxMetadataStringLength", "100", ConfKind::INTEGER, ConfClass::COMMAND, ConfStatus::ACCEPTED, 0, ""},
