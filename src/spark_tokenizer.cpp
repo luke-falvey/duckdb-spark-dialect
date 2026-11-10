@@ -1489,8 +1489,8 @@ bool RewriteStatement(Tokens &ts, bool strict) {
 				throw ParserException("syntax error at or near \"%s\"", ts[3].text);
 			}
 			if (local) {
-				ts = Lex("RESET TimeZone ; SELECT 'spark.sql.session.timeZone' AS key , \"system\" . spark . spark_session_timezone ( ) AS value "
-			         "FROM ( SELECT \"system\" . spark . spark_conf_reset ( 'spark.sql.session.timeZone' ) )",
+				ts = Lex("RESET TimeZone ; SELECT \"system\" . spark . spark_conf_reset ( 'spark.sql.session.timeZone' ) ; "
+			         "SELECT 'spark.sql.session.timeZone' AS key , \"system\" . spark . spark_session_timezone ( ) AS value",
 			         offset);
 				return true;
 			}
