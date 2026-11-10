@@ -9,6 +9,8 @@
 #include "spark_dialect.hpp"
 
 #include "duckdb/common/types/decimal.hpp"
+#include "duckdb/common/types/uhugeint.hpp"
+#include <array>
 #include "duckdb/common/vector_operations/binary_executor.hpp"
 #include "duckdb/common/vector_operations/unary_executor.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
@@ -755,6 +757,83 @@ void IntDivKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	                                                   });
 }
 
+//! 10^n as an unsigned 128-bit integer, n <= 38
+uhugeint_t PowerOfTen(idx_t n) {
+	static const auto table = [] {
+		std::array<uhugeint_t, 39> t;
+		t[0] = uhugeint_t(1);
+		for (idx_t i = 1; i < t.size(); i++) {
+			t[i] = t[i - 1] * uhugeint_t(10);
+		}
+		return t;
+	}();
+	return table[n];
+}
+
+//! Spark's decimal division: both operands as DECIMAL(38, s1) / DECIMAL(38, s2), the quotient rounded HALF_UP to the
+//! scale of the result DECIMAL(38, S) (the caller narrows it to Spark's precision); NULL when the divisor is zero or
+//! the quotient has more than `precision` digits. Exact, unlike a division through DOUBLE.
+void DecimalDivideKernel(DataChunk &args, ExpressionState &, Vector &result, idx_t precision) {
+	auto s1 = idx_t(DecimalType::GetScale(args.data[0].GetType()));
+	auto s2 = idx_t(DecimalType::GetScale(args.data[1].GetType()));
+	auto scale = idx_t(DecimalType::GetScale(result.GetType()));
+	auto shift = int64_t(s2) + int64_t(scale) - int64_t(s1);
+	auto limit = PowerOfTen(precision);
+	BinaryExecutor::ExecuteWithNulls<hugeint_t, hugeint_t, hugeint_t>(
+	    args.data[0], args.data[1], result, args.size(), [&](hugeint_t a, hugeint_t b, ValidityMask &mask, idx_t idx) {
+		    if (b == hugeint_t(0)) {
+			    mask.SetInvalid(idx);
+			    return hugeint_t(0);
+		    }
+		    bool negative = (a < hugeint_t(0)) != (b < hugeint_t(0));
+		    auto ua = uhugeint_t(a < hugeint_t(0) ? -a : a);
+		    auto ub = uhugeint_t(b < hugeint_t(0) ? -b : b);
+		    auto q = ua / ub;
+		    auto r = ua % ub;
+		    // the next decimal digit of r / ub, without overflowing: 10 * r = digit * ub + rest
+		    auto next_digit = [&]() {
+			    uhugeint_t acc(0);
+			    uint32_t digit = 0;
+			    for (int i = 0; i < 10; i++) {
+				    acc += r;
+				    if (acc >= ub) {
+					    acc -= ub;
+					    digit++;
+				    }
+			    }
+			    r = acc;
+			    return digit;
+		    };
+		    if (shift >= 0) {
+			    for (int64_t i = 0; i < shift; i++) {
+				    if (q >= limit) {
+					    mask.SetInvalid(idx);
+					    return hugeint_t(0);
+				    }
+				    q = q * uhugeint_t(10) + uhugeint_t(next_digit());
+			    }
+			    if (next_digit() >= 5) {
+				    q += uhugeint_t(1);
+			    }
+		    } else if (-shift > 38) {
+			    q = uhugeint_t(0);
+		    } else {
+			    auto p = PowerOfTen(idx_t(-shift));
+			    auto rest = q % p;
+			    q = q / p;
+			    if (rest * uhugeint_t(2) >= p) {
+				    q += uhugeint_t(1);
+			    }
+		    }
+		    if (q >= limit) {
+			    mask.SetInvalid(idx);
+			    return hugeint_t(0);
+		    }
+		    auto value = hugeint_t(q);
+		    return negative ? -value : value;
+	    });
+}
+
 void DoubleDivideKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	BinaryExecutor::Execute<double, double, double>(args.data[0], args.data[1], result, args.size(),
 	                                                [](double a, double b) -> optional<double> {
@@ -1187,6 +1266,45 @@ void StringToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
 	});
 }
 
+//! CAST(<integral> AS BINARY): the big-endian two's complement bytes of the value (1, 2, 4 or 8 bytes)
+template <class T>
+void IntegralToBlobKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<T, string_t>(args.data[0], result, args.size(), [&](T v) {
+		auto u = typename std::make_unsigned<T>::type(v);
+		char bytes[sizeof(T)];
+		for (idx_t i = 0; i < sizeof(T); i++) {
+			bytes[sizeof(T) - 1 - i] = char(u & 0xFF);
+			u = decltype(u)(u >> 8);
+		}
+		return StringVector::AddStringOrBlob(result, string_t(bytes, uint32_t(sizeof(T))));
+	});
+}
+
+ScalarFunction IntegralToBlobFunction(const LogicalType &source) {
+	scalar_function_t fn;
+	switch (source.id()) {
+	case LogicalTypeId::TINYINT:
+		fn = IntegralToBlobKernel<int8_t>;
+		break;
+	case LogicalTypeId::SMALLINT:
+		fn = IntegralToBlobKernel<int16_t>;
+		break;
+	case LogicalTypeId::INTEGER:
+		fn = IntegralToBlobKernel<int32_t>;
+		break;
+	default:
+		fn = IntegralToBlobKernel<int64_t>;
+		break;
+	}
+	return ScalarFunction(Identifier("spark_integral_to_binary"), {source}, LogicalType::BLOB, fn);
+}
+
+//! The low 64 bits of an integer, like Java's BigDecimal.longValue (Spark's Decimal.toLong)
+void HugeintLowBitsKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<hugeint_t, int64_t>(args.data[0], result, args.size(),
+	                                           [](hugeint_t h) { return int64_t(h.lower); });
+}
+
 //===----------------------------------------------------------------------===//
 // Spark value -> string (Cast to STRING)
 //===----------------------------------------------------------------------===//
@@ -1490,6 +1608,17 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			}
 			return b.Kernel(NarrowFunction(source, target), std::move(e));
 		}
+		if (IsDecimal(source)) {
+			// Spark's Decimal.toLong keeps the low 64 bits of the integer part; narrower types wrap from there
+			auto whole = b.Cast(b.Call("trunc", std::move(e)), LogicalType::HUGEINT);
+			auto as_long = b.Kernel(ScalarFunction(Identifier("spark_low_bits"), {LogicalType::HUGEINT},
+			                                       LogicalType::BIGINT, HugeintLowBitsKernel),
+			                        std::move(whole));
+			if (target.id() == LogicalTypeId::BIGINT) {
+				return as_long;
+			}
+			return b.Kernel(NarrowFunction(LogicalType::BIGINT, target), std::move(as_long));
+		}
 		if (IsDecimal(source) || IsLargeIntegral(source)) {
 			auto truncated = IsDecimal(source) ? b.Call("trunc", std::move(e)) : std::move(e);
 			auto as_long = b.Cast(std::move(truncated), LogicalType::BIGINT, true);
@@ -1604,6 +1733,9 @@ ExprP SparkCast(Builder &b, ExprP e, const LogicalType &target) {
 			auto ts = b.Call("make_timestamp", std::move(micros));
 			return b.Case(b.IsNull(std::move(e)), b.NullOf(target), std::move(ts));
 		}
+	}
+	if (target.id() == LogicalTypeId::BLOB && IsIntegral(source)) {
+		return b.Kernel(IntegralToBlobFunction(source), std::move(e));
 	}
 	if (target.id() == LogicalTypeId::BLOB && IsString(source)) {
 		return b.Kernel(
@@ -2221,10 +2353,19 @@ ExprP BindDivideImpl(FunctionBindExpressionInput &input) {
 	if ((IsDecimal(lt) || IsDecimal(rt)) && !IsFloating(lt) && !IsFloating(rt)) {
 		auto result_type = DecimalDivideType(IsDecimal(lt) ? lt : left_decimal, IsDecimal(rt) ? rt : right_decimal,
 		                                     SparkConfBool(input.context, "spark.sql.decimalOperations.allowPrecisionLoss"));
-		auto quotient = b.Kernel(ScalarFunction(Identifier("spark_divide"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
-		                                        LogicalType::DOUBLE, DoubleDivideKernel),
-		                         b.Cast(std::move(left), LogicalType::DOUBLE), b.Cast(std::move(right), LogicalType::DOUBLE));
-		return b.Cast(std::move(quotient), result_type, true);
+		auto left_type = IsDecimal(lt) ? lt : left_decimal;
+		auto right_type = IsDecimal(rt) ? rt : right_decimal;
+		auto wide_left = LogicalType::DECIMAL(38, DecimalType::GetScale(left_type));
+		auto wide_right = LogicalType::DECIMAL(38, DecimalType::GetScale(right_type));
+		auto precision = idx_t(DecimalType::GetWidth(result_type));
+		auto quotient = b.Kernel(
+		    ScalarFunction(Identifier("spark_decimal_divide"), {wide_left, wide_right},
+		                   LogicalType::DECIMAL(38, DecimalType::GetScale(result_type)),
+		                   [precision](DataChunk &args, ExpressionState &state, Vector &out) {
+			                   DecimalDivideKernel(args, state, out, precision);
+		                   }),
+		    b.Cast(std::move(left), wide_left), b.Cast(std::move(right), wide_right));
+		return b.Cast(std::move(quotient), result_type);
 	}
 	return b.Kernel(ScalarFunction(Identifier("spark_divide"), {LogicalType::DOUBLE, LogicalType::DOUBLE},
 	                               LogicalType::DOUBLE, DoubleDivideKernel),
@@ -3540,7 +3681,7 @@ ExprP BindAsNumber(FunctionBindExpressionInput &input) {
 	return e;
 }
 
-//! from_number(n, sample): back to an interval when the sample is one
+//! from_number(n, sample): back to an interval when the sample is one, DOUBLE otherwise
 ExprP BindFromNumber(FunctionBindExpressionInput &input) {
 	CheckArgs(input, "from_number", 2, 2);
 	Builder b(input.context);
@@ -3553,7 +3694,11 @@ ExprP BindFromNumber(FunctionBindExpressionInput &input) {
 		}
 		return b.Spark("number_to_interval", b.Cast(std::move(n), LogicalType::DOUBLE), std::move(sample));
 	}
-	return n;
+	// Spark's median / percentile of numbers (decimals too) are DOUBLE
+	if (n->GetReturnType().id() == LogicalTypeId::LIST) {
+		return b.Cast(std::move(n), LogicalType::LIST(LogicalType::DOUBLE));
+	}
+	return b.Cast(std::move(n), LogicalType::DOUBLE);
 }
 
 //! try_avg: NULL when Spark's sum would overflow its type
