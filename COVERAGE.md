@@ -278,7 +278,7 @@ spark_corpus__typeCoercion__native__division.sql PASS=62  LENIENT=17  PHASE=63  
 spark_corpus__typeCoercion__native__elt.sql  PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 spark_corpus__typeCoercion__native__ifCoercion.sql PASS=134  LENIENT=10  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 spark_corpus__typeCoercion__native__implicitTypeCasts.sql PASS=40  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
-spark_corpus__typeCoercion__native__inConversion.sql PASS=138  LENIENT=62  PHASE=78  FAIL=0  XFAIL=10  XPASS=0
+spark_corpus__typeCoercion__native__inConversion.sql PASS=268  LENIENT=20  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 spark_corpus__typeCoercion__native__mapZipWith.sql PASS=7  LENIENT=2  PHASE=1  FAIL=0  XFAIL=5  XPASS=0
 spark_corpus__typeCoercion__native__mapconcat.sql PASS=5  LENIENT=1  PHASE=0  FAIL=0  XFAIL=1  XPASS=0
 spark_corpus__typeCoercion__native__promoteStrings.sql PASS=293  LENIENT=5  PHASE=15  FAIL=0  XFAIL=2  XPASS=0
@@ -290,20 +290,20 @@ tpch_small.sql                               PASS=22  LENIENT=0  PHASE=0  FAIL=0
 types__c10_datetime_arithmetic.sql           PASS=675  LENIENT=154  PHASE=92  FAIL=0  XFAIL=222  XPASS=0
 types__c11_boolean_contexts.sql              PASS=40  LENIENT=194  PHASE=264  FAIL=0  XFAIL=6  XPASS=0
 types__c12_aggregates_windows.sql            PASS=1983  LENIENT=92  PHASE=0  FAIL=0  XFAIL=323  XPASS=0
-types__c13_nested.sql                        PASS=333  LENIENT=130  PHASE=52  FAIL=0  XFAIL=5  XPASS=0
+types__c13_nested.sql                        PASS=347  LENIENT=128  PHASE=6  FAIL=0  XFAIL=39  XPASS=0
 types__c14_equality_ordering.sql             PASS=513  LENIENT=12  PHASE=92  FAIL=0  XFAIL=101  XPASS=0
 types__c1_casts.sql                          PASS=3581  LENIENT=3997  PHASE=28  FAIL=0  XFAIL=810  XPASS=0
 types__c2_string_rendering.sql               PASS=485  LENIENT=56  PHASE=0  FAIL=0  XFAIL=53  XPASS=0
 types__c3_arithmetic.sql                     PASS=2403  LENIENT=184  PHASE=532  FAIL=0  XFAIL=300  XPASS=0
-types__c4_comparison.sql                     PASS=3106  LENIENT=131  PHASE=241  FAIL=0  XFAIL=130  XPASS=0
-types__c5_common_type.sql                    PASS=6144  LENIENT=603  PHASE=2242  FAIL=0  XFAIL=400  XPASS=0
-types__c6_function_args.sql                  PASS=15732  LENIENT=2843  PHASE=2194  FAIL=0  XFAIL=1226  XPASS=0
+types__c4_comparison.sql                     PASS=3418  LENIENT=117  PHASE=1  FAIL=0  XFAIL=72  XPASS=0
+types__c5_common_type.sql                    PASS=6642  LENIENT=587  PHASE=1628  FAIL=0  XFAIL=532  XPASS=0
+types__c6_function_args.sql                  PASS=16067  LENIENT=2899  PHASE=2212  FAIL=0  XFAIL=812  XPASS=5
 types__c7_store_assignment.sql[storeAssignmentPolicy=ANSI] PASS=1405  LENIENT=164  PHASE=22  FAIL=0  XFAIL=21  XPASS=0
 types__c7_store_assignment.sql[storeAssignmentPolicy=LEGACY] PASS=840  LENIENT=0  PHASE=0  FAIL=0  XFAIL=772  XPASS=0
 types__c7_store_assignment.sql[storeAssignmentPolicy=STRICT] PASS=1308  LENIENT=0  PHASE=0  FAIL=0  XFAIL=304  XPASS=0
 types__c8_decimal_precision.sql              PASS=451  LENIENT=0  PHASE=0  FAIL=0  XFAIL=97  XPASS=0
 types__c9_literals.sql                       PASS=101  LENIENT=5  PHASE=4  FAIL=0  XFAIL=19  XPASS=0
-TOTAL                                        PASS=44892  LENIENT=8997  PHASE=6330  FAIL=0  XFAIL=6417  XPASS=0
+TOTAL                                        PASS=46181  LENIENT=8979  PHASE=5370  FAIL=0  XFAIL=6101  XPASS=5
 ```
 
 `SET current_dialect = 'spark_strict'` (a LENIENT result counts as a failure):
@@ -579,7 +579,7 @@ spark_corpus__typeCoercion__native__division.sql PASS=62  LENIENT=0  PHASE=0  FA
 spark_corpus__typeCoercion__native__elt.sql  PASS=4  LENIENT=0  PHASE=0  FAIL=0  XFAIL=0  XPASS=0
 spark_corpus__typeCoercion__native__ifCoercion.sql PASS=134  LENIENT=0  PHASE=0  FAIL=0  XFAIL=10  XPASS=0
 spark_corpus__typeCoercion__native__implicitTypeCasts.sql PASS=40  LENIENT=0  PHASE=0  FAIL=0  XFAIL=3  XPASS=0
-spark_corpus__typeCoercion__native__inConversion.sql PASS=138  LENIENT=0  PHASE=0  FAIL=0  XFAIL=150  XPASS=0
+spark_corpus__typeCoercion__native__inConversion.sql PASS=268  LENIENT=0  PHASE=0  FAIL=0  XFAIL=20  XPASS=0
 spark_corpus__typeCoercion__native__mapZipWith.sql PASS=7  LENIENT=0  PHASE=0  FAIL=0  XFAIL=8  XPASS=0
 spark_corpus__typeCoercion__native__mapconcat.sql PASS=5  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2  XPASS=0
 spark_corpus__typeCoercion__native__promoteStrings.sql PASS=293  LENIENT=0  PHASE=0  FAIL=0  XFAIL=22  XPASS=0
@@ -591,20 +591,20 @@ tpch_small.sql                               PASS=22  LENIENT=0  PHASE=0  FAIL=0
 types__c10_datetime_arithmetic.sql           PASS=379  LENIENT=0  PHASE=0  FAIL=0  XFAIL=764  XPASS=0
 types__c11_boolean_contexts.sql              PASS=40  LENIENT=0  PHASE=0  FAIL=0  XFAIL=464  XPASS=0
 types__c12_aggregates_windows.sql            PASS=1212  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1186  XPASS=0
-types__c13_nested.sql                        PASS=141  LENIENT=0  PHASE=0  FAIL=0  XFAIL=379  XPASS=0
+types__c13_nested.sql                        PASS=139  LENIENT=0  PHASE=0  FAIL=0  XFAIL=381  XPASS=0
 types__c14_equality_ordering.sql             PASS=467  LENIENT=0  PHASE=0  FAIL=0  XFAIL=251  XPASS=0
 types__c1_casts.sql                          PASS=3581  LENIENT=0  PHASE=0  FAIL=0  XFAIL=4835  XPASS=0
 types__c2_string_rendering.sql               PASS=485  LENIENT=0  PHASE=0  FAIL=0  XFAIL=109  XPASS=0
 types__c3_arithmetic.sql                     PASS=1645  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1774  XPASS=0
-types__c4_comparison.sql                     PASS=1384  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2224  XPASS=0
-types__c5_common_type.sql                    PASS=2283  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7106  XPASS=0
-types__c6_function_args.sql                  PASS=12244  LENIENT=0  PHASE=0  FAIL=0  XFAIL=9751  XPASS=0
+types__c4_comparison.sql                     PASS=1442  LENIENT=0  PHASE=0  FAIL=0  XFAIL=2166  XPASS=0
+types__c5_common_type.sql                    PASS=2309  LENIENT=0  PHASE=0  FAIL=0  XFAIL=7080  XPASS=0
+types__c6_function_args.sql                  PASS=12603  LENIENT=0  PHASE=0  FAIL=0  XFAIL=9392  XPASS=0
 types__c7_store_assignment.sql[storeAssignmentPolicy=ANSI] PASS=423  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1189  XPASS=0
 types__c7_store_assignment.sql[storeAssignmentPolicy=LEGACY] PASS=90  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1522  XPASS=0
 types__c7_store_assignment.sql[storeAssignmentPolicy=STRICT] PASS=44  LENIENT=0  PHASE=0  FAIL=0  XFAIL=1568  XPASS=0
 types__c8_decimal_precision.sql              PASS=451  LENIENT=0  PHASE=0  FAIL=0  XFAIL=97  XPASS=0
 types__c9_literals.sql                       PASS=95  LENIENT=0  PHASE=0  FAIL=0  XFAIL=34  XPASS=0
-TOTAL                                        PASS=30746  LENIENT=0  PHASE=0  FAIL=0  XFAIL=35891  XPASS=0
+TOTAL                                        PASS=31317  LENIENT=0  PHASE=0  FAIL=0  XFAIL=35320  XPASS=0
 ```
 
 ## Built-in functions (438 in Spark 3.5)
@@ -613,7 +613,7 @@ TOTAL                                        PASS=30746  LENIENT=0  PHASE=0  FAI
 - **0** have at least one failing example: 
 - **17** have no documentation examples (operators and cast functions), covered by `test/cases/operators.sql` and `test/cases/literals_types.sql`: `!=`, `<>`, `between`, `bigint`, `binary`, `boolean`, `case`, `date`, `decimal`, `double`, `float`, `int`, `smallint`, `string`, `timestamp`, `tinyint`, `||`
 
-8997 cases that Spark rejects are accepted by the lenient `spark` dialect (DuckDB-only syntax); `spark_strict` rejects them all.
+8979 cases that Spark rejects are accepted by the lenient `spark` dialect (DuckDB-only syntax); `spark_strict` rejects them all.
 
 ## Remaining failures
 
@@ -703,16 +703,16 @@ Classes: 49 client, 4 command, 206 execution, 66 semantic, 26 static, 115 storag
 | `c10_datetime_arithmetic` | 1143 | 675 | 154 | 92 | types-interval: 188, types-ntz: 9, types-open-c10: 25 |
 | `c11_boolean_contexts` | 504 | 40 | 194 | 264 | types-open-c11: 6 |
 | `c12_aggregates_windows` | 2398 | 1983 | 92 | 0 | types-interval: 187, types-ntz: 20, types-open-c12: 116 |
-| `c13_nested` | 520 | 333 | 130 | 52 | types-open-c13: 5 |
+| `c13_nested` | 520 | 347 | 128 | 6 | types-open-c13: 39 |
 | `c14_equality_ordering` | 718 | 513 | 12 | 92 | types-interval: 16, types-ntz: 4, types-open-c14: 81 |
 | `c1_casts` | 8416 | 3581 | 3997 | 28 | types-interval: 624, types-ntz: 83, types-open-c1: 103 |
 | `c2_string_rendering` | 594 | 485 | 56 | 0 | types-interval: 36, types-ntz: 2, types-open-c2: 15 |
 | `c3_arithmetic` | 3419 | 2403 | 184 | 532 | types-interval: 188, types-ntz: 5, types-open-c3: 107 |
-| `c4_comparison` | 3608 | 3106 | 131 | 241 | types-interval: 16, types-ntz: 6, types-open-c4: 108 |
-| `c5_common_type` | 9389 | 6144 | 603 | 2242 | types-interval: 190, types-ntz: 30, types-open-c5: 180 |
-| `c6_function_args` | 21995 | 15732 | 2843 | 2194 | types-interval: 295, types-ntz: 116, types-open-c6: 801, types-struct-field-names: 5, types-to-number: 9 |
+| `c4_comparison` | 3608 | 3418 | 117 | 1 | types-interval: 16, types-ntz: 2, types-open-c4: 54 |
+| `c5_common_type` | 9389 | 6642 | 587 | 1628 | types-interval: 214, types-ntz: 34, types-open-c5: 284 |
+| `c6_function_args` | 21995 | 16067 | 2899 | 2212 | types-interval: 285, types-ntz: 104, types-open-c6: 393, types-struct-field-names: 5, types-to-number: 25 |
 | `c7_store_assignment` | 4836 | 3553 | 164 | 22 | conf-rejected: 1076, types-open-c7: 21 |
 | `c8_decimal_precision` | 548 | 451 | 0 | 0 | types-open-c8: 97 |
 | `c9_literals` | 129 | 101 | 5 | 4 | types-interval: 16, types-ntz: 2, types-open-c9: 1 |
 
-Error class agreement in `spark_strict` (report only): 716 of 25576 compared cases.
+Error class agreement in `spark_strict` (report only): 727 of 25358 compared cases.

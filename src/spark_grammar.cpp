@@ -436,7 +436,10 @@ ExprPtr TransformPredicated(PEGTransformer &t, ParseResult &pr) {
 		bool negate = HasOptional(predicate.GetChild(0));
 		auto lower = Expr(t, predicate.GetChild(2));
 		auto upper = Expr(t, predicate.GetChild(4));
-		return MaybeNot(negate, make_uniq<BetweenExpression>(std::move(value), std::move(lower), std::move(upper)));
+		// like Spark: value >= lower AND value <= upper, each comparison with Spark's implicit casts
+		auto ge = SparkCall("cmp_ge", value->Copy(), std::move(lower));
+		auto le = SparkCall("cmp_le", std::move(value), std::move(upper));
+		return MaybeNot(negate, make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(ge), std::move(le)));
 	}
 	if (rule == "spinquery") {
 		bool negate = HasOptional(predicate.GetChild(0));
@@ -456,8 +459,8 @@ ExprPtr TransformPredicated(PEGTransformer &t, ParseResult &pr) {
 		for (auto &item : ListItems(predicate.GetChild(3))) {
 			children.push_back(Expr(t, item.get()));
 		}
-		return make_uniq<OperatorExpression>(negate ? ExpressionType::COMPARE_NOT_IN : ExpressionType::COMPARE_IN,
-		                                     std::move(children));
+		// the value and the list are brought to Spark's common type first (1 IN ('abc', 1) compares strings)
+		return MaybeNot(negate, SparkCall("in_list_value", std::move(children)));
 	}
 	if (rule == "sprlike") {
 		bool negate = HasOptional(predicate.GetChild(0));
@@ -1120,9 +1123,9 @@ ExprPtr RewriteFunction(ExprPtr expr) {
 		    {"locate", {0, 1}},    {"position", {0, 1}},   {"find_in_set", {0, 1}}, {"levenshtein", {0, 1}}, {"sentences", {0}},
 		    {"split_part", {0, 1}}, {"soundex", {0}},      {"ascii", {0}},
 		    {"date_format", {1}},  {"to_date", {1}},       {"to_timestamp", {1}}, {"from_unixtime", {1}},  {"unix_timestamp", {1}},
-		    {"to_unix_timestamp", {1}}, {"trunc", {1}},    {"date_trunc", {0}},   {"next_day", {1}},       {"regexp_extract", {1}},
-		    {"regexp_extract_all", {1}}, {"regexp_replace", {1, 2}}, {"regexp_like", {1}}, {"regexp", {1}}, {"rlike", {1}},
-		    {"regexp_count", {1}}, {"regexp_instr", {1}},  {"regexp_substr", {1}}, {"split", {1}},
+		    {"to_unix_timestamp", {1}}, {"trunc", {1}},    {"date_trunc", {0}},   {"next_day", {1}},       {"regexp_extract", {0, 1}},
+		    {"regexp_extract_all", {0, 1}}, {"regexp_replace", {0, 1, 2}}, {"regexp_like", {0, 1}}, {"regexp", {0, 1}}, {"rlike", {0, 1}},
+		    {"regexp_count", {0, 1}}, {"to_binary", {0}}, {"try_to_binary", {0}}, {"url_decode", {0}}, {"url_encode", {0}}, {"to_number", {0}}, {"try_to_number", {0}}, {"format_string", {0}}, {"printf", {0}}, {"regexp_instr", {0, 1}},  {"regexp_substr", {0, 1}}, {"split", {0, 1}},
 		    {"substring_index", {0, 1}}};
 		auto string_entry = STRING_PARAMETERS.find(name);
 		if (string_entry != STRING_PARAMETERS.end()) {

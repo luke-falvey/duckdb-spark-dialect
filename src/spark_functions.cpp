@@ -2680,6 +2680,28 @@ void CastToCommonType(Builder &b, vector<ExprP> &args) {
 	}
 }
 
+//! value IN (items...) after the common type of all operands
+ExprP BindInListValue(FunctionBindExpressionInput &input) {
+	Builder b(input.context);
+	vector<ExprP> args;
+	for (idx_t i = 0; i < input.children.size(); i++) {
+		args.push_back(Arg(input, i));
+	}
+	bool nested = false;
+	for (auto &arg : args) {
+		auto id = Normalize(arg->GetReturnType()).id();
+		nested = nested || id == LogicalTypeId::STRUCT;  // struct fields keep DuckDB's by-name rules
+	}
+	if (!nested) {
+		CastToCommonType(b, args);
+	}
+	auto result = make_uniq<BoundOperatorExpression>(ExpressionType::COMPARE_IN, LogicalType::BOOLEAN);
+	for (auto &arg : args) {
+		result->GetChildrenMutable().push_back(std::move(arg));
+	}
+	return std::move(result);
+}
+
 ExprP BindCoalesceValue(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	vector<ExprP> args;
@@ -3656,6 +3678,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"typeof", BindTypeOf},
 	    {"array", BindArray},
     {"coalesce_value", BindCoalesceValue},
+    {"in_list_value", BindInListValue},
 	    {"map_from_arrays", BindMapFromArrays},
     {"map_concat", BindMapConcat},
     {"conf_bool", BindConfBool},
