@@ -1,0 +1,25 @@
+-- exists over arrays with NULL predicate results: NULL (three valued logic) or false; literals, columns, nesting, forall as negative control
+
+SELECT exists(array(1, 2, 3), x -> x > 5);
+
+SELECT exists(array(1, NULL, 3), x -> x > 5);
+
+SELECT exists(array(1, NULL, 3), x -> x > 2);
+
+SELECT exists(array(NULL, NULL), x -> x > 1);
+
+SELECT exists(array(), x -> x > 1);
+
+SELECT exists(CAST(NULL AS ARRAY<INT>), x -> x > 1);
+
+SELECT exists(a, x -> x > 5) FROM VALUES (array(1, NULL)), (array(7, NULL)), (array(1, 2)), (CAST(NULL AS ARRAY<INT>)) AS t(a);
+
+SELECT exists(array(1, NULL), x -> x IS NULL);
+
+SELECT exists(array(array(1, NULL)), y -> exists(y, x -> x > 5));
+
+SELECT exists(array(1, 2), x -> NULL);
+
+SELECT forall(array(1, NULL, 3), x -> x > 0);
+
+SELECT forall(array(1, NULL, 3), x -> x > 5);

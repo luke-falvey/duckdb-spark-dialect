@@ -45,7 +45,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"max_by", "(x, y) AS arg_max_null(x, y)"},
     {"min_by", "(x, y) AS arg_min_null(x, y)"},
     // Catalyst's Divide yields NULL when the variance product is zero, where DuckDB's corr gives NaN
-    {"corr", "(x, y) AS CASE WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
+    {"corr", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
     {"isnotnull", "(a) AS a IS NOT NULL"},
     {"equal_null", "(a, b) AS " S "cmp_nsafe(a, b)"},
     {"nanvl", "(a, b) AS CASE WHEN isnan(" S "as_double(a)) THEN " S "as_double(b) ELSE " S "as_double(a) END"},
@@ -282,7 +282,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"sort_array", "(a) AS list_sort(a, 'ASC', 'NULLS FIRST'), (a, ascending) AS CASE WHEN ascending THEN list_sort(a, 'ASC', 'NULLS FIRST') ELSE list_sort(a, 'DESC', 'NULLS LAST') END"},
     {"arrays_overlap", "(a, b) AS CASE WHEN a IS NULL OR b IS NULL THEN NULL WHEN list_has_any(a, b) THEN true "
                        "WHEN len(a) > 0 AND len(b) > 0 AND (list_count(a) < len(a) OR list_count(b) < len(b)) THEN NULL ELSE false END"},
-    {"array_insert",
+    {"array_insert", "(a, p, v) AS " S "array_insert_impl(a, CASE WHEN p < 0 AND " S "conf_bool('spark.sql.legacy.negativeIndexInArrayInsert') THEN p - 1 ELSE p END, v)"},
+    {"array_insert_impl",
      "(a, p, v) AS CASE WHEN a IS NULL OR p IS NULL THEN NULL "
      "WHEN p > 0 AND p <= len(a) + 1 THEN list_concat(list_slice(a, 1, p - 1), [v], list_slice(a, p, len(a))) "
      "WHEN p > 0 THEN list_concat(a, list_transform(range(p - 1 - len(a)), lambda i: NULL), [v]) "
@@ -295,7 +296,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"shuffle", "(a) AS list_transform(list_sort(list_transform(a, lambda x: {'r': random(), 'v': x})), lambda e: e.v)"},
     {"get", "(a, i) AS " S "subscript(a, i)"},
     {"exists", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), true) THEN true "
-               "WHEN list_count(list_transform(a, f)) < len(a) THEN NULL ELSE false END"},
+               "WHEN " S "conf_bool('spark.sql.legacy.followThreeValuedLogicInArrayExists') AND list_count(list_transform(a, f)) < len(a) THEN NULL ELSE false END"},
     {"forall", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), false) THEN false "
                "WHEN list_count(list_transform(a, f)) < len(a) THEN NULL ELSE true END"},
     {"aggregate", "(a, z, m) AS list_reduce(a, m, z), (a, z, m, f) AS list_transform([list_reduce(a, m, z)], f)[1]"},
@@ -334,8 +335,12 @@ const SparkMacro SPARK_MACROS[] = {
     {"any_value", "(x) AS first(x), (x, n) AS CASE WHEN n THEN first(x) FILTER (WHERE x IS NOT NULL) ELSE first(x) END"},
     {"last", "(x) AS last(x), (x, n) AS CASE WHEN n THEN last(x) FILTER (WHERE x IS NOT NULL) ELSE last(x) END"},
     {"last_value", "(x) AS last(x), (x, n) AS CASE WHEN n THEN last(x) FILTER (WHERE x IS NOT NULL) ELSE last(x) END"},
-    {"std", "(x) AS stddev_samp(x)"},
-    {"stddev", "(x) AS stddev_samp(x)"},
+    {"var_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(x) END"},
+    {"variance", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(x) END"},
+    {"stddev_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE stddev_samp(x) END"},
+    {"covar_samp", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) ELSE covar_samp(x, y) END"},
+    {"std", "(x) AS " S "stddev_samp(x)"},
+    {"stddev", "(x) AS " S "stddev_samp(x)"},
     {"median", "(x) AS " S "from_number(quantile_cont(" S "as_number(x), 0.5), max(x))"},
     {"percentile", "(x, p) AS " S "from_number(quantile_cont(" S "as_number(x), p), max(x)), (x, p, f) AS " S "from_number(quantile_cont(" S "as_number(x), p), max(x))"},
     {"percentile_approx", "(x, p) AS quantile_disc(x, p), (x, p, a) AS quantile_disc(x, p)"},
@@ -369,8 +374,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"xpath_int", "(x, p) AS CAST(CASE WHEN isnan(" S "xpath_number_impl(x, p)) THEN 0 ELSE trunc(" S "xpath_number_impl(x, p)) END AS INTEGER)"},
     {"xpath_long", "(x, p) AS CAST(CASE WHEN isnan(" S "xpath_number_impl(x, p)) THEN 0 ELSE trunc(" S "xpath_number_impl(x, p)) END AS BIGINT)"},
     {"xpath_short", "(x, p) AS CAST(CASE WHEN isnan(" S "xpath_number_impl(x, p)) THEN 0 ELSE trunc(" S "xpath_number_impl(x, p)) END AS SMALLINT)"},
-    {"to_json", "(x) AS " S "to_json_impl(x, 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', 'yyyy-MM-dd'), "
-                "(x, o) AS " S "to_json_impl(x, coalesce(o['timestampFormat'], 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX'), coalesce(o['dateFormat'], 'yyyy-MM-dd'))"},
+    {"to_json", "(x) AS " S "to_json_impl(x, 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', CASE WHEN " S "conf_bool('spark.sql.jsonGenerator.ignoreNullFields') THEN 'yyyy-MM-dd' ELSE chr(1) || 'yyyy-MM-dd' END), "
+                "(x, o) AS " S "to_json_impl(x, coalesce(o['timestampFormat'], 'yyyy-MM-dd''T''HH:mm:ss.SSSXXX'), CASE WHEN " S "conf_bool('spark.sql.jsonGenerator.ignoreNullFields') THEN coalesce(o['dateFormat'], 'yyyy-MM-dd') ELSE chr(1) || coalesce(o['dateFormat'], 'yyyy-MM-dd') END)"},
     {"schema_of_json", "(j) AS " S "schema_of_json_impl(j), (j, o) AS " S "schema_of_json_impl(j)"},
     {"current_catalog", "() AS 'spark_catalog'"},
     {"current_user", "() AS current_user"},

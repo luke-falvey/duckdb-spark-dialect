@@ -2525,6 +2525,10 @@ ExprP BindConcat(FunctionBindExpressionInput &input) {
 		all_lists = all_lists && (type.id() == LogicalTypeId::LIST || IsNull(type));
 		all_blobs = all_blobs && (type.id() == LogicalTypeId::BLOB || IsNull(type));
 	}
+	// spark.sql.function.concatBinaryAsString: binary inputs concatenate as strings
+	if (all_blobs && SparkConfBool(input.context, "spark.sql.function.concatBinaryAsString")) {
+		all_blobs = false;
+	}
 	vector<ExprP> args;
 	for (idx_t i = 0; i < input.children.size(); i++) {
 		args.push_back(Arg(input, i));
@@ -2690,6 +2694,17 @@ ExprP BindMapFromEntries(FunctionBindExpressionInput &input) {
 		entries = b.Call("list_select", std::move(entries), std::move(last));
 	}
 	return b.Call("map_from_entries", std::move(entries));
+}
+
+// conf_bool('spark.sql.key'): the value of a boolean setting, as a constant at bind time (macros use it to branch)
+ExprP BindConfBool(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "conf_bool", 1, 1);
+	auto &child = *input.children[0];
+	if (child.GetExpressionClass() != ExpressionClass::BOUND_CONSTANT) {
+		throw BinderException("conf_bool: the key must be a constant");
+	}
+	auto key = child.Cast<BoundConstantExpression>().GetValue().ToString();
+	return make_uniq<BoundConstantExpression>(Value::BOOLEAN(SparkConfBool(input.context, key)));
 }
 
 // map_concat: a NULL map makes the result NULL (DuckDB treats it as empty)
@@ -2996,7 +3011,8 @@ ExprP BindSize(FunctionBindExpressionInput &input) {
 	Builder b(input.context);
 	auto e = Arg(input, 0);
 	auto type = Normalize(e->GetReturnType());
-	bool ansi = AnsiEnabled(input.context);
+	bool legacy = SparkConfBool(input.context, "spark.sql.legacy.sizeOfNull");
+	bool ansi = AnsiEnabled(input.context) || !legacy;
 	if (IsNull(type)) {
 		return b.Constant(ansi ? Value(LogicalType::INTEGER) : Value::INTEGER(-1));
 	}
@@ -3541,6 +3557,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"array", BindArray},
 	    {"map_from_arrays", BindMapFromArrays},
     {"map_concat", BindMapConcat},
+    {"conf_bool", BindConfBool},
     {"map_from_entries_value", BindMapFromEntries},
     {"map_from_entries", BindMapFromEntries},
 	    {"inline_rows", BindInlineRows},

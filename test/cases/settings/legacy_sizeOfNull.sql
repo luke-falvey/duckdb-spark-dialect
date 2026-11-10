@@ -3,3 +3,25 @@
 -- @matrix spark.sql.legacy.sizeOfNull=true,false
 
 SELECT size(CAST(NULL AS ARRAY<INT>));
+
+-- size / cardinality of NULL: -1 (legacy) or NULL; literals, columns, nested, maps, a negative control
+
+SELECT size(CAST(NULL AS ARRAY<INT>));
+
+SELECT size(NULL);
+
+SELECT size(CAST(NULL AS MAP<INT, STRING>));
+
+SELECT cardinality(CAST(NULL AS ARRAY<INT>));
+
+SELECT size(a), size(m), cardinality(a) FROM VALUES (array(1, 2), map(1, 'a')), (CAST(NULL AS ARRAY<INT>), CAST(NULL AS MAP<INT, STRING>)) AS t(a, m);
+
+SELECT size(a) + 1, coalesce(size(a), 0), size(a) IS NULL FROM VALUES (array(1)), (CAST(NULL AS ARRAY<INT>)) AS t(a);
+
+SELECT size(array(1, NULL, 3)), size(array()), size(map());
+
+SELECT size(array(array(1), CAST(NULL AS ARRAY<INT>)));
+
+SELECT typeof(size(CAST(NULL AS ARRAY<INT>)));
+
+SELECT array_size(array(1, 2)), length('abc');

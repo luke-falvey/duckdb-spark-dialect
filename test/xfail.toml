@@ -469,13 +469,6 @@ cases = [1]
 [[xfail]]
 id = "conf-todo"
 reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__function_concatBinaryAsString.sql"
-config = "function.concatBinaryAsString=true"
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
 file = "settings__function_eltOutputAsString.sql"
 config = "function.eltOutputAsString=true"
 cases = [1]
@@ -486,13 +479,6 @@ reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
 file = "settings__groupByAliases.sql"
 config = "groupByAliases=false"
 dialects = ["spark_strict"]
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__jsonGenerator_ignoreNullFields.sql"
-config = "jsonGenerator.ignoreNullFields=false"
 cases = [1]
 
 [[xfail]]
@@ -541,20 +527,6 @@ cases = ["1-2"]
 [[xfail]]
 id = "conf-todo"
 reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__legacy_followThreeValuedLogicInArrayExists.sql"
-config = "legacy.followThreeValuedLogicInArrayExists=false"
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__legacy_negativeIndexInArrayInsert.sql"
-config = "legacy.negativeIndexInArrayInsert=true"
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
 file = "settings__legacy_nullInEmptyListBehavior.sql"
 config = "legacy.nullInEmptyListBehavior=false"
 cases = [1]
@@ -564,20 +536,6 @@ id = "conf-todo"
 reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
 file = "settings__legacy_setopsPrecedence_enabled.sql"
 config = "legacy.setopsPrecedence.enabled=true"
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__legacy_sizeOfNull.sql"
-config = "legacy.sizeOfNull=false"
-cases = [1]
-
-[[xfail]]
-id = "conf-todo"
-reason = "tier 1 / 2 setting not implemented yet (plan 9.2)"
-file = "settings__legacy_statisticalAggregate.sql"
-config = "legacy.statisticalAggregate=true"
 cases = [1]
 
 [[xfail]]
@@ -1010,3 +968,10 @@ file = "settings__mapKeyDedupPolicy.sql"
 config = "mapKeyDedupPolicy=LAST_WIN"
 dialects = ["spark_strict"]
 cases = [6, 10, "26-27"]
+
+[[xfail]]
+id = "settings-legacy_statisticalAggregate"
+reason = "the statement differs from Spark under this setting value (a missing feature or a bug, see the case)"
+file = "settings__legacy_statisticalAggregate.sql"
+config = "legacy.statisticalAggregate=true"
+cases = [10]

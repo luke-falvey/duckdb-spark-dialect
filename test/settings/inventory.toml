@@ -1414,7 +1414,7 @@ note = ""
 [keys."spark.sql.function.concatBinaryAsString"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "false"
 values = ["true", "false"]
@@ -1834,7 +1834,7 @@ note = ""
 [keys."spark.sql.jsonGenerator.ignoreNullFields"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "true"
 values = ["true", "false"]
@@ -2176,7 +2176,7 @@ note = ""
 [keys."spark.sql.legacy.followThreeValuedLogicInArrayExists"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "true"
 values = ["true", "false"]
@@ -2335,7 +2335,7 @@ note = ""
 [keys."spark.sql.legacy.negativeIndexInArrayInsert"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "false"
 values = ["true", "false"]
@@ -2503,7 +2503,7 @@ note = ""
 [keys."spark.sql.legacy.sizeOfNull"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "true"
 values = ["true", "false"]
@@ -2525,7 +2525,7 @@ note = ""
 [keys."spark.sql.legacy.statisticalAggregate"]
 class = "semantic"
 tier = 2
-status = "rejected"
+status = "emulated"
 kind = "boolean"
 default = "false"
 values = ["true", "false"]
