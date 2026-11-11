@@ -403,7 +403,49 @@ def c12_aggregates():
         rows = values_rows(ks.split(", "))
         for bound in ["1", "1L", "1.5D", "INTERVAL '1' DAY", "'1'", "CAST(1 AS DECIMAL(3,1))"]:
             cases.append(f"SELECT sum(1) OVER (ORDER BY k RANGE BETWEEN {bound} PRECEDING AND CURRENT ROW) FROM VALUES {rows} AS t(k)")
+    # strings that are numbers, are not, are padded or empty: Spark's implicit cast makes the non-numbers NULL
+    # (appended: earlier cases keep their numbers, which test/xfail.toml refers to)
+    mixed = {"mixed": ["'1'", "'abc'", "''", "' 2 '", "CAST(NULL AS STRING)"], "malformed": ["'abc'", "''"]}
+    string_aggs = ["sum({c})", "avg({c})", "mean({c})", "stddev({c})", "stddev_samp({c})", "stddev_pop({c})",
+                   "variance({c})", "var_samp({c})", "var_pop({c})", "skewness({c})", "kurtosis({c})", "try_sum({c})",
+                   "try_avg({c})", "median({c})", "percentile({c}, 0.5)", "min({c})", "max({c})", "count({c})",
+                   "corr({c}, {c})", "covar_pop({c}, {c})", "covar_samp({c}, {c})", "regr_avgx({c}, {c})",
+                   "regr_slope({c}, {c})", "regr_sxx({c}, {c})", "approx_count_distinct({c})"]
+    for label, rs in mixed.items():
+        rows = values_rows(rs)
+        for agg in string_aggs:
+            e = agg.format(c="v")
+            cases.append(f"SELECT typeof({e}), {e} FROM VALUES {rows} AS t(v)")
+            cases.append(f"SELECT {agg.format(c='v')} OVER () FROM VALUES {rows} AS t(v)")
+            if agg.count("{c}") == 1:
+                cases.append(f"SELECT {agg.replace('{c}', 'DISTINCT {c}', 1).format(c='v')} FROM VALUES {rows} AS t(v)")
+                cases.append(f"SELECT {e} FILTER (WHERE v <> 'abc') FROM VALUES {rows} AS t(v)")
+        grouped = ", ".join(f"({i % 2}, {v})" for i, v in enumerate(rs))
+        for agg in string_aggs[:13]:
+            e = agg.format(c="v")
+            cases.append(f"SELECT g, {e} FROM VALUES {grouped} AS t(g, v) GROUP BY g ORDER BY g")
     write("c12_aggregates_windows", "C12 aggregates over every type (normal rows, empty input, all NULL), lag / lead defaults, RANGE frame bounds", cases)
+
+
+def c16_formats():
+    """Functions with a format or unit parameter, crossed with the value's type: Spark parses only a string with the
+    format, a date or timestamp value is converted and the format ignored (docs/plans/user-feedback-fixes.md 3.5)."""
+    values = ["DATE'2024-03-05'", "TIMESTAMP'2024-03-05 10:11:12'", "TIMESTAMP_NTZ'2024-03-05 10:11:12'",
+              "'2024-03-05'", "'05/03/2024'", "'bad'", "20240305", "CAST(1.5 AS DECIMAL(5,2))", "NULL"]
+    templates = []
+    for fn in ["to_date", "to_timestamp", "to_timestamp_ntz", "to_timestamp_ltz", "try_to_timestamp", "unix_timestamp",
+               "to_unix_timestamp"]:
+        templates += [f"{fn}({{v}}, 'dd/MM/yyyy')", f"{fn}({{v}}, 'yyyy-MM-dd')", f"{fn}({{v}})"]
+    templates += ["date_format({v}, 'yyyy-MM')", "trunc({v}, 'MM')", "date_trunc('MM', {v})", "next_day({v}, 'MON')",
+                  "from_unixtime({v}, 'yyyy')", "to_char({v}, '999')", "to_varchar({v}, '999')", "to_number({v}, '99')",
+                  "try_to_number({v}, '99')", "to_binary({v}, 'utf-8')", "try_to_binary({v}, 'hex')",
+                  "format_number({v}, 2)", "format_number({v}, '#.#')", "last_day({v})", "dayofweek({v})"]
+    cases = []
+    for template in templates:
+        for v in values:
+            e = template.format(v=v)
+            cases.append(f"SELECT typeof({e}), {e}")
+    write("c16_formats", "C16 format and unit parameters crossed with the value's type", cases)
 
 
 def c13_nested():
@@ -488,7 +530,7 @@ def c7_store_assignment():
 MATRICES = {
     "c1": c1_casts, "c2": c2_string_rendering, "c3": c3_arithmetic, "c4": c4_comparison, "c5": c5_common_type,
     "c7": c7_store_assignment, "c8": c8_decimal_precision, "c9": c9_literals, "c10": c10_datetime, "c11": c11_boolean_contexts,
-    "c12": c12_aggregates, "c13": c13_nested, "c14": c14_equality_ordering,
+    "c12": c12_aggregates, "c13": c13_nested, "c14": c14_equality_ordering, "c16": c16_formats,
 }
 
 

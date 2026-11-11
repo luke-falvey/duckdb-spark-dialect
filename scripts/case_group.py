@@ -8,10 +8,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CASES = ROOT / "test" / "cases"
 TYPES = {
-    "types-casts": ["c1_casts", "c2_string_rendering", "c9_literals", "c13_nested"],
+    "types-casts": ["c1_casts", "c2_string_rendering", "c9_literals", "c13_nested", "c16_formats", "c17_type_names"],
     "types-operators": ["c3_arithmetic", "c4_comparison", "c8_decimal_precision", "c10_datetime_arithmetic"],
     "types-common": ["c5_common_type"],
     "types-args": ["c6_function_args"],
+    "types-compose": ["c15_composition"],
     "types-rest": ["c7_store_assignment", "c11_boolean_contexts", "c12_aggregates_windows", "c14_equality_ordering"],
 }
 
@@ -32,7 +33,7 @@ CONFIGS = {  # workstream D: the files each configuration reruns (plan section 8
              "types-common": ["c5_common_type"],
              "types-rest": ["c7_store_assignment", "c11_boolean_contexts", "c12_aggregates_windows", "c14_equality_ordering"],
              "base": ["operators", "literals_types", "functions_examples", "queries", "ddl_dml"]},
-    "tz": {"types-casts": ["c1_casts", "c2_string_rendering"], "types-operators": ["c4_comparison", "c10_datetime_arithmetic"],
+    "tz": {"types-casts": ["c1_casts", "c2_string_rendering", "c16_formats"], "types-operators": ["c4_comparison", "c10_datetime_arithmetic"],
            "types-rest": ["c12_aggregates_windows"], "base": ["functions_examples"]},
     "apl": {"types-operators": ["c3_arithmetic", "c8_decimal_precision"]},
 }

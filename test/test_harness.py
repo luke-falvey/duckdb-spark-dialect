@@ -209,7 +209,7 @@ def test_case_groups_cover_every_generated_file():
     """Every file under test/cases/types and test/cases/settings belongs to exactly one CI group."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
     import case_group
-    groups = ["base", "settings", "corpus", "types-casts", "types-operators", "types-common", "types-args", "types-rest"]
+    groups = ["base", "settings", "corpus", "types-casts", "types-operators", "types-common", "types-args", "types-compose", "types-rest"]
     seen = [p for g in groups for p in case_group.files(g)]
     assert len(seen) == len(set(seen))
     cases = Path(__file__).resolve().parent / "cases"

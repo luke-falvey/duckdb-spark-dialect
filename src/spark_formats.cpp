@@ -548,8 +548,11 @@ ExprP BindFromCsv(FunctionBindExpressionInput &input) {
 		cast_args.push_back(make_uniq<BoundConstantExpression>(Value(children[i].second)));
 		values.push_back(binder.BindScalarFunction(Identifier(SPARK_SCHEMA), Identifier("cast_value"), std::move(cast_args)));
 	}
-	auto row = Call(input.context, "row", std::move(values));
-	return BoundCastExpression::AddCastToType(input.context, std::move(row), type);
+	auto row = BoundCastExpression::AddCastToType(input.context, Call(input.context, "row", std::move(values)), type);
+	// a NULL input is a NULL struct (not a struct of NULL fields)
+	auto valid = make_uniq<BoundOperatorExpression>(ExpressionType::OPERATOR_IS_NOT_NULL, LogicalType::BOOLEAN);
+	valid->GetChildrenMutable().push_back(std::move(fields));
+	return make_uniq<BoundCaseExpression>(std::move(valid), std::move(row), make_uniq<BoundConstantExpression>(Value(type)));
 }
 
 //! to_csv(struct[, options]): fields joined with ',' (NULL as empty)

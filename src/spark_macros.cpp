@@ -169,8 +169,8 @@ const SparkMacro SPARK_MACROS[] = {
     {"to_timestamp_ntz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS TIMESTAMP))"},
     {"try_to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS TIMESTAMP))"},
     {"date_format", "(t, f) AS " S "format_zoned(" S "as_timestamp(t), f)"},
-    {"from_unixtime", "(t) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
-                      "(t, f) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
+    {"from_unixtime", "(t) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(" S "as_double_param(t)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
+                      "(t, f) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(" S "as_double_param(t)) AS TIMESTAMP) END, f)"},
     {"epoch_seconds_wall", "(n) AS CAST(timezone('UTC', " S "epoch_seconds_wrap(n)) AS TIMESTAMP)"},
     {"unix_timestamp", "() AS CAST(floor(epoch(now())) AS BIGINT), "
                        "(t) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END))) AS BIGINT), "
@@ -343,19 +343,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"variance", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(" S "as_double_param(x)) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(" S "as_double_param(x)) END"},
     {"stddev_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(" S "as_double_param(x)) = 1 THEN CAST('NaN' AS DOUBLE) ELSE stddev_samp(" S "as_double_param(x)) END"},
     {"covar_samp", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) ELSE covar_samp(" S "as_double_param(x), " S "as_double_param(y)) END"},
-    // the population variants and regr_*: DOUBLE parameters (a string converts, NULL when it is not a number; a
-    // boolean or a date is Spark's analysis error)
-    {"var_pop", "(x) AS var_pop(" S "as_double_param(x))"},
-    {"stddev_pop", "(x) AS stddev_pop(" S "as_double_param(x))"},
-    {"covar_pop", "(x, y) AS covar_pop(" S "as_double_param(x), " S "as_double_param(y))"},
-    {"regr_avgx", "(y, x) AS regr_avgx(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_avgy", "(y, x) AS regr_avgy(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_slope", "(y, x) AS regr_slope(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_intercept", "(y, x) AS regr_intercept(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_r2", "(y, x) AS regr_r2(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_sxx", "(y, x) AS regr_sxx(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_syy", "(y, x) AS regr_syy(" S "as_double_param(y), " S "as_double_param(x))"},
-    {"regr_sxy", "(y, x) AS regr_sxy(" S "as_double_param(y), " S "as_double_param(x))"},
+    // var_pop / stddev_pop / covar_pop / regr_* are aggregates of the dialect (spark_aggregates.cpp)
     {"std", "(x) AS " S "stddev_samp(x)"},
     {"stddev", "(x) AS " S "stddev_samp(x)"},
     {"median", "(x) AS " S "from_number(quantile_cont(" S "as_number(x), 0.5), max(x))"},
@@ -382,8 +370,8 @@ const SparkMacro SPARK_MACROS[] = {
                         "(i, k, m, p) AS " S "try_aes_decrypt_impl(" S "as_binary(i), " S "as_binary(k), m, p, ''::BLOB), "
                         "(i, k, m, p, a) AS " S "try_aes_decrypt_impl(" S "as_binary(i), " S "as_binary(k), m, p, " S "as_binary(a))"},
     {"count_min_sketch", "(x, e, c, s) AS " S "count_min_sketch_impl(list(x), CAST(e AS DOUBLE), CAST(c AS DOUBLE), CAST(s AS INTEGER))"},
-    {"to_char", "(x, f) AS " S "to_char_impl(CAST(x AS VARCHAR), f)"},
-    {"to_varchar", "(x, f) AS " S "to_char_impl(CAST(x AS VARCHAR), f)"},
+    {"to_char", "(x, f) AS CASE WHEN typeof(x) = 'VARCHAR' AND TRY_CAST(x AS DOUBLE) IS NULL THEN NULL ELSE " S "to_char_impl(CAST(x AS VARCHAR), f) END"},
+    {"to_varchar", "(x, f) AS CASE WHEN typeof(x) = 'VARCHAR' AND TRY_CAST(x AS DOUBLE) IS NULL THEN NULL ELSE " S "to_char_impl(CAST(x AS VARCHAR), f) END"},
     {"to_number", "(s, f) AS CAST(" S "to_number_impl(s, f) AS DECIMAL(38, 10))"},
     {"try_to_number", "(s, f) AS CAST(" S "try_to_number_impl(s, f) AS DECIMAL(38, 10))"},
     {"xpath_double", "(x, p) AS " S "xpath_number_impl(x, p)"},

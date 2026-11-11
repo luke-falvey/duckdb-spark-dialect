@@ -1640,6 +1640,11 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 			                        Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
 			return expr;
 		}
+		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("aggregate_" + name)) {
+			// an aggregate of the dialect (var_pop, regr_*, ...) used as a window function
+			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA), Identifier(name));
+			return expr;
+		}
 		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("window_" + name) && IsSparkFunction(name)) {
 			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
 			                        Identifier("window_" + name));
@@ -2311,6 +2316,14 @@ void ApplyStrictGrammar(ParsedGrammar &g) {
 		if (tokens.size() != 1 || !IsSparkTypeName(StringUtil::Lower(tokens[0]))) {
 			throw ParserException("[UNSUPPORTED_DATATYPE] Spark SQL does not support the data type `%s`",
 			                      tokens.empty() ? string() : tokens.back());
+		}
+	});
+	// DuckDB's DOUBLE PRECISION and FLOAT(n) are not Spark types
+	RejectRule(g, "DoubleType <- ('DOUBLE' 'PRECISION')",
+	           "[PARSE_SYNTAX_ERROR] Syntax error at or near 'PRECISION': Spark SQL does not support DOUBLE PRECISION");
+	GuardRule(g, "FloatType <- 'FLOAT' Parens(NumberLiteral)?", [](ParseResult &pr) {
+		if (HasOptional(AsList(pr).GetChild(1))) {
+			throw ParserException("[UNSUPPORTED_DATATYPE] Spark SQL does not support the data type FLOAT(n)");
 		}
 	});
 	GuardRule(g, "TimeType <- TimeOrTimestamp TypeModifiers? TimeZone?", [](ParseResult &pr) {
