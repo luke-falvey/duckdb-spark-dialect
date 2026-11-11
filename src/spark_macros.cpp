@@ -298,7 +298,7 @@ const SparkMacro SPARK_MACROS[] = {
               "WHEN s > 0 THEN list_slice(a, s, s + l - 1) WHEN s < 0 AND len(a) + s + 1 >= 1 THEN list_slice(a, len(a) + s + 1, len(a) + s + l) "
               "WHEN s < 0 THEN [] ELSE error('Unexpected value for start in function slice: SQL array indices start at 1.') END"},
     {"shuffle", "(a) AS list_transform(list_sort(list_transform(a, lambda x: {'r': random(), 'v': x})), lambda e: e.v)"},
-    {"get", "(a, i) AS " S "subscript(a, i)"},
+    {"get", "(a, i) AS " S "get_value(a, i)"},
     {"exists", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), true) THEN true "
                "WHEN " S "conf_bool('spark.sql.legacy.followThreeValuedLogicInArrayExists') AND list_count(list_transform(a, f)) < len(a) THEN NULL ELSE false END"},
     {"forall", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), false) THEN false "

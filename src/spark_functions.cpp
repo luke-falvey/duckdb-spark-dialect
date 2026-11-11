@@ -3173,6 +3173,20 @@ ExprP BindSubscript(FunctionBindExpressionInput &input) {
 	throw BinderException("[] is not supported for %s", SparkTypeName(type));
 }
 
+//! get(array, index): like [] on an array; Spark's get takes only an array (spark_strict rejects a map or a struct)
+ExprP BindGet(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "get", 2, 2);
+	auto type = Normalize(input.children[0]->GetReturnType());
+	if (InStrictDialect(input.context) && !(IsNull(type) || type.id() == LogicalTypeId::LIST ||
+	                                        type.id() == LogicalTypeId::ARRAY)) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve \"get\" due to data type "
+		                      "mismatch: Parameter 1 requires the \"ARRAY\" type, however the argument has the type "
+		                      "\"%s\".",
+		                      StringUtil::Upper(SparkTypeName(type)));
+	}
+	return BindSubscript(input);
+}
+
 ExprP BindGetField(FunctionBindExpressionInput &input) {
 	CheckArgs(input, ".", 2, 2);
 	Builder b(input.context);
@@ -4446,6 +4460,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"concat_op", BindConcat},
 	    {"concat", BindConcat},
 	    {"subscript", BindSubscript},
+	    {"get_value", BindGet},
 	    {"get_field", BindGetField},
 	    {"cast_value", BindCastValue},
 	    {"try_cast_value", BindTryCastValue},
