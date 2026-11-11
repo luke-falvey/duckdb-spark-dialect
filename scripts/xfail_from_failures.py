@@ -59,6 +59,8 @@ RULES = [
      "applies no OVER, DISTINCT or FILTER to a macro",
      r"\b(stddev\w*|std|var_samp|variance|covar_samp|kurtosis|skewness|median|percentile|try_sum|try_avg|corr)\s*\("
      r"(DISTINCT\b|[^()]*\)\s*(OVER|FILTER))", None),
+    ("try-aggregate-interval", "try_sum / try_avg over intervals are not implemented (DuckDB has no sum(INTERVAL))",
+     r"try_(avg|sum)\s*\(", r"sum\(INTERVAL\)"),
     ("subquery-argument", "a scalar subquery as a function argument: DuckDB cannot use it where the dialect copies the "
      "argument, inside a lambda, or under TRY", None,
      r"Cannot copy BoundSubqueryExpression|subqueries in lambda expressions|TRY can not be used in combination with a scalar subquery"),

@@ -179,6 +179,9 @@ string JsonStructure(const LogicalType &type) {
 	}
 	case LogicalTypeId::LIST:
 		return "[" + JsonStructure(ListType::GetChildType(type)) + "]";
+	case LogicalTypeId::VARCHAR:
+		// json_transform parses the names with the session's dialect: spark_strict rejects VARCHAR without a length
+		return "\"STRING\"";
 	default:
 		return "\"" + type.ToString() + "\"";
 	}
