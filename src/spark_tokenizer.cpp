@@ -1950,6 +1950,103 @@ void RewriteWindowColumn(Tokens &ts) {
 	}
 }
 
+//! The items of a comma-separated list between tokens [start, end) at parenthesis depth 0, as [begin, end) ranges
+vector<pair<idx_t, idx_t>> SplitTopLevel(const Tokens &ts, idx_t start, idx_t end) {
+	vector<pair<idx_t, idx_t>> items;
+	idx_t item = start;
+	for (idx_t k = start; k < end; k++) {
+		if (OpAt(ts, k, "(")) {
+			k = SkipParens(ts, k) - 1;
+		} else if (OpAt(ts, k, ",")) {
+			items.emplace_back(item, k);
+			item = k + 1;
+		}
+	}
+	if (item < end) {
+		items.emplace_back(item, end);
+	}
+	return items;
+}
+
+Tokens PivotKey(const Tokens &ts, idx_t begin, idx_t end) {
+	auto offset = ts[begin].offset;
+	Tokens result = Lex("system . spark . pivot_key (", offset);
+	result.insert(result.end(), ts.begin() + NumericCast<int64_t>(begin), ts.begin() + NumericCast<int64_t>(end));
+	result.emplace_back(")", offset, TokenType::OPERATOR);
+	return result;
+}
+
+//! PIVOT (... FOR col IN (v AS a, ...)): Spark casts each value to the column's type and compares values; DuckDB
+//! compares their texts (1.00 is not 1). Both sides are compared through pivot_key, a canonical text of the value.
+//! `ts[for_idx]` is FOR; returns the new end of the PIVOT clause.
+idx_t RewritePivotValues(Tokens &ts, idx_t for_idx, idx_t end) {
+	idx_t in_idx = for_idx + 1;
+	while (in_idx < end && !WordAt(ts, in_idx, "IN")) {
+		in_idx = OpAt(ts, in_idx, "(") ? SkipParens(ts, in_idx) : in_idx + 1;
+	}
+	if (in_idx >= end || !OpAt(ts, in_idx + 1, "(")) {
+		return end;
+	}
+	auto list_end = SkipParens(ts, in_idx + 1); // after ')'
+	bool multi = OpAt(ts, for_idx + 1, "(") && SkipParens(ts, for_idx + 1) == in_idx;
+	// the values, last first so earlier positions stay valid
+	auto values = SplitTopLevel(ts, in_idx + 2, list_end - 1);
+	for (auto it = values.rbegin(); it != values.rend(); ++it) {
+		idx_t vbegin = it->first, vend = it->second;
+		// the alias: `AS name`, or a bare name after a single literal token
+		idx_t expr_end = vend;
+		for (idx_t k = vbegin; k < vend; k++) {
+			if (OpAt(ts, k, "(")) {
+				k = SkipParens(ts, k) - 1;
+			} else if (WordAt(ts, k, "AS")) {
+				expr_end = k;
+				break;
+			}
+		}
+		if (expr_end == vend && vend - vbegin == 2 && IsWord(ts[vend - 1]) &&
+		    (ts[vbegin].type == TokenType::NUMBER_LITERAL || ts[vbegin].type == TokenType::STRING_LITERAL)) {
+			expr_end = vend - 1;
+		}
+		if (expr_end == vbegin) {
+			continue;
+		}
+		Tokens replacement;
+		if (multi && OpAt(ts, vbegin, "(") && SkipParens(ts, vbegin) == expr_end) {
+			auto parts = SplitTopLevel(ts, vbegin + 1, expr_end - 1);
+			replacement.emplace_back("(", ts[vbegin].offset, TokenType::OPERATOR);
+			for (idx_t p = 0; p < parts.size(); p++) {
+				if (p) {
+					replacement.emplace_back(",", ts[vbegin].offset, TokenType::OPERATOR);
+				}
+				Append(replacement, PivotKey(ts, parts[p].first, parts[p].second));
+			}
+			replacement.emplace_back(")", ts[vbegin].offset, TokenType::OPERATOR);
+		} else {
+			replacement = PivotKey(ts, vbegin, expr_end);
+		}
+		auto old_size = expr_end - vbegin;
+		Replace(ts, vbegin, expr_end, replacement);
+		end = end + replacement.size() - old_size;
+	}
+	// the pivot column(s)
+	if (multi) {
+		auto close = SkipParens(ts, for_idx + 1);
+		auto parts = SplitTopLevel(ts, for_idx + 2, close - 1);
+		for (auto it = parts.rbegin(); it != parts.rend(); ++it) {
+			auto replacement = PivotKey(ts, it->first, it->second);
+			auto old_size = it->second - it->first;
+			Replace(ts, it->first, it->second, replacement);
+			end = end + replacement.size() - old_size;
+		}
+	} else {
+		auto replacement = PivotKey(ts, for_idx + 1, in_idx);
+		auto old_size = in_idx - (for_idx + 1);
+		Replace(ts, for_idx + 1, in_idx, replacement);
+		end = end + replacement.size() - old_size;
+	}
+	return end;
+}
+
 void RewritePivotAggregates(Tokens &ts) {
 	for (idx_t i = 0; i + 1 < ts.size(); i++) {
 		if (!WordAt(ts, i, "PIVOT") || !OpAt(ts, i + 1, "(")) {
@@ -1958,6 +2055,7 @@ void RewritePivotAggregates(Tokens &ts) {
 		auto end = SkipParens(ts, i + 1);
 		for (idx_t k = i + 2; k < end; k++) {
 			if (WordAt(ts, k, "FOR")) {
+				end = RewritePivotValues(ts, k, end);
 				break;
 			}
 			if (!IsWord(ts[k]) || !OpAt(ts, k + 1, "(")) {

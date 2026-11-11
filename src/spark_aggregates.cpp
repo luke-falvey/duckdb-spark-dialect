@@ -21,6 +21,9 @@
 #include "duckdb/function/function_set.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
+#include "duckdb/catalog/catalog.hpp"
+#include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
+#include "duckdb/common/string_util.hpp"
 
 namespace duckdb {
 
@@ -643,8 +646,10 @@ AggregateFunction MakeDoubleAvg();
 template <bool IS_SUM>
 unique_ptr<FunctionData> BindCastToDouble(BindAggregateFunctionInput &input) {
 	auto &function = input.GetBoundFunction();
-	input.GetArguments()[0] = BoundCastExpression::AddCastToType(input.GetClientContext(),
-	                                                              std::move(input.GetArguments()[0]), LogicalType::DOUBLE);
+	// Spark's implicit cast: a string that is not a number is NULL (non-ANSI); under ANSI it is an error
+	bool try_cast = !SparkAnsiEnabled(input.GetClientContext());
+	input.GetArguments()[0] = BoundCastExpression::AddCastToType(
+	    input.GetClientContext(), std::move(input.GetArguments()[0]), LogicalType::DOUBLE, try_cast);
 	function.ReplaceImplementation(IS_SUM ? MakeDoubleSum() : MakeDoubleAvg());
 	function.SetName(Identifier(IS_SUM ? "spark_sum" : "spark_avg"));
 	function.GetArguments()[0] = LogicalType::DOUBLE;
@@ -733,6 +738,49 @@ AggregateFunction MakeDoubleAvg() {
 	return DoubleAvg<double>(LogicalType::DOUBLE);
 }
 
+//! var_pop / stddev_pop / covar_pop / regr_*: Spark's parameters are DOUBLE. A number converts, a string converts too
+//! (NULL when it is not a number, an error under ANSI), any other type is Spark's analysis error. The call stays an
+//! aggregate (OVER, DISTINCT and FILTER work): the arguments are cast and DuckDB's own function over DOUBLE is used.
+unique_ptr<FunctionData> BindDoubleParams(BindAggregateFunctionInput &input) {
+	auto &function = input.GetBoundFunction();
+	auto &context = input.GetClientContext();
+	bool try_cast = !SparkAnsiEnabled(context);
+	vector<LogicalType> types;
+	for (auto &arg : input.GetArguments()) {
+		auto type = arg->GetReturnType();
+		bool is_string = type.id() == LogicalTypeId::VARCHAR;
+		if (!(type.id() == LogicalTypeId::SQLNULL || is_string || type.IsNumeric())) {
+			string name = type.id() == LogicalTypeId::BLOB ? "BINARY" : StringUtil::Upper(type.ToString());
+			throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the function call due to "
+			                      "data type mismatch: the parameter requires the \"DOUBLE\" type, however the argument "
+			                      "has the type \"%s\".",
+			                      name);
+		}
+		arg = BoundCastExpression::AddCastToType(context, std::move(arg), LogicalType::DOUBLE, try_cast && is_string);
+		types.push_back(LogicalType::DOUBLE);
+	}
+	QueryErrorContext error_context;
+	auto entry = Catalog::GetEntry<AggregateFunctionCatalogEntry>(
+	    context, QualifiedName(Identifier(SYSTEM_CATALOG), Identifier(DEFAULT_SCHEMA), function.GetName()),
+	    OnEntryNotFound::THROW_EXCEPTION, error_context);
+	auto core = entry->functions.GetFunctionByArguments(context, types);
+	function.ReplaceImplementation(*core);
+	for (idx_t i = 0; i < types.size(); i++) {
+		function.GetArguments()[i] = LogicalType::DOUBLE;
+	}
+	function.SetReturnType(core->GetReturnType());
+	return nullptr;
+}
+
+AggregateFunctionSet DoubleParamsAggregate(const char *name, idx_t n) {
+	AggregateFunctionSet set {Identifier(name)};
+	AggregateFunction function(vector<LogicalType>(n, LogicalType::ANY), LogicalType::DOUBLE, nullptr, nullptr,
+	                           nullptr, nullptr, nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
+	                           BindDoubleParams);
+	set.AddFunction(function);
+	return set;
+}
+
 } // namespace
 
 //! DuckDB re-binds an exported aggregate state (ROLLUP / CUBE cascades, aggregate pushdown below joins) by looking the
@@ -762,7 +810,7 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	sum.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<true>));
 	sum.AddFunction(IntegerSum<int8_t>(LogicalType::TINYINT));
 	sum.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<true>));
-	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB}) {
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB, LogicalType::BOOLEAN}) {
 		sum.AddFunction(CastingOverload(type, BindUnsupported<true>));
 	}
 	loader.RegisterFunction(sum);
@@ -780,11 +828,20 @@ void RegisterSparkAggregates(ExtensionLoader &loader) {
 	avg.AddFunction(CastingOverload(LogicalType::SQLNULL, BindCastToDouble<false>));
 	avg.AddFunction(DoubleAvg<int8_t>(LogicalType::TINYINT));
 	avg.AddFunction(CastingOverload(LogicalType::FLOAT, BindCastToDouble<false>));
-	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB}) {
+	for (auto &type : {LogicalType::DATE, LogicalType::TIMESTAMP_TZ, LogicalType::TIME, LogicalType::BLOB, LogicalType::BOOLEAN}) {
 		avg.AddFunction(CastingOverload(type, BindUnsupported<false>));
 	}
 	loader.RegisterFunction(avg);
 	RegisterInMain(loader, avg);
+
+	for (auto name : {"var_pop", "stddev_pop", "regr_avgx", "regr_avgy", "regr_slope", "regr_intercept", "regr_r2",
+	                  "regr_sxx", "regr_syy", "regr_sxy", "covar_pop"}) {
+		loader.RegisterFunction(DoubleParamsAggregate(name, StringUtil::StartsWith(name, "regr_") ||
+		                                                            StringUtil::StartsWith(name, "covar") ? 2 : 1));
+		// a call resolves in the spark schema, a call with OVER too
+		AddSparkOverride(name);
+		AddSparkOverride(string("aggregate_") + name);
+	}
 }
 
 } // namespace duckdb

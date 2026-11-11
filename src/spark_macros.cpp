@@ -47,7 +47,7 @@ const SparkMacro SPARK_MACROS[] = {
     {"max_by", "(x, y) AS arg_max_null(x, y)"},
     {"min_by", "(x, y) AS arg_min_null(x, y)"},
     // Catalyst's Divide yields NULL when the variance product is zero, where DuckDB's corr gives NaN
-    {"corr", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double(y) END) = 0 THEN NULL ELSE corr(" S "as_double(x), " S "as_double(y)) END"},
+    {"corr", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) WHEN var_pop(CASE WHEN y IS NOT NULL THEN " S "as_double_param(x) END) * var_pop(CASE WHEN x IS NOT NULL THEN " S "as_double_param(y) END) = 0 THEN NULL ELSE corr(" S "as_double_param(x), " S "as_double_param(y)) END"},
     {"isnotnull", "(a) AS a IS NOT NULL"},
     {"equal_null", "(a, b) AS " S "cmp_nsafe(a, b)"},
     {"nanvl", "(a, b) AS CASE WHEN isnan(" S "as_double(a)) THEN " S "as_double(b) ELSE " S "as_double(a) END"},
@@ -163,14 +163,14 @@ const SparkMacro SPARK_MACROS[] = {
                      "strftime(timezone(current_setting('TimeZone'), w), '%Z')) ELSE " S "format_datetime(w, f) END"},
     {"date", "(x) AS " S "as_date(x)"},
     {"timestamp", "(x) AS " S "as_timestamp(x)"},
-    {"to_date", "(s) AS " S "as_date(s), (s, f) AS CAST(" S "parse_datetime(" S "as_string(s), f) AS DATE)"},
-    {"to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
-    {"to_timestamp_ltz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
-    {"to_timestamp_ntz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
-    {"try_to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_datetime(" S "as_string(s), f)"},
+    {"to_date", "(s) AS " S "as_date(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS DATE))"},
+    {"to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS TIMESTAMP))"},
+    {"to_timestamp_ltz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS TIMESTAMP))"},
+    {"to_timestamp_ntz", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS TIMESTAMP))"},
+    {"try_to_timestamp", "(s) AS " S "as_timestamp(s), (s, f) AS " S "parse_with_format(s, f, CAST(NULL AS TIMESTAMP))"},
     {"date_format", "(t, f) AS " S "format_zoned(" S "as_timestamp(t), f)"},
-    {"from_unixtime", "(t) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
-                      "(t, f) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(CAST(t AS DOUBLE)) AS TIMESTAMP) END, f)"},
+    {"from_unixtime", "(t) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(" S "as_double_param(t)) AS TIMESTAMP) END, 'yyyy-MM-dd HH:mm:ss'), "
+                      "(t, f) AS " S "format_zoned(CASE WHEN typeof(t) IN ('BIGINT', 'INTEGER', 'SMALLINT', 'TINYINT') THEN " S "epoch_seconds_wall(CAST(t AS BIGINT)) ELSE CAST(to_timestamp(" S "as_double_param(t)) AS TIMESTAMP) END, f)"},
     {"epoch_seconds_wall", "(n) AS CAST(timezone('UTC', " S "epoch_seconds_wrap(n)) AS TIMESTAMP)"},
     {"unix_timestamp", "() AS CAST(floor(epoch(now())) AS BIGINT), "
                        "(t) AS CAST(floor(epoch(timezone(current_setting('TimeZone'), CASE WHEN typeof(t) = 'VARCHAR' THEN " S "parse_datetime(" S "as_string(t), 'yyyy-MM-dd HH:mm:ss') ELSE " S "as_timestamp(t) END))) AS BIGINT), "
@@ -298,7 +298,7 @@ const SparkMacro SPARK_MACROS[] = {
               "WHEN s > 0 THEN list_slice(a, s, s + l - 1) WHEN s < 0 AND len(a) + s + 1 >= 1 THEN list_slice(a, len(a) + s + 1, len(a) + s + l) "
               "WHEN s < 0 THEN [] ELSE error('Unexpected value for start in function slice: SQL array indices start at 1.') END"},
     {"shuffle", "(a) AS list_transform(list_sort(list_transform(a, lambda x: {'r': random(), 'v': x})), lambda e: e.v)"},
-    {"get", "(a, i) AS " S "subscript(a, i)"},
+    {"get", "(a, i) AS " S "get_value(a, i)"},
     {"exists", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), true) THEN true "
                "WHEN " S "conf_bool('spark.sql.legacy.followThreeValuedLogicInArrayExists') AND list_count(list_transform(a, f)) < len(a) THEN NULL ELSE false END"},
     {"forall", "(a, f) AS CASE WHEN a IS NULL THEN NULL WHEN list_contains(list_transform(a, f), false) THEN false "
@@ -321,8 +321,8 @@ const SparkMacro SPARK_MACROS[] = {
     // ---- aggregates ----
     {"collect_list", "(x) AS coalesce(list(x) FILTER (WHERE x IS NOT NULL), [])"},
     {"collect_set", "(x) AS coalesce(list_sort(list(DISTINCT x) FILTER (WHERE x IS NOT NULL)), [])"},
-    {"try_sum", "(x) AS " S "sum_result(sum(x))"},
-    {"try_avg", "(x) AS " S "try_avg_result(sum(" S "as_number(x)), count(x), max(x))"},
+    {"try_sum", "(x) AS " S "sum_result(sum(" S "as_sum_operand(x)))"},
+    {"try_avg", "(x) AS " S "try_avg_result(sum(" S "as_sum_operand(x)), count(" S "as_sum_operand(x)), max(x))"},
     {"__pivot_sum", "(x) AS sum(x)"},
     {"__pivot_avg", "(x) AS avg(x)"},
     {"sliding_windows", "(t, d, s) AS list_filter(list_transform(range(CAST(ceil(epoch(CAST(d AS INTERVAL)) / epoch(CAST(s AS INTERVAL))) AS BIGINT)), "
@@ -339,10 +339,11 @@ const SparkMacro SPARK_MACROS[] = {
     {"any_value", "(x) AS first(x), (x, n) AS CASE WHEN n THEN first(x) FILTER (WHERE x IS NOT NULL) ELSE first(x) END"},
     {"last", "(x) AS last(x), (x, n) AS CASE WHEN n THEN last(x) FILTER (WHERE x IS NOT NULL) ELSE last(x) END"},
     {"last_value", "(x) AS last(x), (x, n) AS CASE WHEN n THEN last(x) FILTER (WHERE x IS NOT NULL) ELSE last(x) END"},
-    {"var_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(x) END"},
-    {"variance", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(x) END"},
-    {"stddev_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(x) = 1 THEN CAST('NaN' AS DOUBLE) ELSE stddev_samp(x) END"},
-    {"covar_samp", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) ELSE covar_samp(x, y) END"},
+    {"var_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(" S "as_double_param(x)) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(" S "as_double_param(x)) END"},
+    {"variance", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(" S "as_double_param(x)) = 1 THEN CAST('NaN' AS DOUBLE) ELSE var_samp(" S "as_double_param(x)) END"},
+    {"stddev_samp", "(x) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(" S "as_double_param(x)) = 1 THEN CAST('NaN' AS DOUBLE) ELSE stddev_samp(" S "as_double_param(x)) END"},
+    {"covar_samp", "(x, y) AS CASE WHEN " S "conf_bool('spark.sql.legacy.statisticalAggregate') AND count(CASE WHEN x IS NOT NULL AND y IS NOT NULL THEN 1 END) = 1 THEN CAST('NaN' AS DOUBLE) ELSE covar_samp(" S "as_double_param(x), " S "as_double_param(y)) END"},
+    // var_pop / stddev_pop / covar_pop / regr_* are aggregates of the dialect (spark_aggregates.cpp)
     {"std", "(x) AS " S "stddev_samp(x)"},
     {"stddev", "(x) AS " S "stddev_samp(x)"},
     {"median", "(x) AS " S "from_number(quantile_cont(" S "as_number(x), 0.5), max(x))"},
@@ -369,8 +370,8 @@ const SparkMacro SPARK_MACROS[] = {
                         "(i, k, m, p) AS " S "try_aes_decrypt_impl(" S "as_binary(i), " S "as_binary(k), m, p, ''::BLOB), "
                         "(i, k, m, p, a) AS " S "try_aes_decrypt_impl(" S "as_binary(i), " S "as_binary(k), m, p, " S "as_binary(a))"},
     {"count_min_sketch", "(x, e, c, s) AS " S "count_min_sketch_impl(list(x), CAST(e AS DOUBLE), CAST(c AS DOUBLE), CAST(s AS INTEGER))"},
-    {"to_char", "(x, f) AS " S "to_char_impl(CAST(x AS VARCHAR), f)"},
-    {"to_varchar", "(x, f) AS " S "to_char_impl(CAST(x AS VARCHAR), f)"},
+    {"to_char", "(x, f) AS CASE WHEN typeof(x) = 'VARCHAR' AND TRY_CAST(x AS DOUBLE) IS NULL THEN NULL ELSE " S "to_char_impl(CAST(x AS VARCHAR), f) END"},
+    {"to_varchar", "(x, f) AS CASE WHEN typeof(x) = 'VARCHAR' AND TRY_CAST(x AS DOUBLE) IS NULL THEN NULL ELSE " S "to_char_impl(CAST(x AS VARCHAR), f) END"},
     {"to_number", "(s, f) AS CAST(" S "to_number_impl(s, f) AS DECIMAL(38, 10))"},
     {"try_to_number", "(s, f) AS CAST(" S "try_to_number_impl(s, f) AS DECIMAL(38, 10))"},
     {"xpath_double", "(x, p) AS " S "xpath_number_impl(x, p)"},

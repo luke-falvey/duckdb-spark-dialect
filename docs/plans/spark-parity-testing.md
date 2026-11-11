@@ -76,6 +76,20 @@ Regenerate the tables: `python scripts/xfail_summary.py` (per xfail id: `docs/pl
   `VALUES` / `UNION` (DuckDB adapts the literal to the other type, Spark promotes to STRING in `UNION` and rejects the
   inline table), aggregates over types Spark rejects (DuckDB's own aggregates raise unclassified errors), and the
   remaining strict leniencies of the matrices
+- [x] Fourth pass: a user project's findings (docs/plans/user-feedback-fixes.md). Fixed: an alias on the rewritten
+  `coalesce` leaked into function arguments (read as a named argument: `substring` / `left` / user macros over
+  `coalesce` failed to bind); window functions inside window definitions (the inner windows are computed in a derived
+  table; with GROUP BY / HAVING or over a join with qualified references an `UNSUPPORTED_FEATURE` error); `sum` / `avg`
+  / the statistics aggregates over strings (NULL for a non-number, ANSI keeps the error); PIVOT matches IN values by
+  value (`pivot_key`); `to_date` / `to_timestamp*` ignore the format for a date or timestamp; `spark_strict` rejects
+  `CHAR` / `VARCHAR` without a length, `DOUBLE PRECISION` and `FLOAT(n)`. New generators: C15 composition
+  (`scripts/gen_composition_cases.py`: every documented example with an argument wrapped in each rewritten form), C16
+  format arguments by input type, C17 type names (`scripts/gen_type_name_cases.py`), string aggregates in C12, and
+  `user_feedback.sql`, `rewrite_positions.sql`, `value_matching.sql`, `nested_constructs.sql`. What they found and is
+  fixed: `var_pop` / `stddev_pop` / `covar_pop` / `regr_*` are aggregates of the dialect (OVER, DISTINCT, FILTER),
+  `from_unixtime` / `to_char` of a string that is not a number are NULL, `from_csv(NULL)` is NULL, `from_json` under
+  `spark_strict`. Open, with ids: `macro-aggregate` (stddev, var_samp, kurtosis, median, try_sum, ... are macros: no
+  OVER / DISTINCT / FILTER), `subquery-argument`, `foldable-arguments`, `types-to-char`, `try-aggregate-interval`
 - [ ] 9.3 / 9.4: `types-ntz` and `types-interval` stay (one DuckDB type each); no TIMESTAMP to TIMESTAMPTZ remap was evaluated
 
 **Workstream D: configurations**

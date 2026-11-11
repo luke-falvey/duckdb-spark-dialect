@@ -87,6 +87,8 @@ jobs:
         run: |
           python scripts/gen_setting_cases.py
           python scripts/gen_type_cases.py
+          python scripts/gen_composition_cases.py
+          python scripts/gen_type_name_cases.py
           python test/fuzz/args_sweep.py --types --emit
           git diff --exit-code -- test/cases
           python scripts/gen_arg_type_rules.py --check
@@ -98,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [base, settings, types-casts, types-operators, types-common, types-args, types-rest, corpus]
+        group: [base, settings, types-casts, types-operators, types-common, types-args, types-compose, types-rest, corpus]
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4
@@ -142,7 +144,7 @@ jobs:
       fail-fast: false
       matrix:
         dialect: [spark, spark_strict]
-        group: [base, settings, types-casts, types-operators, types-common, types-args, types-rest, corpus]
+        group: [base, settings, types-casts, types-operators, types-common, types-args, types-compose, types-rest, corpus]
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4

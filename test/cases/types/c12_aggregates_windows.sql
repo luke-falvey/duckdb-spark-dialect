@@ -4797,3 +4797,407 @@ SELECT sum(1) OVER (ORDER BY k RANGE BETWEEN INTERVAL '1' DAY PRECEDING AND CURR
 SELECT sum(1) OVER (ORDER BY k RANGE BETWEEN '1' PRECEDING AND CURRENT ROW) FROM VALUES ('a'), ('b'), ('c') AS t(k);
 
 SELECT sum(1) OVER (ORDER BY k RANGE BETWEEN CAST(1 AS DECIMAL(3,1)) PRECEDING AND CURRENT ROW) FROM VALUES ('a'), ('b'), ('c') AS t(k);
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT sum(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT sum(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT sum(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT avg(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT avg(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT avg(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(mean(v)), mean(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT mean(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT mean(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT mean(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(stddev_samp(v)), stddev_samp(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev_samp(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev_samp(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev_samp(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(stddev_pop(v)), stddev_pop(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev_pop(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev_pop(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT stddev_pop(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(variance(v)), variance(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT variance(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT variance(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT variance(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(var_samp(v)), var_samp(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT var_samp(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT var_samp(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT var_samp(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT var_pop(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT var_pop(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT var_pop(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT skewness(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT skewness(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT skewness(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT kurtosis(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT kurtosis(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT kurtosis(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT try_sum(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT try_sum(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT try_sum(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT try_avg(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT try_avg(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT try_avg(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT median(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT median(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT median(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(percentile(v, 0.5)), percentile(v, 0.5) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT percentile(v, 0.5) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT percentile(DISTINCT v, 0.5) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT percentile(v, 0.5) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT min(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT min(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT min(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT max(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT max(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT max(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT count(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT count(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT count(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(corr(v, v)), corr(v, v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT corr(v, v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(covar_pop(v, v)), covar_pop(v, v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT covar_pop(v, v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(covar_samp(v, v)), covar_samp(v, v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT covar_samp(v, v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(regr_avgx(v, v)), regr_avgx(v, v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT regr_avgx(v, v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(regr_slope(v, v)), regr_slope(v, v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT regr_slope(v, v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(regr_sxx(v, v)), regr_sxx(v, v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT regr_sxx(v, v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT approx_count_distinct(v) OVER () FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT approx_count_distinct(DISTINCT v) FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT approx_count_distinct(v) FILTER (WHERE v <> 'abc') FROM VALUES ('1'), ('abc'), (''), (' 2 '), (CAST(NULL AS STRING)) AS t(v);
+
+SELECT g, sum(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, avg(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, mean(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, stddev(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, stddev_samp(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, stddev_pop(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, variance(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, var_samp(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, var_pop(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, skewness(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, kurtosis(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, try_sum(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, try_avg(v) FROM VALUES (0, '1'), (1, 'abc'), (0, ''), (1, ' 2 '), (0, CAST(NULL AS STRING)) AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT typeof(sum(v)), sum(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT sum(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT sum(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT sum(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(avg(v)), avg(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT avg(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT avg(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT avg(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(mean(v)), mean(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT mean(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT mean(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT mean(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(stddev(v)), stddev(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(stddev_samp(v)), stddev_samp(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev_samp(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev_samp(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev_samp(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(stddev_pop(v)), stddev_pop(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev_pop(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev_pop(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT stddev_pop(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(variance(v)), variance(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT variance(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT variance(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT variance(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(var_samp(v)), var_samp(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT var_samp(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT var_samp(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT var_samp(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(var_pop(v)), var_pop(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT var_pop(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT var_pop(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT var_pop(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(skewness(v)), skewness(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT skewness(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT skewness(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT skewness(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(kurtosis(v)), kurtosis(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT kurtosis(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT kurtosis(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT kurtosis(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(try_sum(v)), try_sum(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT try_sum(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT try_sum(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT try_sum(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(try_avg(v)), try_avg(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT try_avg(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT try_avg(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT try_avg(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(median(v)), median(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT median(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT median(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT median(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(percentile(v, 0.5)), percentile(v, 0.5) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT percentile(v, 0.5) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT percentile(DISTINCT v, 0.5) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT percentile(v, 0.5) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(min(v)), min(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT min(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT min(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT min(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(max(v)), max(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT max(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT max(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT max(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(count(v)), count(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT count(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT count(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT count(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(corr(v, v)), corr(v, v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT corr(v, v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(covar_pop(v, v)), covar_pop(v, v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT covar_pop(v, v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(covar_samp(v, v)), covar_samp(v, v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT covar_samp(v, v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(regr_avgx(v, v)), regr_avgx(v, v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT regr_avgx(v, v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(regr_slope(v, v)), regr_slope(v, v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT regr_slope(v, v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(regr_sxx(v, v)), regr_sxx(v, v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT regr_sxx(v, v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT typeof(approx_count_distinct(v)), approx_count_distinct(v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT approx_count_distinct(v) OVER () FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT approx_count_distinct(DISTINCT v) FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT approx_count_distinct(v) FILTER (WHERE v <> 'abc') FROM VALUES ('abc'), ('') AS t(v);
+
+SELECT g, sum(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, avg(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, mean(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, stddev(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, stddev_samp(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, stddev_pop(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, variance(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, var_samp(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, var_pop(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, skewness(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, kurtosis(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, try_sum(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;
+
+SELECT g, try_avg(v) FROM VALUES (0, 'abc'), (1, '') AS t(g, v) GROUP BY g ORDER BY g;

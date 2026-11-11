@@ -3142,15 +3142,49 @@ ExprP BindSubscript(FunctionBindExpressionInput &input) {
 		return b.Call("list_extract", std::move(base), std::move(one_based));
 	}
 	if (type.id() == LogicalTypeId::MAP) {
+		auto key_type = MapType::KeyType(type);
+		auto index_type = Normalize(index->GetReturnType());
+		if (IsNull(key_type)) {
+			// map(): Spark's key type is VOID, only a NULL key is accepted
+			if (!IsNull(index_type) && InStrictDialect(input.context)) {
+				throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the map lookup due to "
+				                      "data type mismatch: Parameter 2 requires the \"VOID\" type, however the key has "
+				                      "the type \"%s\".",
+				                      StringUtil::Upper(SparkTypeName(index_type)));
+			}
+			return b.NullOf(MapType::ValueType(type));
+		}
+		if (index_type != key_type) {
+			// the key is cast to the map's key type like Spark's implicit cast (a string that is not a number is NULL)
+			index = SparkCast(b, std::move(index), key_type);
+		}
 		return b.Call("map_extract_value", std::move(base), std::move(index));
 	}
 	if (type.id() == LogicalTypeId::STRUCT) {
 		return b.Call("struct_extract", std::move(base), std::move(index));
 	}
 	if (IsNull(type)) {
+		if (InStrictDialect(input.context)) {
+			throw BinderException("[INVALID_EXTRACT_BASE_FIELD_TYPE] Can't extract a value from \"NULL\". Need a "
+			                      "complex type [STRUCT, ARRAY, MAP] but got \"VOID\".");
+		}
 		return b.NullOf(LogicalType::SQLNULL);
 	}
 	throw BinderException("[] is not supported for %s", SparkTypeName(type));
+}
+
+//! get(array, index): like [] on an array; Spark's get takes only an array (spark_strict rejects a map or a struct)
+ExprP BindGet(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "get", 2, 2);
+	auto type = Normalize(input.children[0]->GetReturnType());
+	if (InStrictDialect(input.context) && !(IsNull(type) || type.id() == LogicalTypeId::LIST ||
+	                                        type.id() == LogicalTypeId::ARRAY)) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve \"get\" due to data type "
+		                      "mismatch: Parameter 1 requires the \"ARRAY\" type, however the argument has the type "
+		                      "\"%s\".",
+		                      StringUtil::Upper(SparkTypeName(type)));
+	}
+	return BindSubscript(input);
 }
 
 ExprP BindGetField(FunctionBindExpressionInput &input) {
@@ -3696,6 +3730,77 @@ ExprP BindAsDoubleParam(FunctionBindExpressionInput &input) {
 		                      StringUtil::Upper(SparkTypeName(type)));
 	}
 	return SparkCast(b, std::move(e), LogicalType::DOUBLE);
+}
+
+//! The argument of sum / avg / try_sum / try_avg: numbers and intervals unchanged, a string or an untyped NULL as
+//! DOUBLE (NULL when it is not a number), anything else Spark's analysis error
+ExprP BindAsSumOperand(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "as_sum_operand", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	if (IsNull(type) || IsString(type)) {
+		return SparkCast(b, std::move(e), LogicalType::DOUBLE);
+	}
+	if (!(IsNumeric(type) || type.id() == LogicalTypeId::INTERVAL)) {
+		throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the aggregate due to data type "
+		                      "mismatch: Parameter 1 requires the \"NUMERIC\" or \"ANSI INTERVAL\" type, however "
+		                      "the argument has the type \"%s\".",
+		                      StringUtil::Upper(SparkTypeName(type)));
+	}
+	return e;
+}
+
+//! to_date / to_timestamp* (value, format): Spark parses only a string with the format; a DATE or TIMESTAMP value is
+//! cast and the format ignored (ParseToDate / ParseToTimestamp). The third argument carries the result type.
+ExprP BindParseWithFormat(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "parse_with_format", 3, 3);
+	Builder b(input.context);
+	auto target = input.children[2]->GetReturnType();
+	auto value = Arg(input, 0);
+	auto type = Normalize(value->GetReturnType());
+	if (type.id() == LogicalTypeId::DATE || type.id() == LogicalTypeId::TIMESTAMP) {
+		return SparkCast(b, std::move(value), target);
+	}
+	if (type.id() == LogicalTypeId::TIMESTAMP_TZ) {
+		return b.Cast(std::move(value), target);
+	}
+	auto parsed = b.Spark("parse_datetime", b.Spark("as_string", std::move(value)), Arg(input, 1));
+	return target.id() == LogicalTypeId::DATE ? b.Cast(std::move(parsed), LogicalType::DATE) : std::move(parsed);
+}
+
+//! pivot_key(x): the text PIVOT compares a value by (see RewritePivotValues): numbers as canonical decimals (1, 1.0
+//! and 1.00 are the same key, like Spark's comparison after casting the value to the column's type), other values as
+//! DuckDB renders them
+void CanonicalNumberKernel(DataChunk &args, ExpressionState &, Vector &result) {
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t input) {
+		auto text = input.GetString();
+		if (text.find('.') != string::npos && text.find_first_of("eE") == string::npos) {
+			auto last = text.find_last_not_of('0');
+			text = text.substr(0, last + 1);
+			if (!text.empty() && text.back() == '.') {
+				text.pop_back();
+			}
+			if (text == "-0") {
+				text = "0";
+			}
+		}
+		return StringVector::AddString(result, text);
+	});
+}
+
+ExprP BindPivotKey(FunctionBindExpressionInput &input) {
+	CheckArgs(input, "pivot_key", 1, 1);
+	Builder b(input.context);
+	auto e = Arg(input, 0);
+	auto type = Normalize(e->GetReturnType());
+	auto text = b.Cast(std::move(e), LogicalType::VARCHAR);
+	if (IsDecimal(type) || IsFloating(type)) {
+		return b.Kernel(ScalarFunction(Identifier("spark_canonical_number"), {LogicalType::VARCHAR},
+		                               LogicalType::VARCHAR, CanonicalNumberKernel),
+		                std::move(text));
+	}
+	return text;
 }
 
 //! the value argument of round / bround: an untyped NULL or a string is a DOUBLE (Spark's implicit cast), numbers are
@@ -4315,6 +4420,9 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"typed_literal", BindTypedLiteral},
 	    {"check_arg", BindCheckArg},
 	    {"as_double_param", BindAsDoubleParam},
+	    {"as_sum_operand", BindAsSumOperand},
+	    {"parse_with_format", BindParseWithFormat},
+	    {"pivot_key", BindPivotKey},
 	    {"as_long", BindAsType<LogicalTypeId::BIGINT>},
 	    {"as_int", BindAsType<LogicalTypeId::INTEGER>},
 	    {"as_string", BindAsType<LogicalTypeId::VARCHAR>},
@@ -4352,6 +4460,7 @@ void RegisterSparkFunctions(ExtensionLoader &loader) {
 	    {"concat_op", BindConcat},
 	    {"concat", BindConcat},
 	    {"subscript", BindSubscript},
+	    {"get_value", BindGet},
 	    {"get_field", BindGetField},
 	    {"cast_value", BindCastValue},
 	    {"try_cast_value", BindTryCastValue},

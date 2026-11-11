@@ -174,6 +174,10 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the method and analysis and
   convert; an integer with FLOAT widens to DOUBLE). Not emulated: the rest of `AnsiTypeCoercion` (function
   arguments, comparisons), map key lookups of missing keys, overflow in `avg`, `pmod`, `date`/`timestamp` arithmetic and
   datetime parsing errors. A prepared statement is bound again when the setting changes.
+- A window function inside a window definition (`rank() OVER (ORDER BY sum(x) OVER (PARTITION BY g))`, also through
+  a named `WINDOW`) is computed in a derived table first, like Spark. Not supported: the same in a query with
+  `GROUP BY` / `HAVING`, or over a join whose columns are referenced with a table qualifier (both raise
+  `[UNSUPPORTED_FEATURE]`; compute the inner window in a subquery).
 - `window(...)` / `session_window(...)` are supported as `GROUP BY` keys. For `session_window` over a join, the
   joined tables' aliases are not available in the query (a single table or subquery keeps its alias).
 - Struct values are matched to struct columns by position (like Spark) in `INSERT ... VALUES` and `INSERT ... SELECT`

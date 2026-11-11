@@ -55,6 +55,26 @@ RULES = [
      r"PIVOT", r"column types differ"),
     ("types-percentile-disc", "percentile_disc keeps the input type in DuckDB; Spark returns DOUBLE",
      r"percentile_disc", r"column types differ"),
+    ("macro-aggregate", "the aggregate is a macro of the dialect (stddev, var_samp, kurtosis, median, try_sum, ...): DuckDB "
+     "applies no OVER, DISTINCT or FILTER to a macro",
+     r"\b(stddev\w*|std|var_samp|variance|covar_samp|kurtosis|skewness|median|percentile|try_sum|try_avg|corr)\s*\("
+     r"(DISTINCT\b|[^()]*\)\s*(OVER|FILTER))", None),
+    ("try-aggregate-interval", "try_sum / try_avg over intervals are not implemented (DuckDB has no sum(INTERVAL))",
+     r"try_(avg|sum)\s*\(", r"sum\(INTERVAL\)"),
+    ("subquery-argument", "a scalar subquery as a function argument: DuckDB cannot use it where the dialect copies the "
+     "argument, inside a lambda, or under TRY", None,
+     r"Cannot copy BoundSubqueryExpression|subqueries in lambda expressions|TRY can not be used in combination with a scalar subquery"),
+    ("foldable-arguments", "where Spark requires a foldable argument it accepts what it constant-folds (coalesce('a', 'a')) "
+     "and rejects other forms (ifnull, a subquery); the dialect requires a literal or accepts any constant", None,
+     r"FOLDABLE|must be a constant|must be string literals|needs to be a string literal|NON_STRING_LITERAL"),
+    ("datasource-types", "Spark's parquet source rejects INTERVAL and VOID columns; the dialect creates the table",
+     r"CREATE TABLE", r"UNSUPPORTED_DATA_TYPE_FOR_DATASOURCE"),
+    ("strict-array-function-types", "spark_strict accepts array functions over different numeric element types that "
+     "Spark rejects (ARRAY_FUNCTION_DIFF_TYPES)", None, r"ARRAY_FUNCTION_DIFF_TYPES"),
+    ("lenient-generator-window", "a generator over a window function: Spark rejects it, the dialect evaluates it",
+     r"explode\(.*OVER", r"LENIENT in strict mode"),
+    ("types-to-char", "to_char of a DECIMAL with fewer format digits than the type's precision: Spark prints '#' for "
+     "the type's width, the dialect for the value's", r"to_(char|varchar)\(", r"rows differ"),
     ("types-interval", "DuckDB has one INTERVAL type: Spark's interval ranges are not representable (plan 9.4)", None,
      r"column types differ[\s\S]*interval"),
     ("types-interval", "date_part of an interval field: Spark's field type depends on the interval range (plan 9.4)",

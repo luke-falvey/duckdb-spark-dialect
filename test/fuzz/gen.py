@@ -318,8 +318,11 @@ class Gen:
             return f"coalesce({e(kind)}, {e(self.pick(['int', 'num', 'str', 'date', 'ts']))})"
         if r < 0.85:
             return f"coalesce({e(kind)}, {e(kind)})"
-        if r < 0.92 or kind == "map":
+        if r < 0.88 or kind == "map":
             return f"nvl({e(kind)}, {e(kind)})"
+        if r < 0.92:
+            # rewritten forms used as the argument of another call (an alias leak breaks these)
+            return self.pick([f"ifnull({e(kind)}, {e(kind)})", f"nvl2({e(kind)}, {e(kind)}, {e(kind)})"])
         return f"nullif({e(kind)}, {e(kind)})"
 
     CASTS = {"int": ("INT", ["num", "str", "bool", "int"]), "num": ("DOUBLE", ["int", "str", "num"]),
@@ -446,7 +449,8 @@ class QueryGen(Gen):
             if "{e}" in fn:
                 fn = fn.format(e=self.expr(self.pick(["int", "num"]), cols, 2))
             part = self.pick(["", "PARTITION BY g", "PARTITION BY k", "PARTITION BY b, g"])
-            order_key = self.pick(["id", "i, id", "s, id", "db, id", "dt DESC, id", "k NULLS LAST, id"])
+            order_key = self.pick(["id", "i, id", "s, id", "db, id", "dt DESC, id", "k NULLS LAST, id",
+                                   "sum(i) OVER (PARTITION BY g) NULLS FIRST, id"])  # a window inside a window
             ranking = fn.split("(")[0] in ("row_number", "rank", "dense_rank", "percent_rank", "cume_dist", "ntile",
                                            "lag", "lead")
             frame = "" if ranking else self.pick(FRAMES)

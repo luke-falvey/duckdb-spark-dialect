@@ -29,6 +29,10 @@
 #include "duckdb/parser/statement/select_statement.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/parser/result_modifier.hpp"
+#include <atomic>
+#include "duckdb/parser/tableref/basetableref.hpp"
+#include "duckdb/parser/tableref/subqueryref.hpp"
+#include "duckdb/parser/query_node/select_node.hpp"
 
 #include <functional>
 #include <exception>
@@ -1575,15 +1579,12 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 	if (expr->GetExpressionClass() == ExpressionClass::OPERATOR && expr->GetExpressionType() == ExpressionType::OPERATOR_COALESCE &&
 	    expr->Cast<OperatorExpression>().GetChildren().size() >= 2) {
 		// COALESCE(a, b, ...): the operands are brought to Spark's common type first (a string with a number is a string)
+		// (no alias here: an aliased argument reads as a named argument to a macro, see CoalesceColumnName)
 		vector<ExprPtr> operands;
-		string name = "coalesce(";
 		for (auto &child : expr->Cast<OperatorExpression>().GetChildrenMutable()) {
-			name += (operands.empty() ? "" : ", ") + child->ToString();
 			operands.push_back(std::move(child));
 		}
-		auto call = SparkCall("coalesce_value", std::move(operands));
-		call->SetAlias(Identifier(name + ")"));  // the column name Spark gives (an explicit AS replaces it)
-		return call;
+		return SparkCall("coalesce_value", std::move(operands));
 	}
 	if (expr->GetExpressionClass() == ExpressionClass::WINDOW) {
 		auto &window = expr->Cast<WindowExpression>();
@@ -1639,6 +1640,11 @@ ExprPtr FinalizeFunctionHookResult(ExprPtr expr) {
 			                        Identifier(name == "sum" ? "spark_sum" : "spark_avg"));
 			return expr;
 		}
+		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("aggregate_" + name)) {
+			// an aggregate of the dialect (var_pop, regr_*, ...) used as a window function
+			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA), Identifier(name));
+			return expr;
+		}
 		if (window.GetQualifiedName().Schema().empty() && IsSparkOverride("window_" + name) && IsSparkFunction(name)) {
 			window.SetQualifiedName(Identifier(SYSTEM_CATALOG), Identifier(SPARK_SCHEMA),
 			                        Identifier("window_" + name));
@@ -1672,6 +1678,140 @@ bool RenameGeneratorColumns(ParsedExpression &expr, const string &aliases) {
 	return true;
 }
 
+//! A select-list item that is COALESCE(a, b) (rewritten to system.spark.coalesce_value) gets the column name Spark
+//! gives it. Set on the select-list item only: an alias on a function argument would read as a named argument.
+void SetCoalesceColumnName(ParsedExpression &expr) {
+	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
+		return;
+	}
+	auto &func = expr.Cast<FunctionExpression>();
+	if (func.GetQualifiedName().Schema().empty() ||
+	    !StringUtil::CIEquals(func.FunctionName().GetIdentifierName(), "coalesce_value")) {
+		return;
+	}
+	string name = "coalesce(";
+	idx_t i = 0;
+	for (auto &argument : func.GetArguments()) {
+		name += (i++ ? ", " : "") + argument.GetExpression().ToString();
+	}
+	expr.SetAlias(Identifier(name + ")"));
+}
+
+//===----------------------------------------------------------------------===//
+// Window functions inside window definitions (rank() OVER (ORDER BY sum(x) OVER (...))): Spark evaluates the inner
+// window first. DuckDB cannot nest window calls, so a query block with one is split: the inner windows are computed
+// in a derived table, and the outer query reads them as columns.
+//===----------------------------------------------------------------------===//
+//! Replace window calls found inside another window call by column references, collecting them (with their alias)
+void LiftInnerWindows(unique_ptr<ParsedExpression> &expr, bool inside_window, vector<unique_ptr<ParsedExpression>> &lifted,
+                      idx_t &counter) {
+	if (!expr) {
+		return;
+	}
+	auto cls = expr->GetExpressionClass();
+	if (cls == ExpressionClass::SUBQUERY) {
+		return; // its own query block
+	}
+	if (cls == ExpressionClass::WINDOW) {
+		if (inside_window) {
+			auto name = "__spark_w" + to_string(counter++);
+			expr->SetAlias(Identifier(name));
+			lifted.push_back(std::move(expr));
+			expr = make_uniq<ColumnRefExpression>(Identifier(name));
+			return;
+		}
+		ParsedExpressionIterator::EnumerateChildren(*expr, [&](unique_ptr<ParsedExpression> &child) {
+			LiftInnerWindows(child, true, lifted, counter);
+		});
+		return;
+	}
+	ParsedExpressionIterator::EnumerateChildren(*expr, [&](unique_ptr<ParsedExpression> &child) {
+		LiftInnerWindows(child, inside_window, lifted, counter);
+	});
+}
+
+bool HasQualifiedColumn(const ParsedExpression &expr) {
+	if (expr.GetExpressionClass() == ExpressionClass::COLUMN_REF) {
+		return expr.Cast<ColumnRefExpression>().IsQualified();
+	}
+	if (expr.GetExpressionClass() == ExpressionClass::SUBQUERY) {
+		return false;
+	}
+	bool found = false;
+	ParsedExpressionIterator::EnumerateChildren(expr, [&](const ParsedExpression &child) {
+		found = found || HasQualifiedColumn(child);
+	});
+	return found;
+}
+
+void LiftNestedWindows(SelectNode &node) {
+	static std::atomic<idx_t> counter {0};
+	idx_t local = counter.fetch_add(1000);
+	vector<unique_ptr<ParsedExpression>> lifted;
+	for (auto &item : node.select_list) {
+		LiftInnerWindows(item, false, lifted, local);
+	}
+	LiftInnerWindows(node.qualify, false, lifted, local);
+	if (lifted.empty()) {
+		return;
+	}
+	if (!node.groups.group_expressions.empty() || !node.groups.grouping_sets.empty() || node.having) {
+		throw ParserException("[UNSUPPORTED_FEATURE] spark_dialect does not support a window function inside a window "
+		                      "definition in a query with GROUP BY or HAVING; compute the inner window in a subquery");
+	}
+	// the outer query reads the source's columns through the derived table: it keeps the source's alias
+	Identifier alias;
+	if (node.from_table) {
+		alias = node.from_table->alias;
+		if (alias.empty() && node.from_table->type == TableReferenceType::BASE_TABLE) {
+			alias = node.from_table->Cast<BaseTableRef>().GetQualifiedName().Name();
+		}
+	}
+	if (alias.empty() && node.from_table && node.from_table->type != TableReferenceType::EMPTY_FROM) {
+		for (auto &item : node.select_list) {
+			if (HasQualifiedColumn(*item)) {
+				throw ParserException("[UNSUPPORTED_FEATURE] spark_dialect does not support a window function inside a "
+				                      "window definition over a join with qualified column references; compute the "
+				                      "inner window in a subquery");
+			}
+		}
+	}
+	auto inner = make_uniq<SelectNode>();
+	inner->select_list.push_back(make_uniq<StarExpression>());
+	vector<Identifier> names;
+	for (auto &window : lifted) {
+		names.push_back(window->GetAlias());
+		inner->select_list.push_back(std::move(window));
+	}
+	inner->from_table = std::move(node.from_table);
+	inner->where_clause = std::move(node.where_clause);
+	LiftNestedWindows(*inner); // windows nested deeper
+	auto statement = make_uniq<SelectStatement>();
+	statement->node = std::move(inner);
+	node.from_table = make_uniq<SubqueryRef>(std::move(statement), alias);
+	// SELECT * of the outer query does not show the helper columns
+	for (auto &item : node.select_list) {
+		if (item->GetExpressionClass() == ExpressionClass::STAR) {
+			auto &star = item->Cast<StarExpression>();
+			for (auto &name : names) {
+				star.ExcludeListMutable().insert(QualifiedColumnName(name));
+			}
+		}
+	}
+}
+
+arena_ptr<TransformResultValue> FinalizeSimpleSelect(PEGTransformer &t, ParseResult &pr) {
+	auto statement = t.Transform<unique_ptr<SelectStatement>>(AsList(pr).GetChild(0));
+	if (statement->node && statement->node->type == QueryNodeType::SELECT_NODE) {
+		LiftNestedWindows(statement->node->Cast<SelectNode>());
+	}
+	return t.MakeResult<unique_ptr<SelectStatement>>(std::move(statement));
+}
+
+arena_ptr<TransformProcess> SimpleSelectProcess(PEGTransformer &t, ParseResult &pr) {
+	return t.MakeProcess<FinalizeTransformProcess>(t, pr, FinalizeSimpleSelect);
+}
+
 //! AliasedExpression: `generator AS name` and `generator AS (a, b)` name the generated columns
 ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
@@ -1693,6 +1833,8 @@ ExprPtr TransformAliasedHook(PEGTransformer &t, ParseResult &pr) {
 	auto expr = Expr(t, alt);
 	if (!expr->GetAlias().empty()) {
 		RenameGeneratorColumns(*expr, expr->GetAlias().GetIdentifierName());
+	} else {
+		SetCoalesceColumnName(*expr);
 	}
 	return expr;
 }
@@ -1709,9 +1851,19 @@ ExprPtr TransformGroupingHook(PEGTransformer &t, ParseResult &pr) {
 	return expr;
 }
 
+//! Transform a function call; a window function inside another window's definition is allowed (Spark evaluates the
+//! inner window first, see LiftNestedWindows), so DuckDB's "inside a window definition" state is cleared for it
+ExprPtr TransformFunctionCall(PEGTransformer &t, ParseResult &pr) {
+	bool in_window_definition = t.in_window_definition;
+	t.in_window_definition = false;
+	auto expr = Expr(t, pr);
+	t.in_window_definition = in_window_definition;
+	return expr;
+}
+
 ExprPtr TransformFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	auto &list = AsList(pr);
-	return FinalizeFunctionHookResult(Expr(t, list.GetChild(0)));
+	return FinalizeFunctionHookResult(TransformFunctionCall(t, list.GetChild(0)));
 }
 
 //! Does a parsed expression reference no columns, subqueries or lambda parameters (Spark: "foldable")?
@@ -1838,7 +1990,7 @@ ExprPtr TransformStrictFunctionHook(PEGTransformer &t, ParseResult &pr) {
 	if (tokens.size() == 1) {
 		CheckSparkFunctionName(tokens[0]);
 	}
-	auto expr = Expr(t, list.GetChild(0));
+	auto expr = TransformFunctionCall(t, list.GetChild(0));
 	CheckFoldableArguments(*expr);
 	CheckNullLiteralArguments(*expr);
 	WrapArgTypeChecks(*expr);
@@ -1933,6 +2085,18 @@ ExprPtr TransformStructType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("STRUCT", std::move(children));
 }
 
+//! spark_strict: CHAR / VARCHAR / CHARACTER without a length is Spark's DATATYPE_MISSING_SIZE
+ExprPtr TransformCharTypeStrict(PEGTransformer &t, ParseResult &pr) {
+	auto &list = AsList(pr);
+	if (!HasOptional(list.GetChild(1))) {
+		auto name = StringUtil::Upper(Literal(list.GetChild(0)));
+		throw ParserException("[DATATYPE_MISSING_SIZE] DataType \"%s\" requires a length parameter, for example "
+		                      "\"%s\"(10). Please specify the length.",
+		                      name, name);
+	}
+	return TypeNamed("VARCHAR");
+}
+
 //! SpTypeAlias <- 'STRING' / 'LONG' / ...
 ExprPtr TransformTypeAlias(PEGTransformer &t, ParseResult &pr) {
 	auto name = StringUtil::Upper(Literal(pr));
@@ -1965,7 +2129,7 @@ ExprPtr TransformDecimalType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("DECIMAL", std::move(children));
 }
 
-//! SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') '(' NumberLiteral ')' : Spark strings have no length limit here
+//! SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') SpCharLength? : Spark strings have no length limit here
 ExprPtr TransformCharType(PEGTransformer &t, ParseResult &pr) {
 	return TypeNamed("VARCHAR");
 }
@@ -2049,6 +2213,8 @@ bool IsSparkTableFunction(const string &name) {
 }
 
 void ApplyStrictGrammar(ParsedGrammar &g) {
+	// CHAR / VARCHAR without a length is a Spark parse error (DuckDB: a string type)
+	g.SetTransformProcess("SpCharType", ExprProcess<TransformCharTypeStrict>, false);
 	// ---- expressions ----
 	RejectRule(g, "ListExpression <- ArrayBoundedListExpression / ArrayParensSelect",
 	           "Spark SQL does not support DuckDB's list literals; use array(...)");
@@ -2150,6 +2316,14 @@ void ApplyStrictGrammar(ParsedGrammar &g) {
 		if (tokens.size() != 1 || !IsSparkTypeName(StringUtil::Lower(tokens[0]))) {
 			throw ParserException("[UNSUPPORTED_DATATYPE] Spark SQL does not support the data type `%s`",
 			                      tokens.empty() ? string() : tokens.back());
+		}
+	});
+	// DuckDB's DOUBLE PRECISION and FLOAT(n) are not Spark types
+	RejectRule(g, "DoubleType <- ('DOUBLE' 'PRECISION')",
+	           "[PARSE_SYNTAX_ERROR] Syntax error at or near 'PRECISION': Spark SQL does not support DOUBLE PRECISION");
+	GuardRule(g, "FloatType <- 'FLOAT' Parens(NumberLiteral)?", [](ParseResult &pr) {
+		if (HasOptional(AsList(pr).GetChild(1))) {
+			throw ParserException("[UNSUPPORTED_DATATYPE] Spark SQL does not support the data type FLOAT(n)");
 		}
 	});
 	GuardRule(g, "TimeType <- TimeOrTimestamp TypeModifiers? TimeZone?", [](ParseResult &pr) {
@@ -2255,7 +2429,8 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	     ExprProcess<TransformTypeAlias>},
 	    {"SpDecimalType <- ('DECIMAL' / 'DEC' / 'NUMERIC') SpDecimalModifiers?", ExprProcess<TransformDecimalType>},
 	    {"SpDecimalModifiers <- '(' List(NumberLiteral) ')'", nullptr},
-	    {"SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') '(' NumberLiteral ')'", ExprProcess<TransformCharType>},
+	    {"SpCharType <- ('CHAR' / 'CHARACTER' / 'VARCHAR') SpCharLength?", ExprProcess<TransformCharType>},
+	    {"SpCharLength <- '(' NumberLiteral ')'", nullptr},
 	};
 	// levels of the precedence ladder that return their only child unchanged when nothing else matched (no
 	// operator tail, no predicate, no indirection): collapsible, so the matcher skips building a result for them
@@ -2303,6 +2478,16 @@ void SparkDialect::ApplyGrammarChanges(GrammarChangesInput &input) {
 	          "RowExpression / SubstringExpression / TrimExpression / OverlayExpression",
 	          special_rule->transform_process);
 	g.ReplaceRule("SpecialFunctionExpression <- DuckSpecialFunctionExpression", ExprProcess<TransformFunctionHook>);
+
+	// window functions inside window definitions: SimpleSelect results go through LiftNestedWindows
+	auto simple_select_rule = g.GetRule("SimpleSelect");
+	if (!simple_select_rule) {
+		throw InternalException("spark dialect: SimpleSelect rule not found");
+	}
+	g.AddRule("DuckSimpleSelect <- SelectFrom WhereClause? GroupByClause? HavingClause? WindowClause? QualifyClause? "
+	          "SelectSampleClause?",
+	          simple_select_rule->transform_process);
+	g.ReplaceRule("SimpleSelect <- DuckSimpleSelect", SimpleSelectProcess);
 
 	auto aliased_rule = g.GetRule("AliasedExpression");
 	if (!aliased_rule) {
