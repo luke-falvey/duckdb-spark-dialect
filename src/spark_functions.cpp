@@ -3142,12 +3142,32 @@ ExprP BindSubscript(FunctionBindExpressionInput &input) {
 		return b.Call("list_extract", std::move(base), std::move(one_based));
 	}
 	if (type.id() == LogicalTypeId::MAP) {
+		auto key_type = MapType::KeyType(type);
+		auto index_type = Normalize(index->GetReturnType());
+		if (IsNull(key_type)) {
+			// map(): Spark's key type is VOID, only a NULL key is accepted
+			if (!IsNull(index_type) && InStrictDialect(input.context)) {
+				throw BinderException("[DATATYPE_MISMATCH.UNEXPECTED_INPUT_TYPE] Cannot resolve the map lookup due to "
+				                      "data type mismatch: Parameter 2 requires the \"VOID\" type, however the key has "
+				                      "the type \"%s\".",
+				                      StringUtil::Upper(SparkTypeName(index_type)));
+			}
+			return b.NullOf(MapType::ValueType(type));
+		}
+		if (index_type != key_type) {
+			// the key is cast to the map's key type like Spark's implicit cast (a string that is not a number is NULL)
+			index = SparkCast(b, std::move(index), key_type);
+		}
 		return b.Call("map_extract_value", std::move(base), std::move(index));
 	}
 	if (type.id() == LogicalTypeId::STRUCT) {
 		return b.Call("struct_extract", std::move(base), std::move(index));
 	}
 	if (IsNull(type)) {
+		if (InStrictDialect(input.context)) {
+			throw BinderException("[INVALID_EXTRACT_BASE_FIELD_TYPE] Can't extract a value from \"NULL\". Need a "
+			                      "complex type [STRUCT, ARRAY, MAP] but got \"VOID\".");
+		}
 		return b.NullOf(LogicalType::SQLNULL);
 	}
 	throw BinderException("[] is not supported for %s", SparkTypeName(type));

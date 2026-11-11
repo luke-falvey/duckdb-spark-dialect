@@ -33,3 +33,13 @@ SELECT k FROM VALUES (CAST(1 AS DECIMAL(5,2))) l(k) JOIN VALUES (CAST(1 AS DOUBL
 SELECT count(DISTINCT x) FROM VALUES (CAST(1 AS DECIMAL(5,2))), (CAST(1.00 AS DECIMAL(5,2))) t(x);
 
 SELECT x, count(*) FROM VALUES (1.0D), (1.00D), (CAST(1 AS DOUBLE)) t(x) GROUP BY x;
+
+-- a map key is cast to the map's key type (a string that is not a number is NULL); an empty map takes only a NULL key
+SELECT map(1, 2)['b'], map(1, 2)['1'], map('a', 1)['a'];
+
+SELECT map()['b'];
+
+SELECT map()[NULL];
+
+-- NULL has no fields or elements
+SELECT NULL[0];
