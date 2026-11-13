@@ -1667,6 +1667,101 @@ string SourceAlias(const Tokens &source) {
 	return last.text;
 }
 
+//! The name a table of a join is visible under (`t`, `s.t`, `t a`, `t AS a`, `(...) AS a`, `VALUES ... v(x, y)`,
+//! `range(3) r`), or empty
+MatcherToken *TableBindingName(Tokens &factor) {
+	if (factor.empty()) {
+		return nullptr;
+	}
+	auto is_name = [](const MatcherToken &t) {
+		return (IsWord(t) || (t.type == TokenType::IDENTIFIER && !t.text.empty())) && !IsWord(t, "VALUES");
+	};
+	auto &last = factor.back();
+	if (!IsOp(last, ")")) {
+		return is_name(last) ? &last : nullptr;
+	}
+	// a column alias list or a table function call: the name before the parentheses
+	int64_t depth = 0;
+	for (idx_t k = factor.size(); k > 0; k--) {
+		if (IsOp(factor[k - 1], ")")) {
+			depth++;
+		} else if (IsOp(factor[k - 1], "(") && --depth == 0) {
+			return k >= 2 && is_name(factor[k - 2]) ? &factor[k - 2] : nullptr;
+		}
+	}
+	return nullptr;
+}
+
+//! The names of the tables of a join source (`a JOIN b ON ...`, `a, b`), or empty when the source is not such a join,
+//! a table has no name, or the join merges columns (USING, NATURAL)
+Tokens JoinBindings(const Tokens &source) {
+	static const char *JOIN_WORDS[] = {"JOIN", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "SEMI", "ANTI"};
+	Tokens names;
+	idx_t start = 0;
+	bool in_condition = false;
+	auto close = [&](idx_t end) {
+		if (in_condition) {
+			return true;
+		}
+		Tokens factor(source.begin() + NumericCast<int64_t>(start), source.begin() + NumericCast<int64_t>(end));
+		while (!factor.empty() && IsWord(factor[0], "LATERAL")) {
+			factor.erase(factor.begin());
+		}
+		auto name = TableBindingName(factor);
+		if (!name) {
+			return false;
+		}
+		names.push_back(*name);
+		return true;
+	};
+	int64_t depth = 0;
+	for (idx_t k = 0; k < source.size(); k++) {
+		if (IsOp(source[k], "(")) {
+			depth++;
+			continue;
+		}
+		if (IsOp(source[k], ")")) {
+			depth--;
+			continue;
+		}
+		if (depth != 0) {
+			continue;
+		}
+		if (WordAt(source, k, "USING") || WordAt(source, k, "NATURAL") || WordAt(source, k, "TABLESAMPLE") ||
+		    WordAt(source, k, "PIVOT") || WordAt(source, k, "UNPIVOT") || WordAt(source, k, "POSITIONAL") ||
+		    WordAt(source, k, "ASOF")) {
+			return {};
+		}
+		if (WordAt(source, k, "ON")) {
+			if (!close(k)) {
+				return {};
+			}
+			in_condition = true;
+			continue;
+		}
+		bool join_word = false;
+		for (auto word : JOIN_WORDS) {
+			// left(...) / right(...) in a join condition are functions
+			join_word = join_word || (WordAt(source, k, word) &&
+			                          !(OpAt(source, k + 1, "(") && (IsWord(source[k], "LEFT") || IsWord(source[k], "RIGHT"))));
+		}
+		if (IsOp(source[k], ",") || join_word) {
+			if (!close(k)) {
+				return {};
+			}
+			in_condition = false;
+			while (k < source.size() && !IsOp(source[k], ",") && !WordAt(source, k, "JOIN")) {
+				k++;
+			}
+			start = k + 1;
+		}
+	}
+	if (!close(source.size()) || names.size() < 2) {
+		return {};
+	}
+	return names;
+}
+
 //! the same window(...) call in this block's select list is the grouping column too
 bool RewriteSameCalls(Tokens &ts, idx_t from, const Tokens &call_tokens, const string &column, idx_t offset) {
 	auto same_call = [&](idx_t at) {
@@ -1771,6 +1866,7 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		}
 		auto column = string("\"") + kind + "\"";
 		auto alias = SourceAlias(source);
+		auto bindings = alias.empty() && kind == "session_window" ? JoinBindings(source) : Tokens();
 		Tokens subquery = Lex("( SELECT * ,", offset);
 		if (kind == "window") {
 			// tumbling and sliding windows: the window column comes from a lateral join, so the source (and its
@@ -1839,6 +1935,47 @@ bool RewriteGroupingWindow(Tokens &ts) {
 			Append(gap, args[1]);
 			Append(gap, Lex("AS INTERVAL )", offset));
 			Append(event_end, gap);
+			if (!bindings.empty()) {
+				// a join: the levels below cannot keep the joined tables' names, so level 0 computes the user's
+				// expressions once and carries each table's row (re-exposed under its name after the last level)
+				Tokens level0 = Lex("( SELECT", offset);
+				for (idx_t b = 0; b < bindings.size(); b++) {
+					// the row as a struct (a bare name could be a column of the same name)
+					Append(level0, Lex("__spark_struct_pack (", offset));
+					level0.push_back(bindings[b]);
+					Append(level0, Lex(". * ) AS __spark_t" + to_string(b) + " ,", offset));
+				}
+				Append(level0, event);
+				Append(level0, Lex("AS __spark_event ,", offset));
+				Append(level0, gap);
+				Append(level0, Lex("AS __spark_gap", offset));
+				Tokens keys;
+				idx_t key = 0;
+				for (auto &item : items) {
+					if (item.first == call) {
+						continue;
+					}
+					auto key_name = "__spark_p" + to_string(key++);
+					level0.emplace_back(",", offset, TokenType::OPERATOR);
+					level0.insert(level0.end(), ts.begin() + NumericCast<int64_t>(item.first),
+					              ts.begin() + NumericCast<int64_t>(item.second));
+					Append(level0, Lex("AS " + key_name, offset));
+					if (!keys.empty()) {
+						keys.emplace_back(",", offset, TokenType::OPERATOR);
+					}
+					Append(keys, Lex(key_name, offset));
+				}
+				level0.emplace_back("FROM", offset, TokenType::KEYWORD);
+				Append(level0, source);
+				Append(level0, condition);
+				Append(level0, Lex(") AS __spark_source", offset));
+				source = level0;
+				condition.clear();
+				partition = keys;
+				event = Lex("__spark_event", offset);
+				event_end = Parenthesized(event, offset);
+				Append(event_end, Lex("+ __spark_gap", offset));
+			}
 			// level 1: does this event start a new session?
 			Tokens level1 = Lex("( SELECT * , __spark_event AS __spark_ts , CASE WHEN __spark_event < max (", offset);
 			level1 = Lex("( SELECT * , CASE WHEN", offset);
@@ -1907,6 +2044,13 @@ bool RewriteGroupingWindow(Tokens &ts) {
 		// the subquery takes the source's alias, so references like tab.a keep working
 		Append(subquery, Lex("AS", offset));
 		subquery.emplace_back(alias.empty() ? "__spark_windowed" : alias, offset, TokenType::IDENTIFIER);
+		for (idx_t b = 0; b < bindings.size(); b++) {
+			// a joined table again under its name, from the row carried through the levels
+			Append(subquery, Lex(", LATERAL ( SELECT __spark_unnest ( __spark_windowed . __spark_t" + to_string(b) +
+			                         " ) ) AS",
+			                     offset));
+			subquery.push_back(bindings[b]);
+		}
 		// GROUP BY ..., "window" ; FROM (subquery) ; WHERE moved into the subquery
 		Replace(ts, call, call_end, {MatcherToken(column, offset, TokenType::IDENTIFIER)});
 		if (where != DConstants::INVALID_INDEX) {

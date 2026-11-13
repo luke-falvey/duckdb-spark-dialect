@@ -260,14 +260,21 @@ def spark_rejects_statically(result):
 # ----------------------------------------------------------------------------------------------
 # DuckDB worker process
 
+def _address_space_bytes():
+    """The virtual memory size of this process (Linux), 0 where it is not known."""
+    try:
+        with open("/proc/self/status") as status:
+            for line in status:
+                if line.startswith("VmSize:"):
+                    return int(line.split()[1]) * 1024
+    except OSError:
+        pass
+    return 0
+
+
 def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=None):
     use_utc()
     os.chdir(workdir)
-    if memory_mb:
-        # a runaway statement fails with an allocation error instead of exhausting the machine's memory
-        import resource
-        limit = memory_mb * 1024 * 1024
-        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
     import duckdb
     from harness import duck_type_to_spark, normalize_typed
 
@@ -282,6 +289,13 @@ def _duck_worker(conn, extension, dialect, load_extension, workdir, memory_mb=No
             con.execute(f"SET memory_limit = '{max(256, memory_mb // 2)}MB'")
         if dialect:
             con.execute(f"SET current_dialect = '{dialect}'")
+        if memory_mb:
+            # a runaway statement fails with an allocation error instead of exhausting the machine's memory. The
+            # limit is on top of the address space the started worker already reserves (DuckDB's threads and
+            # allocator reserve several GB of it, more with more cores), not an absolute size
+            import resource
+            limit = _address_space_bytes() + memory_mb * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
         conn.send(("ready", None))
     except Exception as e:  # noqa: BLE001
         conn.send(("failed", first_line(e)))
@@ -345,7 +359,7 @@ class DuckRunner:
     def __init__(self, dialect="spark", load_extension=True, timeout=10.0, extension=None, workdir=None,
                  memory_mb=None):
         self.dialect = dialect
-        # virtual memory per worker process; the extension with debug info maps about 1 GB by itself
+        # virtual memory a worker process may add after it started
         self.memory_mb = memory_mb or int(os.environ.get("DUCK_WORKER_MEMORY_MB", "4096"))
         self.load_extension = load_extension
         self.timeout = timeout
@@ -368,7 +382,12 @@ class DuckRunner:
         self._conn = parent
         if not parent.poll(120):
             raise RuntimeError("duckdb worker did not start")
-        kind, err = parent.recv()
+        try:
+            kind, err = parent.recv()
+        except EOFError:
+            self._proc.join(5)
+            raise RuntimeError(f"duckdb worker died while starting (exit code {self._proc.exitcode}); "
+                               "a too small DUCK_WORKER_MEMORY_MB can cause this") from None
         if kind != "ready":
             raise RuntimeError(f"duckdb worker failed to start: {err}")
         for sql in self.replay:
