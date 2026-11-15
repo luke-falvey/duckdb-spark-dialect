@@ -88,6 +88,7 @@ jobs:
           python scripts/gen_setting_cases.py
           python scripts/gen_type_cases.py
           python scripts/gen_composition_cases.py
+          python scripts/gen_from_shape_cases.py
           python scripts/gen_type_name_cases.py
           python test/fuzz/args_sweep.py --types --emit
           git diff --exit-code -- test/cases

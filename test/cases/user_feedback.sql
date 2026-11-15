@@ -28,6 +28,17 @@ SELECT x, rank() OVER (ORDER BY rank() OVER (ORDER BY row_number() OVER (ORDER B
 
 SELECT (SELECT max(y) FROM VALUES (1) u(y)), x, rank() OVER (ORDER BY sum(x) OVER ()) FROM VALUES (1), (2) t(x) ORDER BY x;
 
+-- over a join with table-qualified columns (rld_application_base_ice, rld_rwa_rpt_data_prep)
+SELECT aps.id, aps.cat, rank() OVER (PARTITION BY aps.id ORDER BY (row_number() OVER (ORDER BY aps.id, CASE WHEN aps.cat = 'Home' THEN '1' ELSE aps.cat END))) AS rank FROM VALUES (1, 'Home', 10), (1, 'Cards', 5), (2, 'Auto', 7) aps(id, cat, lim) INNER JOIN (SELECT a.id, max(a.lim) AS m FROM VALUES (1, 'Home', 10), (1, 'Cards', 5), (2, 'Auto', 7) a(id, cat, lim) GROUP BY a.id) AS apmax ON aps.id = apmax.id ORDER BY 1, 3;
+
+SELECT s.cid, s.num FROM (SELECT ct.cid, cust.num, rank() OVER (PARTITION BY ct.cid ORDER BY cust.created DESC, row_number() OVER (ORDER BY cust.num DESC)) AS ranknum FROM VALUES (100, 'NZ012'), (101, 'NZ034') ct(cid, tick) INNER JOIN VALUES ('012', 1), ('012', 1), ('034', 2) cust(num, created) ON substring(ct.tick, 3, 10) = cust.num WHERE substring(ct.tick, 1, 2) = 'NZ') AS s WHERE s.ranknum = 1 ORDER BY 1;
+
+SELECT *, rank() OVER (PARTITION BY a.k ORDER BY row_number() OVER (ORDER BY b.v DESC)) AS r FROM VALUES (1, 'x'), (2, 'y') a(k, s) JOIN VALUES (1, 10), (1, 20), (2, 30) b(k, v) ON a.k = b.k ORDER BY r, v;
+
+SELECT b.*, a.s, rank() OVER (ORDER BY row_number() OVER (ORDER BY b.v)) AS r FROM VALUES (1, 'x'), (2, 'y') a(k, s) LEFT JOIN VALUES (1, 10), (2, 30) b(k, v) ON a.k = b.k ORDER BY b.v DESC;
+
+SELECT a.k, b.v + 1, transform(array(1, 2), x -> x + a.k) AS t FROM VALUES (1), (2) a(k), VALUES (1, 10), (2, 30) b(k, v) WHERE a.k = b.k QUALIFY rank() OVER (ORDER BY sum(b.v) OVER (PARTITION BY a.k)) > 1 ORDER BY a.k;
+
 -- 2.3 aggregates over strings: a string that is not a number is NULL
 SELECT sum(x), avg(x), typeof(sum(x)) FROM VALUES ('1'), ('abc'), ('2.5') t(x);
 

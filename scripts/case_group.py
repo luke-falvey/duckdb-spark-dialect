@@ -12,7 +12,7 @@ TYPES = {
     "types-operators": ["c3_arithmetic", "c4_comparison", "c8_decimal_precision", "c10_datetime_arithmetic"],
     "types-common": ["c5_common_type"],
     "types-args": ["c6_function_args"],
-    "types-compose": ["c15_composition"],
+    "types-compose": ["c15_composition", "c18_from_shapes"],
     "types-rest": ["c7_store_assignment", "c11_boolean_contexts", "c12_aggregates_windows", "c14_equality_ordering"],
 }
 

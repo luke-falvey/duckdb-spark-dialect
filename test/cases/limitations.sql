@@ -584,3 +584,13 @@ SELECT transform(array(1, 2), x -> x) AS r1, transform(array(1, 2), key -> key +
 SELECT transform(array(1, 2), a.b -> 1);
 
 SELECT transform(array(1, 2), 1 -> 1);
+
+-- ===== L3b: session_window over a join keeps the joined tables' names (l3_ev / l3_users from L3) =====
+
+SELECT u.name, session_window.start, session_window.end, count(*), sum(e.v) FROM l3_ev e JOIN l3_users u ON e.u = u.u GROUP BY u.name, session_window(e.ts, '5 minutes') ORDER BY u.name, start;
+
+SELECT e.u, u.name, session_window.start, count(u.name) FROM l3_ev AS e LEFT JOIN l3_users AS u ON e.u = u.u AND u.name <> 'Bob' WHERE e.v IS NOT NULL GROUP BY e.u, u.name, session_window(e.ts, '5 minutes') HAVING count(*) > 0 ORDER BY e.u, start;
+
+SELECT l3_users.name, session_window.start, count(*) FROM l3_ev, l3_users WHERE l3_ev.u = l3_users.u GROUP BY l3_users.name, session_window(l3_ev.ts, CASE WHEN l3_users.name = 'Ann' THEN '30 minutes' ELSE '1 minute' END) ORDER BY 1, 2;
+
+SELECT name, session_window.start, count(*) FROM l3_ev JOIN l3_users USING (u) GROUP BY name, session_window(ts, '5 minutes') ORDER BY name, start;

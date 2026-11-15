@@ -4253,3 +4253,10 @@ reason = "difference from Spark found by the type matrix, not yet fixed (see the
 file = "types__c8_decimal_precision.sql"
 config = "decimalOperations.allowPrecisionLoss=false"
 cases = ["1-114", 180, 210, "214-215", "219-220", 225, "229-230", "234-235", "238-240", "243-255", "259-260", "264-265", "269-270", "273-275", "278-290", "294-295", "299-300", "304-305", "308-310", "312-325", "328-330", "332-335", "337-455", "463-465", 470, "473-474", "482-484", 489, "501-502", 508]
+
+[[xfail]]
+id = "session-window-using-join"
+reason = "session_window over a JOIN ... USING: the joined tables' names are not available in the query (the USING key is one merged column; a join with ON keeps them)"
+file = "types__c18_from_shapes.sql"
+config = ""
+cases = [71]
