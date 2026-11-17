@@ -177,3 +177,9 @@ SELECT conv('-9223372036854775808', 10, 10);
 SELECT conv('9223372036854775808', 10, -10);
 
 SELECT conv('-9223372036854775808', 10, -10);
+
+-- ===== to_char of non-numeric text: folding the untaken branch built invalid UTF-8 (assertion build, nightly) =====
+
+SELECT to_varchar('日本語', '99G99999G999');
+
+SELECT to_char('日本語', '9G9G9G9G9G9G9G9G9G9');
