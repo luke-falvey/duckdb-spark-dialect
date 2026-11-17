@@ -183,3 +183,19 @@ SELECT conv('-9223372036854775808', 10, -10);
 SELECT to_varchar('日本語', '99G99999G999');
 
 SELECT to_char('日本語', '9G9G9G9G9G9G9G9G9G9');
+
+-- ===== Schema strings: an unclosed backtick restarted the parser (stack overflow); a bad DECIMAL raised INTERNAL / stoi =====
+
+SELECT from_json('{"a": 1}', 'STRUCT<`a: INT>');
+
+SELECT from_json('{"teacher": "Alice", "student": [{"name": "Bob", "rank": 1}]}', 'STRUCT<teacher: STRING, student: ARRAY<STRUCT<name: STRING,` rank: INT>>>');
+
+SELECT from_json('{"a": 1}', 'a INT, `b');
+
+SELECT from_json('{"a": 1}', 'a DECIMAL(50, 2)');
+
+SELECT from_json('{"a": 1}', 'a DECIMAL(5, 6)');
+
+SELECT from_json('{"a": 1}', 'a DECIMAL(x)');
+
+SELECT from_json('{"a": 1}', 'a DECIMAL(99999999999)');

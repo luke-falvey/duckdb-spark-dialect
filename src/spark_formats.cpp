@@ -49,6 +49,12 @@ struct DDLParser {
 		Skip();
 		if (pos < text.size() && text[pos] == '`') {
 			auto end = text.find('`', pos + 1);
+			if (end == string::npos) {
+				// without this, pos = npos + 1 wrapped to 0 and the parser started over, recursing without end
+				throw InvalidInputException("[PARSE_SYNTAX_ERROR] Syntax error in schema: unclosed quoted identifier "
+				                            "starting at position %llu: %s",
+				                            (unsigned long long)pos, text);
+			}
 			auto word = text.substr(pos + 1, end - pos - 1);
 			pos = end + 1;
 			return word;
@@ -58,6 +64,15 @@ struct DDLParser {
 			pos++;
 		}
 		return text.substr(start, pos - start);
+	}
+	//! a DECIMAL precision or scale: digits only (std::stoi threw for "x" and overflowed for 99999999999)
+	idx_t Integer() {
+		auto word = Word();
+		if (word.empty() || word.size() > 9 || word.find_first_not_of("0123456789") != string::npos) {
+			throw InvalidInputException("[PARSE_SYNTAX_ERROR] Syntax error in schema: expected an integer, found '%s'",
+			                            word);
+		}
+		return idx_t(std::stoul(word));
 	}
 	LogicalType Type() {
 		auto name = StringUtil::Upper(Word());
@@ -99,15 +114,31 @@ struct DDLParser {
 			return LogicalType::VARCHAR;
 		}
 		if (name == "DECIMAL" || name == "DEC" || name == "NUMERIC") {
-			uint8_t p = 10, s = 0;
+			idx_t p = 10, s = 0;
 			if (Consume('(')) {
-				p = uint8_t(std::stoi(Word()));
+				p = Integer();
 				if (Consume(',')) {
-					s = uint8_t(std::stoi(Word()));
+					s = Integer();
 				}
 				Consume(')');
 			}
-			return LogicalType::DECIMAL(p, s);
+			// checked here: LogicalType::DECIMAL raises an INTERNAL error for a width over 38 or a scale over the width
+			if (p > 38) {
+				throw InvalidInputException("[DECIMAL_PRECISION_EXCEEDS_MAX_PRECISION] Decimal precision %llu exceeds "
+				                            "max precision 38.",
+				                            (unsigned long long)p);
+			}
+			if (p < 1) {
+				throw InvalidInputException("[PARSE_SYNTAX_ERROR] Syntax error in schema: decimal precision must be "
+				                            "between 1 and 38, found %llu",
+				                            (unsigned long long)p);
+			}
+			if (s > p) {
+				throw InvalidInputException("[_LEGACY_ERROR_TEMP_1229] Decimal scale (%llu) cannot be greater than "
+				                            "precision (%llu).",
+				                            (unsigned long long)s, (unsigned long long)p);
+			}
+			return LogicalType::DECIMAL(uint8_t(p), uint8_t(s));
 		}
 		if (name == "ARRAY") {
 			Consume('<');
