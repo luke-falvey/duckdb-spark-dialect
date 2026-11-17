@@ -128,3 +128,6 @@ SELECT -9223372036854775808L - 2147483648 - 1, 1 - CAST(-0.99 AS DECIMAL(4,2)), 
 SELECT conv('1', 10, -2147483648), conv('1', 10, 2147483647), conv('-9223372036854775808', 10, 10), conv('9223372036854775808', 10, -10), conv('-9223372036854775808', 10, -10), conv('-1', 10, -16);
 
 SELECT conv('-9223372036854775809', 10, -10), conv('-9223372036854775809', 10, 10), conv('-0', 10, -10), conv('-5', 10, -10), conv('-5', 10, 10), conv('18446744073709551615', 10, -10), conv('-18446744073709551615', 10, -10), conv('-18446744073709551616', 10, 16), conv('99999999999999999999', 10, -16), conv('-ff', 16, -2);
+
+-- ===== a minus in front of a typed integral literal is part of the literal: it keeps its digits as its decimal precision =====
+SELECT typeof(-5L + CAST(1 AS DECIMAL(4,2))), typeof(-5S * 1.5BD), typeof(-100Y - 0.5BD), typeof(- 12L + 0.5BD), -5L, typeof(-5L), 3 -5L, 3 - -5L, typeof(3 -5L), -(5L), typeof(-(5L) + 0.5BD), -32767S, -127Y;
