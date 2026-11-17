@@ -249,3 +249,22 @@ def test_spark_oracle_restarts_after_a_jvm_that_dies_with_the_statement():
         r = oracle.run("SELECT 1")
         assert r.status == "error" and r.phase == "runtime" and "fatal" not in r.extra
         assert restarts == [1]
+
+
+def test_shell_runner_resolves_relative_paths(tmp_path, monkeypatch):
+    """The shell runs in a scratch directory, so a relative --shell / --shell-extension (as the nightly passes:
+    asan/duckdb) must be made absolute first; it used to fail with FileNotFoundError: 'asan/duckdb'."""
+    import os
+    from engines import ShellRunner
+    (tmp_path / "asan").mkdir()
+    shell = tmp_path / "asan" / "duckdb"
+    # a stand-in shell that echoes the marker queries back, like `duckdb -csv` would
+    shell.write_text("#!/bin/sh\ngrep -o \"MARK_[0-9]*\"\n")
+    shell.chmod(0o755)
+    monkeypatch.chdir(tmp_path)
+    runner = ShellRunner("asan/duckdb", extension="asan/ext.duckdb_extension", workdir=str(tmp_path / "work"))
+    os.makedirs(runner.workdir, exist_ok=True)
+    assert runner.binary == str(shell)
+    assert runner.extension == str(tmp_path / "asan" / "ext.duckdb_extension")
+    assert runner.run_batch(["SELECT 1"]) == ("ok", None, None)
+    assert ShellRunner("duckdb", workdir=str(tmp_path)).binary in ("duckdb", str(tmp_path / "duckdb"))

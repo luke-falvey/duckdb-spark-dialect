@@ -471,6 +471,11 @@ SANITIZER_MARKERS = ("ERROR: AddressSanitizer", "runtime error:", "ERROR: LeakSa
                      "SUMMARY: UndefinedBehaviorSanitizer", "SUMMARY: AddressSanitizer")
 
 
+def _abs_if_path(binary):
+    binary = str(binary)
+    return str(Path(binary).resolve()) if os.sep in binary or Path(binary).exists() else binary
+
+
 class ShellRunner:
     """Runs statements through a `duckdb` shell binary that has the extension statically linked.
 
@@ -478,9 +483,11 @@ class ShellRunner:
     the first statement after which the process crashed or the sanitizer complained."""
 
     def __init__(self, binary, dialect="spark", timeout=60.0, workdir=None, extension=None):
-        self.binary = str(binary)
+        # the shell runs in a scratch working directory, so paths given relative to the caller's directory
+        # (CI passes asan/duckdb) are made absolute; a bare name like "duckdb" is still looked up on PATH
+        self.binary = _abs_if_path(binary)
         # the extension built with the same sanitizer flags as the shell (build-asan/extension/...)
-        self.extension = str(extension) if extension else None
+        self.extension = str(Path(extension).resolve()) if extension else None
         self.dialect = dialect
         self.timeout = timeout
         self.workdir = workdir or scratch_dir("duck-shell-")
