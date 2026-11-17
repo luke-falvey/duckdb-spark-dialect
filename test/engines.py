@@ -514,33 +514,95 @@ class ShellRunner:
             lines.append(f"SELECT 'MARK_{i}';")
         return "\n".join(lines) + "\n"
 
+    # a statement can print without bound (a huge range(), repeat(), explode()); the shell's output goes to files in the
+    # working directory instead of memory, and the shell is stopped once they grow past this many bytes
+    max_output = 256 << 20
+    # how much of each output the runner keeps as text: the start and the end (a sanitizer report is at the end)
+    _EXCERPT = 1 << 20
+
     def run_batch(self, statements, timeout=None):
-        """Returns (status, index, detail): status ok | crash | sanitizer | timeout | internal."""
-        script = self._script(statements)
-        try:
+        """Returns (status, index, detail): status ok | crash | sanitizer | timeout | internal.
+
+        A batch that runs past the timeout or prints more than max_output is stopped and reported as a timeout."""
+        script = self._script(statements).encode("utf-8", "surrogateescape")
+        limit = timeout or self.timeout
+        os.makedirs(self.workdir, exist_ok=True)
+        with tempfile.TemporaryFile(dir=self.workdir) as out_f, tempfile.TemporaryFile(dir=self.workdir) as err_f:
             # -no-agent: the shell switches to an agent output format when AI_AGENT is set
-            p = subprocess.run([self.binary, "-unsigned", "-no-agent", "-batch", "-noheader", "-csv", ":memory:"],
-                               input=script.encode("utf-8", "surrogateescape"),
-                               capture_output=True, timeout=timeout or self.timeout, cwd=self.workdir, env=self.env)
-        except subprocess.TimeoutExpired as e:
-            out = (e.stdout or b"").decode("utf-8", "replace")
-            return "timeout", self._last_mark(out) + 1, "batch timed out"
-        out = p.stdout.decode("utf-8", "replace")
-        err = p.stderr.decode("utf-8", "replace")
-        last = self._last_mark(out)
+            p = subprocess.Popen([self.binary, "-unsigned", "-no-agent", "-batch", "-noheader", "-csv", ":memory:"],
+                                 stdin=subprocess.PIPE, stdout=out_f, stderr=err_f, cwd=self.workdir, env=self.env,
+                                 start_new_session=True)
+            feeder = threading.Thread(target=self._feed, args=(p, script), daemon=True)
+            feeder.start()
+            stopped = None
+            deadline = time.monotonic() + limit
+            while p.poll() is None:
+                if time.monotonic() > deadline:
+                    stopped = "batch timed out"
+                elif os.fstat(out_f.fileno()).st_size + os.fstat(err_f.fileno()).st_size > self.max_output:
+                    stopped = f"batch output passed {self.max_output >> 20} MB"
+                if stopped:
+                    # the whole process group, so nothing it started keeps writing to the output files
+                    try:
+                        os.killpg(p.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    p.wait()
+                    break
+                time.sleep(0.02)
+            feeder.join(timeout=5)
+            last, out_internal, _ = self._scan(out_f)
+            _, err_internal, err = self._scan(err_f)
         if any(m in err for m in SANITIZER_MARKERS):
             return "sanitizer", last + 1, self._sanitizer_summary(err)
+        if stopped:
+            return "timeout", last + 1, stopped
         if p.returncode < 0:
             return "crash", last + 1, f"signal {signal.Signals(-p.returncode).name}"
-        if "INTERNAL Error" in err or "INTERNAL Error" in out:
-            m = re.search(r"INTERNAL Error[^\n]*", err + out)
-            return "internal", self._internal_index(out, err, last), m.group(0)[:300]
+        internal = err_internal or out_internal
+        if internal:
+            return "internal", self._internal_index(None, None, last), internal[:300]
         return "ok", None, None
 
     @staticmethod
-    def _last_mark(out):
-        marks = re.findall(r"MARK_(\d+)", out)
-        return int(marks[-1]) if marks else -1
+    def _feed(p, data):
+        try:
+            p.stdin.write(data)
+            p.stdin.close()
+        except OSError:  # the shell exited (or was stopped) before reading all of its input
+            pass
+
+    @classmethod
+    def _scan(cls, f):
+        """Reads an output file in chunks: (last MARK_n, first INTERNAL Error line, excerpt of the text)."""
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        f.seek(0)
+        last, internal, tail = -1, None, b""
+        head = b""
+        while True:
+            chunk = f.read(4 << 20)
+            if not chunk:
+                break
+            # keep a little of the previous chunk so a match split across two chunks is still found
+            text = (tail + chunk).decode("utf-8", "replace")
+            marks = re.findall(r"MARK_(\d+)", text)
+            if marks:
+                last = max(last, int(marks[-1]))
+            if internal is None:
+                m = re.search(r"INTERNAL Error[^\n]*", text)
+                if m:
+                    internal = m.group(0)
+            if len(head) < cls._EXCERPT:
+                head += chunk[: cls._EXCERPT - len(head)]
+            tail = chunk[-256:]
+        if size <= 2 * cls._EXCERPT:
+            f.seek(0)
+            excerpt = f.read()
+        else:
+            f.seek(size - cls._EXCERPT)
+            excerpt = head + b"\n...\n" + f.read()
+        return last, internal, excerpt.decode("utf-8", "replace")
 
     @staticmethod
     def _internal_index(out, err, last):
