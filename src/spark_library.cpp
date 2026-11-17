@@ -642,7 +642,8 @@ void ListHasNullKernel(DataChunk &args, ExpressionState &, Vector &result) {
 //! conv(num, from_base, to_base) following Spark's NumberConverter (unsigned 64-bit arithmetic)
 string Conv(const string &input, int from_base, int to_base, bool &valid) {
 	valid = true;
-	if (from_base < 2 || from_base > 36 || std::abs(to_base) < 2 || std::abs(to_base) > 36) {
+	// no std::abs: abs(INT_MIN) overflows
+	if (from_base < 2 || from_base > 36 || to_base < -36 || to_base > 36 || (to_base > -2 && to_base < 2)) {
 		valid = false;
 		return "";
 	}
@@ -685,21 +686,22 @@ string Conv(const string &input, int from_base, int to_base, bool &valid) {
 	if (!any) {
 		return "0";
 	}
+	// Spark's sign handling, on the 64 bits read as a signed long v:
+	//   if (negative && toBase > 0) v = v < 0 ? -1 : -v
+	//   if (toBase < 0 && v < 0) { v = -v; negative = true }
+	//   the digits of v as unsigned, with a '-' in front when negative && toBase < 0
+	// Negations are done in unsigned arithmetic: they wrap like Java's, without signed overflow.
+	auto is_negative_long = [](uint64_t v) { return v > uint64_t(std::numeric_limits<int64_t>::max()); };
 	if (negative && to_base > 0) {
-		value = uint64_t(-int64_t(value));
+		value = is_negative_long(value) ? std::numeric_limits<uint64_t>::max() : 0 - value;
 	}
 	bool out_negative = false;
 	if (to_base < 0) {
-		auto signed_value = int64_t(value);
-		if (negative) {
-			signed_value = -signed_value;
+		if (is_negative_long(value)) {
+			value = 0 - value;
+			negative = true;
 		}
-		if (signed_value < 0) {
-			out_negative = true;
-			value = uint64_t(-signed_value);
-		} else {
-			value = uint64_t(signed_value);
-		}
+		out_negative = negative;
 		to_base = -to_base;
 	}
 	string out;
