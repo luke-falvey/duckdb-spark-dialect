@@ -2185,7 +2185,9 @@ LogicalType DecimalOperandType(const Expression &expr, const LogicalType &type) 
 	if (constant->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT && IsIntegral(type)) {
 		auto &value = constant->Cast<BoundConstantExpression>().GetValue();
 		if (!value.IsNull()) {
-			auto text = to_string(std::abs(value.GetValue<int64_t>()));
+			// the magnitude in unsigned arithmetic: std::abs(INT64_MIN) overflows
+			auto v = value.GetValue<int64_t>();
+			auto text = to_string(v < 0 ? 0 - uint64_t(v) : uint64_t(v));
 			return LogicalType::DECIMAL(uint8_t(MaxValue<idx_t>(text.size(), 1)), 0);
 		}
 	}
@@ -2554,7 +2556,8 @@ ExprP SparkExactDecimalMultiply(Builder &b, ExprP left, const LogicalType &lt, E
 }
 
 inline __int128 To128(hugeint_t v) {
-	return (static_cast<__int128>(v.upper) << 64) | static_cast<__int128>(v.lower);
+	// shifted as unsigned: a left shift of a negative upper half is undefined
+	return static_cast<__int128>((static_cast<unsigned __int128>(uint64_t(v.upper)) << 64) | v.lower);
 }
 inline __int128 To128(int16_t v) { return v; }
 inline __int128 To128(int32_t v) { return v; }

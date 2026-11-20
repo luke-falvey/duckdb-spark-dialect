@@ -577,6 +577,13 @@ struct NumberFormat {
 		auto point = v.find('.');
 		string int_part = point == string::npos ? v : v.substr(0, point);
 		string frac = point == string::npos ? "" : v.substr(point + 1);
+		// only digits are rendered: text that is not a number (a date, or '日本語' when the optimizer folds the
+		// branch of to_char that its CASE never takes) would be copied byte by byte between the separators,
+		// splitting multi-byte characters into invalid UTF-8
+		auto is_digits = [](const string &s) { return s.find_first_not_of("0123456789") == string::npos; };
+		if (!is_digits(int_part) || !is_digits(frac)) {
+			return false;
+		}
 		while (int_part.size() > 1 && int_part[0] == '0') {
 			int_part = int_part.substr(1);
 		}

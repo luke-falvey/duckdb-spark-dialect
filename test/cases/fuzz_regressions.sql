@@ -121,3 +121,13 @@ SELECT sha2('abc', 224), sha2('abc', 384), sha2('abc', 512), sha2(X'FF00', 224);
 
 -- ===== decimal multiplication beyond 38 digits of operand precision: exact, not via DOUBLE =====
 SELECT p * (1 - d) * (1 + t), typeof(p * (1 - d) * (1 + t)), CAST(12345678901234567890.12 AS DECIMAL(22,2)) * CAST(98765432109876543.21 AS DECIMAL(19,2)), CAST(9999999999999999999999999999999999.9999 AS DECIMAL(38,4)) * CAST(99999 AS DECIMAL(5,0)) FROM VALUES (CAST(31234.56 AS DECIMAL(15,2)), CAST(0.07 AS DECIMAL(15,2)), CAST(0.03 AS DECIMAL(15,2))), (CAST(-0.05 AS DECIMAL(15,2)), CAST(0.10 AS DECIMAL(15,2)), CAST(0.08 AS DECIMAL(15,2))) AS v(p, d, t);
+
+-- ===== INT64_MIN / INT_MIN at the edges of decimal literal typing and conv() (found by the sanitizer fuzzing) =====
+SELECT -9223372036854775808L - 2147483648 - 1, 1 - CAST(-0.99 AS DECIMAL(4,2)), -9223372036854775807L - CAST(-0.99 AS DECIMAL(4,2)), typeof(-9223372036854775807L - CAST(-0.99 AS DECIMAL(4,2))), -2147483648 + CAST(-0.99 AS DECIMAL(4,2));
+
+SELECT conv('1', 10, -2147483648), conv('1', 10, 2147483647), conv('-9223372036854775808', 10, 10), conv('9223372036854775808', 10, -10), conv('-9223372036854775808', 10, -10), conv('-1', 10, -16);
+
+SELECT conv('-9223372036854775809', 10, -10), conv('-9223372036854775809', 10, 10), conv('-0', 10, -10), conv('-5', 10, -10), conv('-5', 10, 10), conv('18446744073709551615', 10, -10), conv('-18446744073709551615', 10, -10), conv('-18446744073709551616', 10, 16), conv('99999999999999999999', 10, -16), conv('-ff', 16, -2);
+
+-- ===== a minus in front of a typed integral literal is part of the literal: it keeps its digits as its decimal precision =====
+SELECT typeof(-5L + CAST(1 AS DECIMAL(4,2))), typeof(-5S * 1.5BD), typeof(-100Y - 0.5BD), typeof(- 12L + 0.5BD), -5L, typeof(-5L), 3 -5L, 3 - -5L, typeof(3 -5L), -(5L), typeof(-(5L) + 0.5BD), -32767S, -127Y;

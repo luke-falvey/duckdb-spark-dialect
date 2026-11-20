@@ -249,3 +249,55 @@ def test_spark_oracle_restarts_after_a_jvm_that_dies_with_the_statement():
         r = oracle.run("SELECT 1")
         assert r.status == "error" and r.phase == "runtime" and "fatal" not in r.extra
         assert restarts == [1]
+
+
+def test_shell_runner_resolves_relative_paths(tmp_path, monkeypatch):
+    """The shell runs in a scratch directory, so a relative --shell / --shell-extension (as the nightly passes:
+    asan/duckdb) must be made absolute first; it used to fail with FileNotFoundError: 'asan/duckdb'."""
+    import os
+    from engines import ShellRunner
+    (tmp_path / "asan").mkdir()
+    shell = tmp_path / "asan" / "duckdb"
+    # a stand-in shell that echoes the marker queries back, like `duckdb -csv` would
+    shell.write_text("#!/bin/sh\ngrep -o \"MARK_[0-9]*\"\n")
+    shell.chmod(0o755)
+    monkeypatch.chdir(tmp_path)
+    runner = ShellRunner("asan/duckdb", extension="asan/ext.duckdb_extension", workdir=str(tmp_path / "work"))
+    os.makedirs(runner.workdir, exist_ok=True)
+    assert runner.binary == str(shell)
+    assert runner.extension == str(tmp_path / "asan" / "ext.duckdb_extension")
+    assert runner.run_batch(["SELECT 1"]) == ("ok", None, None)
+    assert ShellRunner("duckdb", workdir=str(tmp_path)).binary in ("duckdb", str(tmp_path / "duckdb"))
+
+
+def _fake_shell(tmp_path, body):
+    shell = tmp_path / "fake-duckdb"
+    shell.write_text("#!/bin/sh\n" + body)
+    shell.chmod(0o755)
+    return str(shell)
+
+
+def test_shell_runner_stops_unbounded_output(tmp_path):
+    """A statement that prints without bound must not make the runner buffer it all (the nightly's fuzz driver was
+    OOM-killed): the shell is stopped at max_output and the batch reported as a timeout after the last marker."""
+    from engines import ShellRunner
+    shell = _fake_shell(tmp_path, "echo MARK_0\necho MARK_1\nyes 0123456789\n")
+    runner = ShellRunner(shell, workdir=str(tmp_path))
+    runner.max_output = 4 << 20
+    status, index, detail = runner.run_batch(["SELECT 1", "SELECT 2", "SELECT 3"], timeout=60)
+    assert (status, index) == ("timeout", 2)
+    assert "MB" in detail
+
+
+def test_shell_runner_reports(tmp_path):
+    from engines import ShellRunner
+    cases = {
+        "echo MARK_0; echo 'INTERNAL Error: boom' >&2": ("internal", 1, "INTERNAL Error: boom"),
+        "echo MARK_0; echo 'x.cpp:1:2: runtime error: left shift of negative value -1' >&2; exit 1":
+            ("sanitizer", 1, "x.cpp:1:2: runtime error: left shift of negative value -1"),
+        "echo MARK_0; echo MARK_1; kill -SEGV $$": ("crash", 2, "signal SIGSEGV"),
+        "echo MARK_0; sleep 30": ("timeout", 1, "batch timed out"),
+    }
+    for body, expected in cases.items():
+        runner = ShellRunner(_fake_shell(tmp_path, "cat > /dev/null\n" + body + "\n"), workdir=str(tmp_path))
+        assert runner.run_batch(["SELECT 1", "SELECT 2"], timeout=2) == expected, body

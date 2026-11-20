@@ -652,11 +652,11 @@ void RewriteLiterals(Tokens &ts) {
 		}
 		auto offset = t.offset;
 		bool as_string = upper == "BD" || StringUtil::StartsWith(type, "DECIMAL");
-		// -128Y, -32768S and -9223372036854775808L: Spark's grammar reads the minus as part of the literal, and
-		// the positive magnitude alone would overflow the type
-		bool minimum = (upper == "Y" && number == "128") || (upper == "S" && number == "32768") ||
-		               (upper == "L" && number == "9223372036854775808");
-		if (minimum && i > 0 && IsOp(ts[i - 1], "-") && UnaryMinusAt(ts, i - 1)) {
+		// -5L, -128Y, -9223372036854775808L: Spark's grammar reads the minus as part of an integral literal
+		// (MINUS? BIGINT_LITERAL), so the result is a literal: it keeps its own digits as its decimal precision
+		// (-9223372036854775807L - 0.99BD is DECIMAL(22,2)), and the minimums do not overflow the type
+		bool signed_literal = upper == "L" || upper == "S" || upper == "Y";
+		if (signed_literal && i > 0 && IsOp(ts[i - 1], "-") && UnaryMinusAt(ts, i - 1)) {
 			number = "-" + number;
 			as_string = true; // a number token cannot carry the sign
 			Erase(ts, i - 1, i);
